@@ -1,4 +1,4 @@
 {
-    "T" : 300, 
+    "Temperature" : 300, 
     "Ensemble" : "NVT"
 }
