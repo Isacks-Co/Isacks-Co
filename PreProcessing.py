@@ -1,6 +1,8 @@
 import json
+from MDBase import MDBase
 from ase.io.vasp import read_vasp
 from ase.visualize import view
+from ase.lattice.cubic import FaceCenteredCubic
 
 
 class PreProcessing:
@@ -12,22 +14,27 @@ class PreProcessing:
 
     def __init__(self, input_settings, input_structure, flags):
         self.expected_keys = {"-T": "Temperature", "-E": "Ensemble"}
-        self.readSettings(input_settings)
-        self.readAtomicStructure(input_structure)
+
+        self.settings = self.readSettings(input_settings)
+        #self.atoms = self.readAtomicStructure(input_structure)
+        #self.atoms.pbc = True
+        self.atoms = FaceCenteredCubic(size=(1, 1, 1), symbol="Cu", pbc=True)
+
         self.readTerminalInput(flags)
         self.printInput()
 
     def readSettings(self, input_settings):
         """Reads settings from json file, checks all expected settings present"""
         with open(input_settings, "r") as file:
-            self.settings = json.load(file)
+            temp_settings = json.load(file)
         for key in self.expected_keys.values():
-            if not key in self.settings.keys():
+            if not key in temp_settings.keys():
                 raise ValueError(f"Missing setting: {key}")
+        return temp_settings
 
     def readAtomicStructure(self, input_structure):
         """Reads atomic structure from a file with POSCAR structure"""
-        self.atoms = read_vasp(input_structure)
+        return read_vasp(input_structure)
 
     def printInput(self):
         """Print out all settings to the terminal for validation"""
@@ -39,6 +46,16 @@ class PreProcessing:
         for i in range(0, len(flags), 2):
             self.settings[self.expected_keys[flags[i]]] = flags[i + 1]
 
+    def createMD(self):
+        match self.settings["Ensemble"]:
+            case "NVE":
+                return MDBase.initNVE(self.settings["Temperature"])
+            case "NVT":
+                return MDBase.initNVT(self.settings["Temperature"])
+            case "NPT":
+                return MDBase.initNPT(self.settings["Temperature"])
+
+
 
 if __name__ == "__main__":
-    PreProcessing("settings.json", "poscar")
+    PreProcessing("settings.json", "poscar", None)
