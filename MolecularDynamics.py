@@ -1,6 +1,7 @@
 import sys
 from PreProcessing import PreProcessing
 from MDBase import MDBase
+from PostProcessing import PostProcessing
 
 
 if __name__ == "__main__":
@@ -19,4 +20,5 @@ if __name__ == "__main__":
     MD = PP.createMD()
     print(MD.potential)
     MD.runMD(PP.atoms)
-    MD.visualizeTraj()
+    PostViz = PostProcessing('data.traj') # (TODO) Hardcoded but settings.json will contain file name
+    PostViz.vizualize()
