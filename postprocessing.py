@@ -1,6 +1,8 @@
 from ase.io.trajectory import Trajectory
 from ase.visualize import view
-
+from ase.io import read
+from asap3.visualize.primiplotter import *
+from numpy import *
 
 class PostProcessing:
     """
@@ -11,5 +13,8 @@ class PostProcessing:
         self.read_traj_file = traj_file
         
     def vizualize(self):
-        view(Trajectory(self.read_traj_file))
+        for atoms in self.read_traj_file:
+            plotter = PrimiPlotter(atoms)
+            plotter.set_output(X11Window())   # Plot in X11 window on the user's screen
+        #view(read(self.read_traj_file), ':')
     
