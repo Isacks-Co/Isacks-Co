@@ -1,0 +1,4 @@
+numpy
+ase
+asap3
+matplotlib
