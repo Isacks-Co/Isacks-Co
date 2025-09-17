@@ -8,7 +8,10 @@ class PostProcessing:
         input trajectory file as traj_file 
     """
     def __init__(self, traj_file):
-        self.read_traj_file = traj_file
+        try:
+            self.read_traj_file = read(traj_file)
+        except FileNotFoundError:
+            raise FileNotFoundError(f"Trajectory file {traj_file} not found")
         
     def vizualize(self):
-        view(read(self.read_traj_file), ':')
+        view(self.read_traj_file, ':')

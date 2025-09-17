@@ -48,56 +48,60 @@ class MDBase:
 
     @classmethod
     def initNVE(cls, temperature: float):
-        return cls(temperature_k = temperature, integrator_str = "NVE")
+        return cls(temperature_k=temperature, integrator_str="NVE")
 
     @classmethod
     def initNVT(cls, temperature: float):
-        return cls(temperature_k = temperature, integrator_str = "NVT")
+        return cls(temperature_k=temperature, integrator_str="NVT")
 
     @classmethod
     def initNPT(cls, temperature: float):
-        return cls(temperature_k = temperature, integrator_str = "NPT")
+        return cls(temperature_k=temperature, integrator_str="NPT")
 
-    def getPotential(self, pot_str):
+    def getPotential(self, potential: str):
         """
         In:
-            String: pot_str
+            String: potential
         Out:
             Potential_function: potential
         """
-        if pot_str in ["emt", "EMT"]:
+        potential_lower = potential.lower()
+        if potential_lower in ["emt"]:
             from asap3 import EMT as asap_EMT
             return asap_EMT
 
-        elif pot_str in ["LJ", "lj", "lennardjones", "LennardJones", "Lennard_Jones"]:
+        elif potential_lower in ["lj", "lennardjones", "lennard_jones"]:
             from ase.calculators.lj import LennardJones
             return LennardJones
+        else:
+            raise ValueError(f"Invalid potential function: {potential}")
 
-    def getIntegrator(self, str):
-        str = str.lower()
-        if str in ["verlet", "nve"]:
+    def getIntegrator(self, integrator: str):
+        integrator_lower = integrator.lower()
+        if integrator_lower in ["verlet", "nve"]:
             from ase.md.verlet import VelocityVerlet  # för NVE
             return functools.partial(VelocityVerlet, timestep=self.timestep)
 
-        elif str in ["langevin", "nvt"]:
+        elif integrator_lower in ["langevin", "nvt"]:
             from ase.md.langevin import Langevin  # för NVT
-            return functools.partial(Langevin, timestep=self.timestep, temperature_K=self.temperature_k, friction=self.friction)
+            return functools.partial(Langevin, timestep=self.timestep, temperature_K=self.temperature_k,
+                                     friction=self.friction)
 
-
-        elif str in ["berendsen", "npt"]:
+        elif integrator_lower in ["berendsen", "npt"]:
             from ase.md.nptberendsen import NPTBerendsen
             return functools.partial(NPTBerendsen, timestep=self.timestep, temperature_K=self.temperature_k,
                                      pressure_au=self.pressure, compressibility_au=self.compressibility)
 
-
         else:
-            raise ValueError("Invalid integrator")
+            raise ValueError(f"Invalid integrator: {integrator}")
 
     def getAttachment(self, attachments):
         pos_attachments = {'energy': self.printEnergy,
                            "momenta": self.printMomentum,
                            "center_of_mass": self.printCenterOfMass}
-
+        for a in attachments:
+            if a not in pos_attachments.keys():
+                raise ValueError(f"Invalid attachment: {a}")
         return [pos_attachments[a] for a in attachments]
 
     def runMD(self, atoms):
@@ -118,7 +122,7 @@ class MDBase:
         dyn = self.integrator(atoms=atoms)
 
         material_name = str(atoms.symbols)
-        print("MATERIALNAMN: ", material_name)
+        print("MATERIALNAME: ", material_name)
 
         # save traj
         traj = Trajectory(filename=f"{self.output_file}.traj", mode="w", atoms=atoms)
@@ -154,7 +158,6 @@ class MDBase:
 
     def printLatticeConstants(self, atoms):
         print("Lattice: ", atoms.cell.cellpar())
-
 
     def visualizeTraj(self):
         traj = Trajectory("data.traj")
