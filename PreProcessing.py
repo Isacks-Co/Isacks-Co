@@ -19,7 +19,7 @@ class PreProcessing:
         
         self.atoms = self.readAtomicStructure(input_structure)
         #self.atoms.pbc = True
-        #self.atoms = FaceCenteredCubic(size=(5, 5, 5), symbol="Cu", pbc=True)
+        self.atoms = FaceCenteredCubic(size=(5, 5, 5), symbol="Cu", pbc=True)
         
        
         self.settings = self.readSettings(input_settings)
