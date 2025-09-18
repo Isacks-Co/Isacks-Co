@@ -23,6 +23,7 @@ class PreProcessing:
         self.atoms = FaceCenteredCubic(size=(5, 5, 5), symbol="Cu", pbc=True)
         self.sanityCheckAtomicStructure(self.atoms)
         self.readTerminalInput(flags)
+        self.sanityCheckSettings(self.settings)
         self.printInput()
 
     def readSettings(self, input_settings):
@@ -88,13 +89,15 @@ class PreProcessing:
                                       pressure_Pa=self.settings["Pressure"], compressibility=self.settings["Compressibility"])
             case _:
                 raise ValueError(f"Invalid ensemble setting: {self.settings['Ensemble']}")
-            
-    def sanityCheckAtomicStructure(self,atoms):
+    def sanityCheckSettings(self,settings):
+        pass
+    def sanityCheckAtomicStructure(self, atoms):
         """
         Sanity check for the input atomic structure.
-        Such as valdi lattice angles, constants and atomic positions
+        Such as valid lattice angles, constants and atomic positions
         """
         self.checkLattice(atoms)
+
         self.checkDistances(atoms)
     def checkLattice(self,atoms):
         """
@@ -112,9 +115,9 @@ class PreProcessing:
         Checks that interatomic distances are non-negative.
         """
         distances_matrix= atoms.get_all_distances()
-        upper_indeces = np.triu_indices(len(distances_matrix),k=1)
+        upper_indeces = np.triu_indices(len(distances_matrix), k = 1)
         flat_distances = distances_matrix[upper_indeces]
-        if np.any(flat_distances <= 0 ):
+        if np.any(flat_distances <= 0 ): # Might be interesting to consider the atomic radii
             raise ValueError("Invalid atomic configuration: Atomic overlap")
         
         
