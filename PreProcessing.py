@@ -25,16 +25,22 @@ class PreProcessing:
 
     def readSettings(self, input_settings):
         """Reads settings from json file, checks all expected settings present"""
-        with open(input_settings, "r") as file:
-            temp_settings = json.load(file)
-        for key in self.expected_keys.values():
-            if not key in temp_settings.keys():
-                raise ValueError(f"Missing setting: {key}")
+        try:
+            with open(input_settings, "r") as file:
+                temp_settings = json.load(file)
+        except FileNotFoundError:
+            raise FileNotFoundError(f"File {input_settings} not found, please check it exists")
+        for input in temp_settings.keys():
+            if not input in self.expected_keys.values():
+                raise ValueError(f"Got unexpected setting input: {input}")
         return temp_settings
 
     def readAtomicStructure(self, input_structure):
         """Reads atomic structure from a file with POSCAR structure"""
-        return read_vasp(input_structure)
+        try:
+            return read_vasp(input_structure)
+        except FileNotFoundError:
+            raise FileNotFoundError(f"File {input_structure} not found, please check it exists")
 
     def printInput(self):
         """Print out all settings to the terminal for validation"""
@@ -44,16 +50,23 @@ class PreProcessing:
     def readTerminalInput(self, flags):
         """Overwrites self.settings if other settings was received from terminal"""
         for i in range(0, len(flags), 2):
+            if flags[i] not in self.settings.keys():
+                raise ValueError(f"Flag is invalid: {flags[i]}")
             self.settings[self.expected_keys[flags[i]]] = flags[i + 1]
 
     def createMD(self):
         match self.settings["Ensemble"]:
             case "NVE":
+                # TODO If not all settings available, raise error as such
+                if False:
+                    raise ValueError(f"Missing the settings: __setting__")
                 return MDBase.initNVE(self.settings["Temperature"])
             case "NVT":
                 return MDBase.initNVT(self.settings["Temperature"])
             case "NPT":
                 return MDBase.initNPT(self.settings["Temperature"])
+            case _:
+                raise ValueError(f"Invalid ensemble setting: {self.settings['Ensemble']}")
 
 
 
