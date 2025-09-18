@@ -54,43 +54,17 @@ class PostProcessing:
         """
         Compute cohesive energy per atom for the crystal in POSCAR.
         Definition: E_coh = (sum_i n_i E_i^atom − E_crystal_total) / N
-        Uses the same Potential specified in settings.json (EMT or LJ).
+        Note: Uses a fixed EMT calculator; does not read settings or apply fallbacks.
         """
+        # Local import to avoid changing global imports
+        from ase.calculators.emt import EMT
+
         # Read structure
         atoms = read(poscar_path)
 
-        # Load potential type from settings
-        try:
-            pot_str = json.loads(Path(settings_path).read_text()).get("Potential", "EMT")
-        except Exception:
-            pot_str = "EMT"
-
-        # Get calculator constructor matching MDBase behavior
-        pot_str_low = str(pot_str).lower()
-        calc_ctor = None
-        if pot_str_low in ["emt"]:
-            try:
-                from asap3 import EMT as asap_EMT
-                calc_ctor = asap_EMT
-            except Exception:
-                # Fallback to ASE EMT if ASAP3 not available
-                from ase.calculators.emt import EMT as ase_EMT
-                calc_ctor = ase_EMT
-        elif pot_str_low in ["lj", "lennardjones", "lennard_jones", "lennardjones"]:
-            from ase.calculators.lj import LennardJones
-            calc_ctor = LennardJones
-        else:
-            # Default to EMT for unknown strings
-            try:
-                from asap3 import EMT as asap_EMT
-                calc_ctor = asap_EMT
-            except Exception:
-                from ase.calculators.emt import EMT as ase_EMT
-                calc_ctor = ase_EMT
-
         # Crystal total energy
         atoms_cryst = atoms.copy()
-        atoms_cryst.calc = calc_ctor()
+        atoms_cryst.calc = EMT()
         E_cryst = float(atoms_cryst.get_potential_energy())
 
         # Isolated atom reference energies per species
@@ -98,7 +72,7 @@ class PostProcessing:
         unique = {}
         for s in set(symbols):
             one = Atoms(symbols=s, positions=[[0.0, 0.0, 0.0]], cell=[20.0, 20.0, 20.0], pbc=False)
-            one.calc = calc_ctor()
+            one.calc = EMT()
             unique[s] = float(one.get_potential_energy())
 
         # Sum over composition
