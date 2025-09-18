@@ -197,6 +197,7 @@ class MDBase:
 
     def visualizeTraj(self):
         traj = Trajectory("data.traj")
+<<<<<<< HEAD
         view(traj)
 
     def tempFailSafe(self, atoms):
@@ -220,3 +221,6 @@ if __name__ == "__main__":
     md = MDBase()
     md.runMD(atoms)
     vizualiseTraj("data.traj")
+=======
+        view(traj)
+>>>>>>> f59a1ab (Started adding sanity checks for settings.json)

@@ -1,7 +1,6 @@
 import json
 from MDBase import MDBase
 from ase.io.vasp import read_vasp
-from ase.visualize import view
 from ase.lattice.cubic import FaceCenteredCubic
 import numpy as np
 
@@ -21,9 +20,14 @@ class PreProcessing:
         #self.atoms = self.readAtomicStructure(input_structure)
         #self.atoms.pbc = True
         self.atoms = FaceCenteredCubic(size=(5, 5, 5), symbol="Cu", pbc=True)
-        self.sanityCheckAtomicStructure(self.atoms)
+        
+       
+        self.settings = self.readSettings(input_settings)
+
+        self.atoms.pbc = True
         self.readTerminalInput(flags)
-        self.sanityCheckSettings(self.settings)
+        self.sanityCheckAtomicStructure()
+        self.sanityCheckSettings()
         self.printInput()
 
     def readSettings(self, input_settings):
@@ -49,6 +53,7 @@ class PreProcessing:
         """Print out all settings to the terminal for validation"""
         for key, value in self.settings.items():
             print(f"{key} : {value}")
+        print("Number of atoms: ", len(self.atoms))
 
     def readTerminalInput(self, flags):
         """Overwrites self.settings if other settings was received from terminal"""
@@ -89,37 +94,48 @@ class PreProcessing:
                                       pressure_Pa=self.settings["Pressure"], compressibility=self.settings["Compressibility"])
             case _:
                 raise ValueError(f"Invalid ensemble setting: {self.settings['Ensemble']}")
-    def sanityCheckSettings(self,settings):
-        pass
-    def sanityCheckAtomicStructure(self, atoms):
+    def sanityCheckSettings(self):
+        if self.settings["Potential"] == "EMT": 
+            elements = self.atoms.get_atomic_numbers()
+            print(elements)
+            if not np.all(np.isin(elements,[13, 28, 29, 46, 47, 78, 79])): # Check if the elements are supported for EMT potential
+                raise ValueError(f"Invalid potential: EMT potential only availible for Al, Cu, Ag, Au, Ni, Pd, Pt.")
+            
+            
+    def sanityCheckAtomicStructure(self):
         """
         Sanity check for the input atomic structure.
         Such as valid lattice angles, constants and atomic positions
         """
-        self.checkLattice(atoms)
+        self.checkLattice()
+        self.checkDistances()
 
-        self.checkDistances(atoms)
-    def checkLattice(self,atoms):
+    def checkLattice(self):
         """
         Check that the lattice is valid. 
         """
-        cell = atoms.get_cell()
+        cell = self.atoms.get_cell()
         angles = cell.angles()
-        lengths = cell.lengths()
-        if np.any(angles <= 0) or np.any(angles >= 180): # Check that lattice angles are between 0,180
-            raise ValueError("Invalid Lattice: Lattice angles must be between 0 and 180 degrees")
-        elif np.any(lengths <= 0) or np.any(lengths >= 10): # Check so that lattice constants are not >= 10 Å
-            raise ValueError("Invalid Lattice: Lattice constants need to be positive and < 10")
-    def checkDistances(self,atoms):
-        """
-        Checks that interatomic distances are non-negative.
-        """
-        distances_matrix= atoms.get_all_distances()
-        upper_indeces = np.triu_indices(len(distances_matrix), k = 1)
-        flat_distances = distances_matrix[upper_indeces]
-        if np.any(flat_distances <= 0 ): # Might be interesting to consider the atomic radii
-            raise ValueError("Invalid atomic configuration: Atomic overlap")
         
+        lengths = cell.lengths()/(self.settings["Supercells"]+1)
+        
+        if np.any(angles <= 0) or np.any(angles >= 180): # Check that lattice angles are between 0 and 180
+            raise ValueError("Invalid Lattice: Lattice angles must be between 0 and 180 degrees")
+        elif np.any(lengths <= 0) or np.any(lengths >= 10): # Check so that lattice constants are not >= 10 Å (or <= 0)
+            raise ValueError("Invalid Lattice: Lattice constants need to be positive and < 10")
+
+    def checkDistances(self):
+        """
+        Checks that interatomic distances are reasonable. No atomic overlap
+        """
+        if len(self.atoms) >= 5000: # Gets really expensive to compute interatomic distances at larger numbers
+            distances_matrix= self.atoms.get_all_distances(pbc = True)
+            upper_indeces = np.triu_indices(len(distances_matrix), k = 1)
+            flat_distances = distances_matrix[upper_indeces]
+            print(flat_distances)
+            if np.any(flat_distances <= 0.5): # Not sure exactly what is a reasonable threshold as atomic radius varies alot. currently 0.5 Å
+                raise ValueError("Invalid atomic configuration: Atomic overlap")
+            
         
 
 
