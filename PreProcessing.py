@@ -3,7 +3,7 @@ from MDBase import MDBase
 from ase.io.vasp import read_vasp
 from ase.visualize import view
 from ase.lattice.cubic import FaceCenteredCubic
-
+import numpy as np
 
 class PreProcessing:
     """
@@ -21,7 +21,7 @@ class PreProcessing:
         #self.atoms = self.readAtomicStructure(input_structure)
         #self.atoms.pbc = True
         self.atoms = FaceCenteredCubic(size=(5, 5, 5), symbol="Cu", pbc=True)
-
+        self.sanityCheckAtomicStructure(self.atoms)
         self.readTerminalInput(flags)
         self.printInput()
 
@@ -88,7 +88,37 @@ class PreProcessing:
                                       pressure_Pa=self.settings["Pressure"], compressibility=self.settings["Compressibility"])
             case _:
                 raise ValueError(f"Invalid ensemble setting: {self.settings['Ensemble']}")
-                
+            
+    def sanityCheckAtomicStructure(self,atoms):
+        """
+        Sanity check for the input atomic structure.
+        Such as valdi lattice angles, constants and atomic positions
+        """
+        self.checkLattice(atoms)
+        self.checkDistances(atoms)
+    def checkLattice(self,atoms):
+        """
+        Check that the lattice is valid. 
+        """
+        cell = atoms.get_cell()
+        angles = cell.angles()
+        lengths = cell.lengths()
+        if np.any(angles <= 0) or np.any(angles >= 180): # Check that lattice angles are between 0,180
+            raise ValueError("Invalid Lattice: Lattice angles must be between 0 and 180 degrees")
+        elif np.any(lengths <= 0) or np.any(lengths >= 10): # Check so that lattice constants are not >= 10 Å
+            raise ValueError("Invalid Lattice: Lattice constants need to be positive and < 10")
+    def checkDistances(self,atoms):
+        """
+        Checks that interatomic distances are non-negative.
+        """
+        distances_matrix= atoms.get_all_distances()
+        upper_indeces = np.triu_indices(len(distances_matrix),k=1)
+        flat_distances = distances_matrix[upper_indeces]
+        if np.any(flat_distances <= 0 ):
+            raise ValueError("Invalid atomic configuration: Atomic overlap")
+        
+        
+
 
 
 if __name__ == "__main__":
