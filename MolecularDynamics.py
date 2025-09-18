@@ -8,7 +8,16 @@ import logger
 
 if __name__ == "__main__":
     log = logger.logger_setup()
-    
+
+
+    # Clear previous simulation outputs to ensure a clean run
+    try:
+        for path in ("data.log", "data.traj"):
+            with open(path, "w"):
+                pass
+    except Exception:
+        pass
+
 
     if len(sys.argv[1:]) % 2 != 0:
         raise AssertionError("Missing arguments") # Maybe other exception is better
@@ -64,6 +73,8 @@ if __name__ == "__main__":
         output_str = PP.settings["Output_file"] + ".traj"
         PostViz = PostProcessing(output_str) # (TODO) Hardcoded but settings.json will contain file name
         PostViz.vizualize()
+        coh = PostViz.compute_cohesive_energy()
+        print(coh)
     except Exception as err:
         log.error(f"Postprocessing failed: {err}")
         exit(1)
