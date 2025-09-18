@@ -195,9 +195,3 @@ class MDBase:
     def visualizeTraj(self):
         traj = Trajectory("data.traj")
         view(traj)
-
-
-if __name__ == "__main__":
-    md = MDBase()
-    md.runMD(atoms)
-    vizualiseTraj("data.traj")
