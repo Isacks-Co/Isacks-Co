@@ -17,6 +17,7 @@ if __name__ == "__main__":
 
     PP = PreProcessing(settings, poscar, flags)
     MD = PP.createMD()
-    print(MD.potential)
+    #print(MD.potential)
+    #MD.equilibriumRun(PP.atoms)
     MD.runMD(PP.atoms)
     MD.visualizeTraj()

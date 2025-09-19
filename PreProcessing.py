@@ -18,7 +18,7 @@ class PreProcessing:
         self.settings = self.readSettings(input_settings)
         #self.atoms = self.readAtomicStructure(input_structure)
         #self.atoms.pbc = True
-        self.atoms = FaceCenteredCubic(size=(1, 1, 1), symbol="Cu", pbc=True)
+        self.atoms = FaceCenteredCubic(size=(5, 5, 5), symbol="Cu", pbc=True)
 
         self.readTerminalInput(flags)
         self.printInput()
@@ -49,11 +49,20 @@ class PreProcessing:
     def createMD(self):
         match self.settings["Ensemble"]:
             case "NVE":
-                return MDBase.initNVE(self.settings["Temperature"])
+                return MDBase.initNVE(temperature = self.settings["Temperature"], timestep = self.settings["Timestep_fs"],
+                                       steps = self.settings["Steps"], interval = self.settings["Interval"],
+                                         pot_str = self.settings["Potential"], attachments = self.settings["Attachments"] )
             case "NVT":
-                return MDBase.initNVT(self.settings["Temperature"])
+                return MDBase.initNVT(temperature = self.settings["Temperature"], timestep = self.settings["Timestep_fs"],
+                                       steps = self.settings["Steps"], interval = self.settings["Interval"],
+                                       friction = self.settings["Friction"], pot_str = self.settings["Potential"],
+                                         attachments = self.settings["Attachments"] )
             case "NPT":
-                return MDBase.initNPT(self.settings["Temperature"])
+                return MDBase.initNPT(temperature = self.settings["Temperature"], timestep = self.settings["Timestep_fs"],
+                                       steps = self.settings["Steps"], interval = self.settings["Interval"],
+                                        pressure_Pa = self.settings["Pressure_Pa"],
+                                      compressibility = self.settings["Compressibility"], pot_str = self.settings["Potential"],  
+                                      attachments = self.settings["Attachments"])
 
 
 
