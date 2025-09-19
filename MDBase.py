@@ -47,22 +47,22 @@ class MDBase:
         self.attachments = self.getAttachment(att_list)
 
     @classmethod
-    def initNVE(cls, temperature: float,  pot_str:str, timestep,
-                steps, interval, attachments):
+    def initNVE(cls, temperature: float,  pot_str:str, timestep:int,
+                steps:int, interval:int, attachments:list):
         
         return cls(temperature_k = temperature, integrator_str = "NVE", potential_str = pot_str ,
                 timestep_fs = timestep, number_of_steps = steps, interval = interval, att_list = attachments )
 
     @classmethod
-    def initNVT(cls, temperature: float, friction: float,  pot_str:str, timestep,
-                steps, interval, attachments ):
+    def initNVT(cls, temperature: float, friction: float,  pot_str:str, timestep:int,
+                steps:int, interval:int, attachments:list ):
 
         return cls(temperature_k = temperature, friction = friction,  integrator_str = "NVT", potential_str = pot_str,
                     timestep_fs = timestep, number_of_steps = steps, interval = interval, att_list = attachments  )
 
     @classmethod
-    def initNPT(cls, temperature: float, timestep,
-                steps, interval,  pressure_Pa : float, compressibility: float, pot_str:str, attachments):
+    def initNPT(cls, temperature: float, timestep:int,
+                steps:int, interval:int,  pressure_Pa : float, compressibility: float, pot_str:str, attachments:list):
         
         return cls(temperature_k = temperature, pressure = pressure_Pa, compressibility = compressibility,
                     integrator_str = "NPT", potential_str = pot_str, timestep_fs = timestep,
