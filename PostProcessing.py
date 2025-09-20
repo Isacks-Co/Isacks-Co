@@ -21,7 +21,7 @@ class PostProcessing:
     def vizualize(self):
         view(self.read_traj_file)
 
-    def parse_log_file(self, log_path: str = "data.log"):
+    def ParseLogFile(self, log_path: str = "data.log"):
         """
         Read data.log and return numeric columns.
         Keys: "Time[ps]", "Etot/N[eV]", "Epot/N[eV]", "Ekin/N[eV]", "T[K]".
@@ -50,7 +50,7 @@ class PostProcessing:
             data[headers[4]].append(T)
         return data
 
-    def compute_cohesive_energy(self, poscar_path: str = "POSCAR", settings_path: str = "settings.json") -> float:
+    def ComputeCohesiveEnergy(self, poscar_path: str = "POSCAR", settings_path: str = "settings.json") -> float:
         """
         Compute cohesive energy per atom for the crystal in POSCAR.
         Definition: E_coh = (sum_i n_i E_i^atom − E_crystal_total) / N
@@ -77,8 +77,75 @@ class PostProcessing:
 
         # Sum over composition
         N = len(symbols)
+        print("N = ", N)
         sum_iso = sum(unique[s] for s in symbols)
 
         # Cohesive energy per atom
         E_coh = (sum_iso - E_cryst) / N
+        print("E_coh = ", E_coh)
         return float(E_coh)
+
+    def LatticeConstantFCC(self, poscar_path: str = "POSCAR") -> float:
+        """
+        Calculatess the lattice constant of a FCC crystal.
+        """
+        atoms = read("POSCAR")
+        # 3x3 lattice matrix (rows are the lattice vectors in Cartesian Å)
+        cell = atoms.cell.array  # numpy.ndarray of shape (3, 3)
+
+        a1, a2, a3 = cell[0], cell[1], cell[2]
+
+        struct = determine_crystal_structure(poscar_path)
+        print("Structure: ", struct)
+
+        # compute volume
+        V = abs(np.dot(a1, np.cross(a2, a3)))
+
+        # If these are primitive fcc vectors:
+        a_from_V = (4.0 * V) ** (1.0 / 3.0)
+        print("a (from primitive-cell volume) = {:.6f} Å".format(a_from_V))
+
+        # If these were conventional cubic vectors (orthogonal, equal length):
+        a_conv = np.linalg.norm(a1)  # would equal the conventional a
+        print("a (if conventional cell) = {:.6f} Å".format(a_conv))
+        #Added the section immediately above, because I don't remember much of solid state physics, and want to be sure I'm doing this right.'
+
+def determine_crystal_structure(poscar_path="POSCAR"):
+    atoms = read(poscar_path)
+    cell = atoms.cell.array
+    fracs = atoms.get_scaled_positions(wrap=True)
+
+    def lengths_angles(M):
+        a, b, c = [np.linalg.norm(v) for v in M]
+        def ang(u, v):
+            cos = np.clip(np.dot(u, v) / (np.linalg.norm(u)*np.linalg.norm(v)), -1, 1)
+            return np.degrees(np.arccos(cos))
+        alpha, beta, gamma = ang(M[1], M[2]), ang(M[0], M[2]), ang(M[0], M[1])
+        return (a, b, c), (alpha, beta, gamma)
+
+    (a, b, c), (al, be, ga) = lengths_angles(cell)
+    eq_len = max(abs(a-b), abs(b-c), abs(a-c)) / max(a, b, c) < 1e-3    #- Angle tolerances are ±2 degrees, fractional-position tolerance is ~1e-3 in fractional coordinates.
+    near = lambda x, y, tol: abs(x - y) < tol
+
+    # Checks if primitive fcc or primitive bcc
+    if eq_len:
+        if all(near(x, 60.0, 2.0) for x in (al, be, ga)):
+            return "FCC (primitive)"
+        if all(near(x, 109.471, 2.0) for x in (al, be, ga)):
+            return "BCC (primitive)"
+
+    # Conventional cubic check
+    if eq_len and all(near(x, 90.0, 2.0) for x in (al, be, ga)):
+        key = lambda p: tuple(np.round(np.mod(p, 1.0)/1e-3).astype(int))
+        pos = {key(p) for p in fracs}
+        sc  = {key([0,0,0])}
+        bcc = {key([0,0,0]), key([0.5,0.5,0.5])}
+        fcc = {key([0,0,0]), key([0,0.5,0.5]), key([0.5,0,0.5]), key([0.5,0.5,0])}
+        if pos == fcc:
+            return "FCC (conventional)"
+        if pos == bcc:
+            return "BCC (conventional)"
+        if pos == sc:
+            return "SC (conventional)"
+
+    return "Unknown/Other"

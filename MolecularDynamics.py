@@ -73,8 +73,11 @@ if __name__ == "__main__":
         output_str = PP.settings["Output_file"] + ".traj"
         PostViz = PostProcessing(output_str) # (TODO) Hardcoded but settings.json will contain file name
         PostViz.vizualize()
-        coh = PostViz.compute_cohesive_energy()
-        print(coh)
+        #Lattice constant
+        PostViz.LatticeConstantFCC()
+
+        #Cohesive energy
+        PostViz.ComputeCohesiveEnergy()
     except Exception as err:
         log.error(f"Postprocessing failed: {err}")
         exit(1)
