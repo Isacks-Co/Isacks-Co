@@ -1,13 +1,18 @@
-{ 
-    "Temperature" : 300,
-    "Ensemble" : "NPT",
-    "Potential" : "LJ",
-    "Timestep" : 10,
-    "Number_of_steps" : 1000,
-    "Output_file" : "output",
-    "Friction" : 0,
-    "Compressibility" : 0,
-    "Pressure" : 0,
-    "Interval" : 10,
-    "Supercells": 0
+{
+  "Ensemble": "NVE",
+
+  "Temperature": 2000,
+  "Timestep_fs": 1,
+  "Steps": 2000,
+  "Interval": 50,
+  "Potential": "EMT",
+  "Attachments": ["center_of_mass"],
+
+  "Friction": 1,
+  "Pressure_Pa": 0,
+  "Compressibility": 1e-7,
+
+  "EquilSteps": 5000,
+  "Supercells": 0
+
 }

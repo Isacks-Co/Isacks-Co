@@ -16,12 +16,12 @@ class PreProcessing:
                                "-POT" : "Potential", "-TS" : "Timestep", "-N" : "Number_of_steps",
                                "-F" : "Friction", "-C" : "Compressibility", "-I" : "Interval", "-O" : "Output_file","-S":"Supercells"}
 
-        
+
         self.atoms = self.readAtomicStructure(input_structure)
         #self.atoms.pbc = True
         #self.atoms = FaceCenteredCubic(size=(5, 5, 5), symbol="Cu", pbc=True)
-        
-       
+
+
         self.settings = self.readSettings(input_settings)
 
         self.atoms.pbc = True
@@ -73,14 +73,14 @@ class PreProcessing:
                 for setting in NVE_settings:
                     if setting not in self.settings.keys():
                         raise ValueError(f"Missing the setting: {setting}")
-                return MDBase.initNVE(temperature=self.settings["Temperature"], pot_str=self.settings["Potential"], 
+                return MDBase.initNVE(temperature=self.settings["Temperature"], pot_str=self.settings["Potential"],
                                       timestep=self.settings["Timestep"], steps=self.settings["Number_of_steps"],
                                       interval=self.settings["Interval"], output_file=self.settings["Output_file"])
             case "NVT":
                 for setting in NVT_settings:
                     if setting not in self.settings.keys():
                         raise ValueError(f"Missing the setting: {setting}")
-                return MDBase.initNVT(temperature=self.settings["Temperature"], pot_str=self.settings["Potential"], 
+                return MDBase.initNVT(temperature=self.settings["Temperature"], pot_str=self.settings["Potential"],
                                       timestep=self.settings["Timestep"], steps=self.settings["Number_of_steps"],
                                       interval=self.settings["Interval"], output_file=self.settings["Output_file"],
                                       friction=self.settings["Friction"])
@@ -88,19 +88,19 @@ class PreProcessing:
                 for setting in NPT_settings:
                     if setting not in self.settings.keys():
                         raise ValueError(f"Missing the setting: {setting}")
-                return MDBase.initNPT(temperature=self.settings["Temperature"], pot_str=self.settings["Potential"], 
+                return MDBase.initNPT(temperature=self.settings["Temperature"], pot_str=self.settings["Potential"],
                                       timestep=self.settings["Timestep"], steps=self.settings["Number_of_steps"],
                                       interval=self.settings["Interval"], output_file=self.settings["Output_file"],
                                       pressure_Pa=self.settings["Pressure"], compressibility=self.settings["Compressibility"])
             case _:
                 raise ValueError(f"Invalid ensemble setting: {self.settings['Ensemble']}")
-    
+
     def sanityCheckSettings(self):
         """
-        Sanity check for the settings.json file. Makes sure that we only use EMT for 
+        Sanity check for the settings.json file. Makes sure that we only use EMT for
         valid metals. Also checks that relevant values are non-negative.
         """
-        if self.settings["Potential"] == "EMT": 
+        if self.settings["Potential"] == "EMT":
             elements = self.atoms.get_atomic_numbers()
             print(elements)
             if not np.all(np.isin(elements,[13, 28, 29, 46, 47, 78, 79])): # Check if the elements are supported for EMT potential
@@ -117,7 +117,7 @@ class PreProcessing:
             raise ValueError(f"Invalid friction: Friction has to be non-negative")
         elif self.settings["Number_of_steps"] < 0 or not isinstance(self.settings["Number_of_steps"],int):
             raise ValueError(f"Invalid number of steps: Has to be a positive integer")
-        
+
     def sanityCheckAtomicStructure(self):
         """
         Sanity check for the input atomic structure.
@@ -128,13 +128,13 @@ class PreProcessing:
 
     def checkLattice(self):
         """
-        Check that the lattice is valid. 
+        Check that the lattice is valid.
         """
         cell = self.atoms.get_cell()
         angles = cell.angles()
-        
+
         lengths = cell.lengths()/(self.settings["Supercells"]+1)
-        
+
         if np.any(angles <= 0) or np.any(angles >= 180): # Check that lattice angles are between 0 and 180
             raise ValueError("Invalid Lattice: Lattice angles must be between 0 and 180 degrees")
         elif np.any(lengths <= 0) or np.any(lengths >= 10): # Check so that lattice constants are not >= 10 Å (or <= 0)
@@ -151,8 +151,8 @@ class PreProcessing:
             print(flat_distances)
             if np.any(flat_distances <= 0.5): # Not sure exactly what is a reasonable threshold as atomic radius varies alot. currently 0.5 Å
                 raise ValueError("Invalid atomic configuration: Atomic overlap")
-            
-        
+
+
 
 
 

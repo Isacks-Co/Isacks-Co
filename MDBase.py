@@ -7,8 +7,11 @@ from ase.md import MDLogger
 from ase.md.velocitydistribution import MaxwellBoltzmannDistribution
 from ase.units import fs
 from ase.visualize import view
+import logging
 
 
+
+log = logging.getLogger("MD")
 class MDBase:
     """
         basic MD class
@@ -46,6 +49,13 @@ class MDBase:
         self.integrator = self.getIntegrator(integrator_str)
         self.attachments = self.getAttachment(att_list)
 
+        log.debug(
+        "MDBase init: dt(fs)=%s steps=%s interval=%s T=%sK friction=%s pot=%s integrator=%s out=%s",
+        timestep_fs, number_of_steps, self.interval, self.temperature_k, self.friction,
+        potential_str, integrator_str, self.output_file
+        )
+
+
     @classmethod
     def initNVE(cls, temperature: float,  pot_str:str, timestep:float,
                 steps:int, interval:int, output_file : str):
@@ -75,32 +85,39 @@ class MDBase:
         potential_lower = potential.lower()
         if potential_lower in ["emt"]:
             from asap3 import EMT as asap_EMT
+            log.info("Potential: EMT")
             return asap_EMT
 
         elif potential_lower in ["lj", "lennardjones", "lennard_jones"]:
             from ase.calculators.lj import LennardJones
+            log.info("Potential: Lennard Jones")
             return LennardJones
         else:
+            log.error("Invalid potential function: %s", potential)
             raise ValueError(f"Invalid potential function: {potential}")
 
     def getIntegrator(self, integrator: str):
         integrator_lower = integrator.lower()
         if integrator_lower in ["verlet", "nve"]:
             from asap3.md.verlet import VelocityVerlet  # för NVE
+            log.info("Integrator: Verlet")
             return functools.partial(VelocityVerlet, timestep=self.timestep)
 
         elif integrator_lower in ["langevin", "nvt"]:
             from asap3.md.langevin import Langevin  # för NVT
-            return functools.partial(Langevin, timestep=self.timestep, temperature_K=self.temperature_k,
-                                     friction=self.friction)
+            log.info("Integrator: Langevin")
+            return functools.partial(Langevin, timestep=self.timestep, temperature_K=self.temperature_k, friction=self.friction)
 
         elif integrator_lower in ["berendsen", "npt"]:
             from asap3.md.nptberendsen import NPTBerendsen
+            log.info("Integrator: Berendsen")
             return functools.partial(NPTBerendsen, timestep=self.timestep, temperature_K=self.temperature_k,
                                      pressure_au=self.pressure, compressibility_au=self.compressibility)
 
         else:
+            log.error("Invalid Integrator function: %s", self.integrator) ##
             raise ValueError(f"Invalid integrator: {self.integrator}")
+
 
     def getAttachment(self, attachments):
         pos_attachments = {'energy': self.printEnergy,
@@ -127,7 +144,7 @@ class MDBase:
 
         #traj = Trajectory(filename=f"{self.output_file}.traj", mode="w", atoms=atoms)
         #dyn_eq.attach(traj.write, interval=self.interval)
-
+        log.info(f"Equilibrium run with NVT Ensemble to reach desired temperature. \n Steps = {equil_steps}, desired temperature = {self.temperature_k} K")
         
         dyn_eq.run(int(equil_steps))
         print(f"Equilibration reached after {equil_steps} steps at T={self.temperature_k} K.")
@@ -143,6 +160,7 @@ class MDBase:
         Depending on attachments will possibly print some data.
         Will always save a trajectory and log file.        
         """
+        log.info("MD run starts with: steps=%i", self.steps)
 
         atoms.calc = self.potential()
 
