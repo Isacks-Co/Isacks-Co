@@ -13,7 +13,9 @@ class PreProcessing:
     """
 
     def __init__(self, input_settings, input_structure, flags):
-        self.expected_keys = {"-T": "Temperature", "-E": "Ensemble"}
+        self.expected_keys = {"-T": "Temperature", "-E": "Ensemble", "-P" : "Pressure",
+                               "-POT" : "Potential", "-TS" : "Timestep", "-N" : "Number_of_steps",
+                               "-F" : "Friction", "-C" : "Compressibility", "-I" : "Interval", "-O" : "Output_file"}
 
         self.settings = self.readSettings(input_settings)
         #self.atoms = self.readAtomicStructure(input_structure)
@@ -49,32 +51,41 @@ class PreProcessing:
 
     def readTerminalInput(self, flags):
         """Overwrites self.settings if other settings was received from terminal"""
-        for i in range(0, len(flags), 2):
-            if flags[i] not in self.settings.keys():
-                raise ValueError(f"Flag is invalid: {flags[i]}")
-            self.settings[self.expected_keys[flags[i]]] = flags[i + 1]
+        if flags:
+            for i in range(0, len(flags), 2):
+                if flags[i] not in self.expected_keys.keys():
+                    raise ValueError(f"Flag is invalid: {flags[i]}")
+                self.settings[self.expected_keys[flags[i]]] = flags[i + 1]
 
     def createMD(self):
+        """Init MD objects, throws errors if crucial setting is missing."""
+        NVE_settings = ["Temperature", "Potential", "Timestep", "Number_of_steps", "Interval", "Output_file"]
+        NVT_settings = ["Temperature", "Potential", "Timestep", "Number_of_steps", "Interval", "Output_file", "Friction"]
+        NPT_settings = ["Temperature", "Potential", "Timestep", "Number_of_steps", "Interval", "Output_file", "Pressure", "Compressibility"]
         match self.settings["Ensemble"]:
             case "NVE":
-                # TODO If not all settings available, raise error as such
-                if False:
-                    raise ValueError(f"Missing the settings: __setting__")
-                return MDBase.initNVE(temperature = self.settings["Temperature"], timestep = self.settings["Timestep_fs"],
-                                       steps = self.settings["Steps"], interval = self.settings["Interval"],
-                                         pot_str = self.settings["Potential"], attachments = self.settings["Attachments"] )
+                for setting in NVE_settings:
+                    if setting not in self.settings.keys():
+                        raise ValueError(f"Missing the setting: {setting}")
+                return MDBase.initNVE(temperature=self.settings["Temperature"], pot_str=self.settings["Potential"], 
+                                      timestep=self.settings["Timestep"], steps=self.settings["Number_of_steps"],
+                                      interval=self.settings["Interval"], output_file=self.settings["Output_file"])
             case "NVT":
-                return MDBase.initNVT(temperature = self.settings["Temperature"], timestep = self.settings["Timestep_fs"],
-                                       steps = self.settings["Steps"], interval = self.settings["Interval"],
-                                       friction = self.settings["Friction"], pot_str = self.settings["Potential"],
-                                         attachments = self.settings["Attachments"] )
+                for setting in NVT_settings:
+                    if setting not in self.settings.keys():
+                        raise ValueError(f"Missing the setting: {setting}")
+                return MDBase.initNVT(temperature=self.settings["Temperature"], pot_str=self.settings["Potential"], 
+                                      timestep=self.settings["Timestep"], steps=self.settings["Number_of_steps"],
+                                      interval=self.settings["Interval"], output_file=self.settings["Output_file"],
+                                      friction=self.settings["Friction"])
             case "NPT":
-                return MDBase.initNPT(temperature = self.settings["Temperature"], timestep = self.settings["Timestep_fs"],
-                                       steps = self.settings["Steps"], interval = self.settings["Interval"],
-                                        pressure_Pa = self.settings["Pressure_Pa"],
-                                      compressibility = self.settings["Compressibility"], pot_str = self.settings["Potential"],  
-                                      attachments = self.settings["Attachments"])
-
+                for setting in NPT_settings:
+                    if setting not in self.settings.keys():
+                        raise ValueError(f"Missing the setting: {setting}")
+                return MDBase.initNPT(temperature=self.settings["Temperature"], pot_str=self.settings["Potential"], 
+                                      timestep=self.settings["Timestep"], steps=self.settings["Number_of_steps"],
+                                      interval=self.settings["Interval"], output_file=self.settings["Output_file"],
+                                      pressure_Pa=self.settings["Pressure"], compressibility=self.settings["Compressibility"])
             case _:
                 raise ValueError(f"Invalid ensemble setting: {self.settings['Ensemble']}")
                 
