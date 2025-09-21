@@ -17,7 +17,7 @@ class MDBase:
         different atomic structures.
     """
 
-    def __init__(self, timestep_fs: int = 2, number_of_steps: int = 200, interval: int = 10,
+    def __init__(self, timestep_fs: float = 2, number_of_steps: int = 200, interval: int = 10,
                  integrator_str: str = "Verlet", output_file: str = "data",
                  temperature_k: float = 293, friction: float = 0.01, potential_str: str = "EMT",
                  att_list: list = ["energy"],
@@ -47,21 +47,21 @@ class MDBase:
         self.attachments = self.getAttachment(att_list)
 
     @classmethod
-    def initNVE(cls, temperature: float,  pot_str:str, timestep:int,
+    def initNVE(cls, temperature: float,  pot_str:str, timestep:float,
                 steps:int, interval:int, attachments:list):
         
         return cls(temperature_k = temperature, integrator_str = "NVE", potential_str = pot_str ,
                 timestep_fs = timestep, number_of_steps = steps, interval = interval, att_list = attachments )
 
     @classmethod
-    def initNVT(cls, temperature: float, friction: float,  pot_str:str, timestep:int,
+    def initNVT(cls, temperature: float, friction: float,  pot_str:str, timestep:float,
                 steps:int, interval:int, attachments:list ):
 
         return cls(temperature_k = temperature, friction = friction,  integrator_str = "NVT", potential_str = pot_str,
                     timestep_fs = timestep, number_of_steps = steps, interval = interval, att_list = attachments  )
 
     @classmethod
-    def initNPT(cls, temperature: float, timestep:int,
+    def initNPT(cls, temperature: float, timestep:float,
                 steps:int, interval:int,  pressure_Pa : float, compressibility: float, pot_str:str, attachments:list):
         
         return cls(temperature_k = temperature, pressure = pressure_Pa, compressibility = compressibility,
