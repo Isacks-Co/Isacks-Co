@@ -47,11 +47,15 @@ class MDBase:
         self.attachments = self.getAttachment(att_list)
         self.temp_history = []
         self.hits = 0
+<<<<<<< HEAD
         self.ensemble = integrator_str
+=======
+>>>>>>> 08c6bd0 (Fix after rebase)
 
     @classmethod
     def initNVE(cls, temperature: float,  pot_str:str, timestep:float,
-                steps:int, interval:int, output_file : str):
+                steps:int, interval:int, attachments:list):
+
         return cls(temperature_k = temperature, integrator_str = "NVE", potential_str = pot_str ,
                 timestep_fs = timestep, number_of_steps = steps, interval = interval, output_file = output_file)
 
@@ -172,7 +176,11 @@ class MDBase:
         logger = MDLogger(dyn, atoms=atoms, logfile=f"{self.output_file}.log",
                           header=True, peratom=True, mode='a')  # Create a logger for writing data
         dyn.attach(logger, interval=self.interval)  # Attach logger
+<<<<<<< HEAD
         dyn.attach(lambda: self.failSafe(atoms), interval=1)
+=======
+        dyn.attach(lambda: self.tempFailSafe(atoms), interval=5)
+>>>>>>> 08c6bd0 (Fix after rebase)
 
         dyn.run(self.steps)  # RUN
 
@@ -196,6 +204,7 @@ class MDBase:
     def printLatticeConstants(self, atoms):
         print("Lattice: ", atoms.cell.cellpar())
 
+<<<<<<< HEAD
     def failSafe(self, atoms):
         """
         Checks if temperature diverges continously in one direction,
@@ -219,3 +228,18 @@ class MDBase:
                 else:
                     self.hits += 1
                                 
+=======
+    def tempFailSafe(self, atoms):
+
+        self.temp_history.append(atoms.get_temperature())
+        if len(self.temp_history) > 1:
+            print(self.hits)
+            mean = np.mean(self.temp_history)
+            std  = np.std(self.temp_history)
+            print(f"temperature: {self.temp_history[-1]}.\ntemperature mean: {mean}.\ntemperature standard deviation: {std}.")
+            if self.temp_history[-1] > mean + 2 * std:
+                if (self.hits == 15):
+                    raise RuntimeWarning("Temperature change exceeds at least 2 standard deviations.")
+                else:
+                    self.hits += 1
+>>>>>>> 08c6bd0 (Fix after rebase)
