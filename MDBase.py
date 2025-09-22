@@ -197,14 +197,12 @@ class MDBase:
 
     def visualizeTraj(self):
         traj = Trajectory("data.traj")
-<<<<<<< HEAD
         view(traj)
 
     def tempFailSafe(self, atoms):
 
         self.temp_history.append(atoms.get_temperature())
         if len(self.temp_history) > 1:
-            print(self.hits)
             mean = np.mean(self.temp_history)
             std  = np.std(self.temp_history)
             print(f"temperature: {self.temp_history[-1]}.\ntemperature mean: {mean}.\ntemperature standard deviation: {std}.")
@@ -213,14 +211,3 @@ class MDBase:
                     raise RuntimeWarning("Temperature change exceeds at least 2 standard deviations.")
                 else:
                     self.hits += 1
-
-
-
-
-if __name__ == "__main__":
-    md = MDBase()
-    md.runMD(atoms)
-    vizualiseTraj("data.traj")
-=======
-        view(traj)
->>>>>>> f59a1ab (Started adding sanity checks for settings.json)
