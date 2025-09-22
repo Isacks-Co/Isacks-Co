@@ -24,7 +24,7 @@ class MDBase:
                  integrator_str: str = "Verlet", output_file: str = "data",
                  temperature_k: float = 293, friction: float = 0.01, potential_str: str = "EMT",
                  att_list: list = ["energy"],
-                 pressure: float = 10e+6, compressibility: float = 10e-11):
+                 pressure: float = 10e+6, compressibility: float = 10e-11,  equil_steps: int = 2000):
         """
         In:
             timestep_fs : timestesp (femto) FLOAT
@@ -48,6 +48,7 @@ class MDBase:
         self.potential = self.getPotential(potential_str)
         self.integrator = self.getIntegrator(integrator_str)
         self.attachments = self.getAttachment(att_list)
+        self.equilibrium_steps = equil_steps
 
         log.debug(
         "MDBase init: dt(fs)=%s steps=%s interval=%s T=%sK friction=%s pot=%s integrator=%s out=%s",
@@ -58,23 +59,23 @@ class MDBase:
 
     @classmethod
     def initNVE(cls, temperature: float,  pot_str:str, timestep:float,
-                steps:int, interval:int, output_file : str):
+                steps:int, interval:int,output_file: str, equilibrium_steps:int):
+
         return cls(temperature_k = temperature, integrator_str = "NVE", potential_str = pot_str ,
-                timestep_fs = timestep, number_of_steps = steps, interval = interval, output_file = output_file)
+                timestep_fs = timestep, number_of_steps = steps, interval = interval, equil_steps = equilibrium_steps, output_file = output_file)
 
     @classmethod
     def initNVT(cls, temperature: float, friction: float,  pot_str:str, timestep:float,
-                steps:int, interval:int, output_file:str):
+                steps:int, interval:int, equilibrium_steps:int, output_file:str):
         return cls(temperature_k = temperature, friction = friction,  integrator_str = "NVT", potential_str = pot_str,
-                    timestep_fs = timestep, number_of_steps = steps, interval = interval, output_file=output_file )
+                    timestep_fs = timestep, number_of_steps = steps, interval = interval, equil_steps = equilibrium_steps, output_file=output_file )
 
     @classmethod
-    def initNPT(cls, temperature: float, timestep:float,
-                steps:int, interval:int,  pressure_Pa : float, compressibility: float, pot_str:str, output_file:str):
-        return cls(temperature_k = temperature, pressure = pressure_Pa, compressibility = compressibility,
-                    integrator_str = "NPT", potential_str = pot_str, timestep_fs = timestep,
-                      number_of_steps = steps, interval = interval, output_file=output_file )
-
+    def initNPT(cls, temperature: float, timestep: float,
+                steps: int, interval: int, pressure_Pa: float, compressibility: float, pot_str: str, equilibrium_steps: int, output_file: str):
+        return cls(temperature_k=temperature, pressure=pressure_Pa, compressibility=compressibility,
+                   integrator_str="NPT", potential_str=pot_str, timestep_fs=timestep,
+                   number_of_steps=steps, interval=interval,equil_steps=equilibrium_steps, output_file=output_file)
     def getPotential(self, potential: str):
         """
         In:
@@ -115,8 +116,8 @@ class MDBase:
                                      pressure_au=self.pressure, compressibility_au=self.compressibility)
 
         else:
-            log.error("Invalid Integrator function: %s", self.integrator) ##
-            raise ValueError(f"Invalid integrator: {self.integrator}")
+            log.error("Invalid Integrator function: %s", integrator) ##
+            raise ValueError(f"Invalid integrator: {integrator}")
 
 
     def getAttachment(self, attachments):
@@ -132,7 +133,7 @@ class MDBase:
 
         return [pos_attachments[a] for a in attachments]
 
-    def equilibriumRun(self, atoms, equil_steps: int = 2000):
+    def equilibriumRun(self, atoms):
                      
         #NVT until equilibrium is reached
         from asap3.md.langevin import Langevin
@@ -144,10 +145,11 @@ class MDBase:
 
         #traj = Trajectory(filename=f"{self.output_file}.traj", mode="w", atoms=atoms)
         #dyn_eq.attach(traj.write, interval=self.interval)
-        log.info(f"Equilibrium run with NVT Ensemble to reach desired temperature. \n Steps = {equil_steps}, desired temperature = {self.temperature_k} K")
-        
-        dyn_eq.run(int(equil_steps))
-        print(f"Equilibration reached after {equil_steps} steps at T={self.temperature_k} K.")
+        log.info(f"Starting equilibrium run with NVT Ensemble to reach desired temperature of {self.temperature_k} K")
+
+        dyn_eq.run(int(self.equilibrium_steps))
+        current_T = atoms.get_temperature()
+        log.info(f"Systems temperature is {round(current_T,2)} K after {self.equilibrium_steps} steps")
         
 
 
@@ -160,7 +162,6 @@ class MDBase:
         Depending on attachments will possibly print some data.
         Will always save a trajectory and log file.        
         """
-        log.info("MD run starts with: steps=%i", self.steps)
 
         atoms.calc = self.potential()
 
@@ -169,6 +170,7 @@ class MDBase:
                                      force_temp=True)  # Initialize velocity according to temperature_k
 
         self.equilibriumRun(atoms=atoms)
+        log.info("MD run starts with: %i steps", self.steps)
 
         dyn = self.integrator(atoms=atoms)
 

@@ -50,26 +50,23 @@ if __name__ == "__main__":
     try:
         log.info("Reading settings and setting atomic structures ")
         PP = PreProcessing(settings, poscar, flags)
-        log.info(f"Setting the {PP.settings["Ensemble"]} and passing relevant parameters ")
+        log.info("Setting ensemble: %s and passing relevant parameters", PP.settings['Ensemble'])
         MD = PP.createMD()
     except Exception as err:
-        print(f"Preprocessing failed: {err}")
-        log.exception("Preprocessing failed") #should probably add the err, here instead
+        log.error(f"Preprocessing failed: {err}") #should probably add the err, here instead
         exit(1)
 
     try:
-        log.info("Starting the Molecular dynamic simulation ")
         MD.runMD(PP.atoms)
     except Exception as err:
-        print(f"Simulation failed: {err}")
-        log.exception("Simulation failed") #should probably add the err, here instead
+        log.error(f"Simulation failed: {err}") #should probably add the err, here instead
         exit(1)
 
     try:
         PostViz = PostProcessing('data.traj') # (TODO) Hardcoded but settings.json will contain file name
         PostViz.vizualize()
     except Exception as err:
-        print(f"Postprocessing failed: {err}")
+        log.error(f"Postprocessing failed: {err}")
         exit(1)
 
-log.info("Simulation done")
+    log.info("Simulation done")

@@ -3,6 +3,9 @@ from MDBase import MDBase
 from ase.io.vasp import read_vasp
 from ase.lattice.cubic import FaceCenteredCubic
 import numpy as np
+import logging
+
+log = logging.getLogger("MD")
 
 class PreProcessing:
     """
@@ -14,13 +17,13 @@ class PreProcessing:
     def __init__(self, input_settings, input_structure, flags):
         self.expected_keys = {"-T": "Temperature", "-E": "Ensemble", "-P" : "Pressure",
                                "-POT" : "Potential", "-TS" : "Timestep", "-N" : "Number_of_steps",
-                               "-F" : "Friction", "-C" : "Compressibility", "-I" : "Interval", "-O" : "Output_file","-S":"Supercells"}
+                               "-F" : "Friction", "-C" : "Compressibility", "-I" : "Interval", "-O" : "Output_file",
+                               "_A" : "Attachments", "-ES" : "EquilSteps", "-S":"Supercells"}
+
 
 
         self.atoms = self.readAtomicStructure(input_structure)
-        #self.atoms.pbc = True
-        #self.atoms = FaceCenteredCubic(size=(5, 5, 5), symbol="Cu", pbc=True)
-
+        log.info("Reading settings file: %s", input_settings)
 
         self.settings = self.readSettings(input_settings)
 
@@ -36,24 +39,30 @@ class PreProcessing:
             with open(input_settings, "r") as file:
                 temp_settings = json.load(file)
         except FileNotFoundError:
+            log.error("Settings file not found: %s", input_settings)
             raise FileNotFoundError(f"File {input_settings} not found, please check it exists")
         for input in temp_settings.keys():
             if not input in self.expected_keys.values():
+                log.error("Got unexpected setting input: %s", input)
                 raise ValueError(f"Got unexpected setting input: {input}")
+
+        log.debug("Settings loaded: %r", temp_settings)
         return temp_settings
 
     def readAtomicStructure(self, input_structure):
         """Reads atomic structure from a file with POSCAR structure"""
         try:
+            log.info("Reading atomic structure from POSCAR: %s", input_structure)
             return read_vasp(input_structure)
         except FileNotFoundError:
+            log.error("Structure file not found: %s", input_structure)
             raise FileNotFoundError(f"File {input_structure} not found, please check it exists")
 
     def printInput(self):
         """Print out all settings to the terminal for validation"""
         for key, value in self.settings.items():
             print(f"{key} : {value}")
-        print("Number of atoms: ", len(self.atoms))
+        log.info("Number of atoms: ", len(self.atoms))
 
     def readTerminalInput(self, flags):
         """Overwrites self.settings if other settings was received from terminal"""
@@ -68,6 +77,7 @@ class PreProcessing:
         NVE_settings = ["Temperature", "Potential", "Timestep", "Number_of_steps", "Interval", "Output_file"]
         NVT_settings = ["Temperature", "Potential", "Timestep", "Number_of_steps", "Interval", "Output_file", "Friction"]
         NPT_settings = ["Temperature", "Potential", "Timestep", "Number_of_steps", "Interval", "Output_file", "Pressure", "Compressibility"]
+        log.info("Creating MD object for ensemble: %s", self.settings["Ensemble"])
         match self.settings["Ensemble"]:
             case "NVE":
                 for setting in NVE_settings:
@@ -75,7 +85,8 @@ class PreProcessing:
                         raise ValueError(f"Missing the setting: {setting}")
                 return MDBase.initNVE(temperature=self.settings["Temperature"], pot_str=self.settings["Potential"],
                                       timestep=self.settings["Timestep"], steps=self.settings["Number_of_steps"],
-                                      interval=self.settings["Interval"], output_file=self.settings["Output_file"])
+                                      interval=self.settings["Interval"], output_file=self.settings["Output_file"],
+                                      equilibrium_steps = self.settings["EquilSteps"])
             case "NVT":
                 for setting in NVT_settings:
                     if setting not in self.settings.keys():
@@ -83,7 +94,7 @@ class PreProcessing:
                 return MDBase.initNVT(temperature=self.settings["Temperature"], pot_str=self.settings["Potential"],
                                       timestep=self.settings["Timestep"], steps=self.settings["Number_of_steps"],
                                       interval=self.settings["Interval"], output_file=self.settings["Output_file"],
-                                      friction=self.settings["Friction"])
+                                      friction=self.settings["Friction"], equilibrium_steps = self.settings["EquilSteps"])
             case "NPT":
                 for setting in NPT_settings:
                     if setting not in self.settings.keys():
@@ -91,8 +102,10 @@ class PreProcessing:
                 return MDBase.initNPT(temperature=self.settings["Temperature"], pot_str=self.settings["Potential"],
                                       timestep=self.settings["Timestep"], steps=self.settings["Number_of_steps"],
                                       interval=self.settings["Interval"], output_file=self.settings["Output_file"],
-                                      pressure_Pa=self.settings["Pressure"], compressibility=self.settings["Compressibility"])
+                                      pressure_Pa=self.settings["Pressure"], compressibility=self.settings["Compressibility"],
+                                      equilibrium_steps = self.settings["EquilSteps"])
             case _:
+                log.error("Invalid ensemble setting: %s", self.settings["Ensemble"])
                 raise ValueError(f"Invalid ensemble setting: {self.settings['Ensemble']}")
 
     def sanityCheckSettings(self):
