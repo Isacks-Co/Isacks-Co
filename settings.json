@@ -8,5 +8,6 @@
     "Friction" : 0,
     "Compressibility" : 0,
     "Pressure" : 0,
-    "Interval" : 10
+    "Interval" : 10,
+    "Supercells": 0
 }
