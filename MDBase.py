@@ -45,11 +45,13 @@ class MDBase:
         self.potential = self.getPotential(potential_str)
         self.integrator = self.getIntegrator(integrator_str)
         self.attachments = self.getAttachment(att_list)
+        self.temp_history = []
+        self.hits = 0
 
     @classmethod
     def initNVE(cls, temperature: float,  pot_str:str, timestep:float,
                 steps:int, interval:int, attachments:list):
-        
+
         return cls(temperature_k = temperature, integrator_str = "NVE", potential_str = pot_str ,
                 timestep_fs = timestep, number_of_steps = steps, interval = interval, att_list = attachments )
 
@@ -63,14 +65,14 @@ class MDBase:
     @classmethod
     def initNPT(cls, temperature: float, timestep:float,
                 steps:int, interval:int,  pressure_Pa : float, compressibility: float, pot_str:str, attachments:list):
-        
+
         return cls(temperature_k = temperature, pressure = pressure_Pa, compressibility = compressibility,
                     integrator_str = "NPT", potential_str = pot_str, timestep_fs = timestep,
                       number_of_steps = steps, interval = interval, att_list = attachments )
 
 
-   
-        
+
+
 
 
 
@@ -117,7 +119,7 @@ class MDBase:
                            "momenta": self.printMomentum,
                            "center_of_mass": self.printCenterOfMass,
                            "lattice":self.printLatticeConstants }
-        
+
         for a in attachments:
             if a not in pos_attachments.keys():
                 raise ValueError(f"Invalid attachment: {a}")
@@ -126,22 +128,22 @@ class MDBase:
         return [pos_attachments[a] for a in attachments]
 
     def equilibriumRun(self, atoms, equil_steps: int = 2000):
-                     
+
         #NVT until equilibrium is reached
         from asap3.md.langevin import Langevin
         dyn_eq = Langevin(atoms,
                           timestep=self.timestep,
                           temperature_K=self.temperature_k,
                           friction=self.friction)
-        
+
 
         #traj = Trajectory(filename=f"{self.output_file}.traj", mode="w", atoms=atoms)
         #dyn_eq.attach(traj.write, interval=self.interval)
 
-        
+
         dyn_eq.run(int(equil_steps))
         print(f"Equilibration reached after {equil_steps} steps at T={self.temperature_k} K.")
-        
+
 
 
     def runMD(self, atoms):
@@ -156,7 +158,7 @@ class MDBase:
 
         atoms.calc = self.potential()
 
-       
+
         MaxwellBoltzmannDistribution(atoms, temperature_K=self.temperature_k,
                                      force_temp=True)  # Initialize velocity according to temperature_k
 
@@ -179,13 +181,14 @@ class MDBase:
         logger = MDLogger(dyn, atoms=atoms, logfile=f"{self.output_file}.log",
                           header=True, peratom=True, mode='a')  # Create a logger for writing data
         dyn.attach(logger, interval=self.interval)  # Attach logger
+        dyn.attach(lambda: self.tempFailSafe(atoms), interval=5)
 
         dyn.run(self.steps)  # RUN
 
     def printEnergy(self, atoms):
         epot = atoms.get_potential_energy() / len(atoms)
         ekin = atoms.get_kinetic_energy() / len(atoms)
-        etot = (epot + ekin) 
+        etot = (epot + ekin)
         T = float(atoms.get_temperature())
 
         print(f"E_pot/atom={epot:.5f}  E_kin/atom={ekin:.5f}  E_tot/atom={etot:.5f}  T={T:.1f} K")
@@ -205,6 +208,22 @@ class MDBase:
     def visualizeTraj(self):
         traj = Trajectory("data.traj")
         view(traj)
+
+    def tempFailSafe(self, atoms):
+
+        self.temp_history.append(atoms.get_temperature())
+        if len(self.temp_history) > 1:
+            print(self.hits)
+            mean = np.mean(self.temp_history)
+            std  = np.std(self.temp_history)
+            print(f"temperature: {self.temp_history[-1]}.\ntemperature mean: {mean}.\ntemperature standard deviation: {std}.")
+            if self.temp_history[-1] > mean + 2 * std:
+                if (self.hits == 15):
+                    raise RuntimeWarning("Temperature change exceeds at least 2 standard deviations.")
+                else:
+                    self.hits += 1
+
+
 
 
 if __name__ == "__main__":
