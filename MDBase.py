@@ -48,32 +48,22 @@ class MDBase:
 
     @classmethod
     def initNVE(cls, temperature: float,  pot_str:str, timestep:float,
-                steps:int, interval:int, attachments:list):
-        
+                steps:int, interval:int, output_file : str):
         return cls(temperature_k = temperature, integrator_str = "NVE", potential_str = pot_str ,
-                timestep_fs = timestep, number_of_steps = steps, interval = interval, att_list = attachments )
+                timestep_fs = timestep, number_of_steps = steps, interval = interval, output_file = output_file)
 
     @classmethod
     def initNVT(cls, temperature: float, friction: float,  pot_str:str, timestep:float,
-                steps:int, interval:int, attachments:list ):
-
+                steps:int, interval:int, output_file:str):
         return cls(temperature_k = temperature, friction = friction,  integrator_str = "NVT", potential_str = pot_str,
-                    timestep_fs = timestep, number_of_steps = steps, interval = interval, att_list = attachments  )
+                    timestep_fs = timestep, number_of_steps = steps, interval = interval, output_file=output_file )
 
     @classmethod
     def initNPT(cls, temperature: float, timestep:float,
-                steps:int, interval:int,  pressure_Pa : float, compressibility: float, pot_str:str, attachments:list):
-        
+                steps:int, interval:int,  pressure_Pa : float, compressibility: float, pot_str:str, output_file:str):
         return cls(temperature_k = temperature, pressure = pressure_Pa, compressibility = compressibility,
                     integrator_str = "NPT", potential_str = pot_str, timestep_fs = timestep,
-                      number_of_steps = steps, interval = interval, att_list = attachments )
-
-
-   
-        
-
-
-
+                      number_of_steps = steps, interval = interval, output_file=output_file )
 
     def getPotential(self, potential: str):
         """
