@@ -93,19 +93,18 @@ class MDBase:
         else:
             raise ValueError(f"Invalid potential function: {potential}")
 
-
-    def getIntegrator(self, str):
-        str = str.lower()
-        if str in ["verlet", "nve"]:
+    def getIntegrator(self, integrator: str):
+        integrator_lower = integrator.lower()
+        if integrator_lower in ["verlet", "nve"]:
             from asap3.md.verlet import VelocityVerlet  # för NVE
             return functools.partial(VelocityVerlet, timestep=self.timestep)
 
-        elif str in ["langevin", "nvt"]:
+        elif integrator_lower in ["langevin", "nvt"]:
             from asap3.md.langevin import Langevin  # för NVT
-            return functools.partial(Langevin, timestep=self.timestep, temperature_K=self.temperature_k, friction=self.friction)
+            return functools.partial(Langevin, timestep=self.timestep, temperature_K=self.temperature_k,
+                                     friction=self.friction)
 
-
-        elif str in ["berendsen", "npt"]:
+        elif integrator_lower in ["berendsen", "npt"]:
             from asap3.md.nptberendsen import NPTBerendsen
             return functools.partial(NPTBerendsen, timestep=self.timestep, temperature_K=self.temperature_k,
                                      pressure_au=self.pressure, compressibility_au=self.compressibility)
@@ -118,6 +117,11 @@ class MDBase:
                            "momenta": self.printMomentum,
                            "center_of_mass": self.printCenterOfMass,
                            "lattice":self.printLatticeConstants }
+        
+        for a in attachments:
+            if a not in pos_attachments.keys():
+                raise ValueError(f"Invalid attachment: {a}")
+
 
         return [pos_attachments[a] for a in attachments]
 
