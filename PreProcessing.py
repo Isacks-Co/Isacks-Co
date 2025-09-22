@@ -94,7 +94,12 @@ class PreProcessing:
                                       pressure_Pa=self.settings["Pressure"], compressibility=self.settings["Compressibility"])
             case _:
                 raise ValueError(f"Invalid ensemble setting: {self.settings['Ensemble']}")
+    
     def sanityCheckSettings(self):
+        """
+        Sanity check for the settings.json file. Makes sure that we only use EMT for 
+        valid metals. Also checks that relevant values are non-negative.
+        """
         if self.settings["Potential"] == "EMT": 
             elements = self.atoms.get_atomic_numbers()
             print(elements)
@@ -102,7 +107,17 @@ class PreProcessing:
                 raise ValueError(f"Invalid potential: EMT potential only availible for Al, Cu, Ag, Au, Ni, Pd, Pt.")
         elif self.settings["Temperature"] > 3000:
             raise ValueError(f"Invalid temperature: Exceeds 3000K")
-       
+        elif self.settings["Pressure"] < 0:
+            raise ValueError(f"Invalid pressure: Pressure has to be non-negative")
+        elif self.settings["Compressibility"] < 0:
+            raise ValueError(f"Invalid compressibility: Compressibility has to be non-negative")
+        elif self.settings["Friction"] < 0:
+            raise ValueError(f"Invalid timestep: timestep has to be non-negative")
+        elif self.settings["Timestep"] < 0:
+            raise ValueError(f"Invalid friction: Friction has to be non-negative")
+        elif self.settings["Number_of_steps"] < 0 or not isinstance(self.settings["Number_of_steps"],int):
+            raise ValueError(f"Invalid number of steps: Has to be a positive integer")
+        
     def sanityCheckAtomicStructure(self):
         """
         Sanity check for the input atomic structure.
