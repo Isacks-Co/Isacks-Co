@@ -14,12 +14,12 @@ class PreProcessing:
     def __init__(self, input_settings, input_structure, flags):
         self.expected_keys = {"-T": "Temperature", "-E": "Ensemble", "-P" : "Pressure",
                                "-POT" : "Potential", "-TS" : "Timestep", "-N" : "Number_of_steps",
-                               "-F" : "Friction", "-C" : "Compressibility", "-I" : "Interval", "-O" : "Output_file"}
+                               "-F" : "Friction", "-C" : "Compressibility", "-I" : "Interval", "-O" : "Output_file","-S":"Supercells"}
 
         self.settings = self.readSettings(input_settings)
-        #self.atoms = self.readAtomicStructure(input_structure)
+        self.atoms = self.readAtomicStructure(input_structure)
         #self.atoms.pbc = True
-        self.atoms = FaceCenteredCubic(size=(5, 5, 5), symbol="Cu", pbc=True)
+        #self.atoms = FaceCenteredCubic(size=(5, 5, 5), symbol="Cu", pbc=True)
         
        
         self.settings = self.readSettings(input_settings)
