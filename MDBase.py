@@ -17,9 +17,9 @@ class MDBase:
         different atomic structures.
     """
 
-    def __init__(self, timestep_fs: int = 10, number_of_steps: int = 200, interval: int = 10,
+    def __init__(self, timestep_fs: float = 2, number_of_steps: int = 200, interval: int = 10,
                  integrator_str: str = "Verlet", output_file: str = "data",
-                 temperature_k: float = 293, friction: float = 0.01, potential_str: str = "LJ",
+                 temperature_k: float = 293, friction: float = 0.01, potential_str: str = "EMT",
                  att_list: list = ["energy"],
                  pressure: float = 10e+6, compressibility: float = 10e-11):
         """
@@ -39,7 +39,7 @@ class MDBase:
         self.interval = int(interval) if interval else 10
         self.output_file = output_file
         self.temperature_k = float(temperature_k)
-        self.friction = float(friction)
+        self.friction = float(friction) / fs
         self.pressure = float(pressure)
         self.compressibility = compressibility
         self.potential = self.getPotential(potential_str)
@@ -47,16 +47,33 @@ class MDBase:
         self.attachments = self.getAttachment(att_list)
 
     @classmethod
-    def initNVE(cls, temperature: float):
-        return cls(temperature_k=temperature, integrator_str="NVE")
+    def initNVE(cls, temperature: float,  pot_str:str, timestep:float,
+                steps:int, interval:int, attachments:list):
+        
+        return cls(temperature_k = temperature, integrator_str = "NVE", potential_str = pot_str ,
+                timestep_fs = timestep, number_of_steps = steps, interval = interval, att_list = attachments )
 
     @classmethod
-    def initNVT(cls, temperature: float):
-        return cls(temperature_k=temperature, integrator_str="NVT")
+    def initNVT(cls, temperature: float, friction: float,  pot_str:str, timestep:float,
+                steps:int, interval:int, attachments:list ):
+
+        return cls(temperature_k = temperature, friction = friction,  integrator_str = "NVT", potential_str = pot_str,
+                    timestep_fs = timestep, number_of_steps = steps, interval = interval, att_list = attachments  )
 
     @classmethod
-    def initNPT(cls, temperature: float):
-        return cls(temperature_k=temperature, integrator_str="NPT")
+    def initNPT(cls, temperature: float, timestep:float,
+                steps:int, interval:int,  pressure_Pa : float, compressibility: float, pot_str:str, attachments:list):
+        
+        return cls(temperature_k = temperature, pressure = pressure_Pa, compressibility = compressibility,
+                    integrator_str = "NPT", potential_str = pot_str, timestep_fs = timestep,
+                      number_of_steps = steps, interval = interval, att_list = attachments )
+
+
+   
+        
+
+
+
 
     def getPotential(self, potential: str):
         """
@@ -79,30 +96,53 @@ class MDBase:
     def getIntegrator(self, integrator: str):
         integrator_lower = integrator.lower()
         if integrator_lower in ["verlet", "nve"]:
-            from ase.md.verlet import VelocityVerlet  # för NVE
+            from asap3.md.verlet import VelocityVerlet  # för NVE
             return functools.partial(VelocityVerlet, timestep=self.timestep)
 
         elif integrator_lower in ["langevin", "nvt"]:
-            from ase.md.langevin import Langevin  # för NVT
+            from asap3.md.langevin import Langevin  # för NVT
             return functools.partial(Langevin, timestep=self.timestep, temperature_K=self.temperature_k,
                                      friction=self.friction)
 
         elif integrator_lower in ["berendsen", "npt"]:
-            from ase.md.nptberendsen import NPTBerendsen
+            from asap3.md.nptberendsen import NPTBerendsen
             return functools.partial(NPTBerendsen, timestep=self.timestep, temperature_K=self.temperature_k,
                                      pressure_au=self.pressure, compressibility_au=self.compressibility)
 
         else:
-            raise ValueError(f"Invalid integrator: {integrator}")
+            raise ValueError(f"Invalid integrator: {self.integrator}")
 
     def getAttachment(self, attachments):
         pos_attachments = {'energy': self.printEnergy,
                            "momenta": self.printMomentum,
-                           "center_of_mass": self.printCenterOfMass}
+                           "center_of_mass": self.printCenterOfMass,
+                           "lattice":self.printLatticeConstants }
+        
         for a in attachments:
             if a not in pos_attachments.keys():
                 raise ValueError(f"Invalid attachment: {a}")
+
+
         return [pos_attachments[a] for a in attachments]
+
+    def equilibriumRun(self, atoms, equil_steps: int = 2000):
+                     
+        #NVT until equilibrium is reached
+        from asap3.md.langevin import Langevin
+        dyn_eq = Langevin(atoms,
+                          timestep=self.timestep,
+                          temperature_K=self.temperature_k,
+                          friction=self.friction)
+        
+
+        #traj = Trajectory(filename=f"{self.output_file}.traj", mode="w", atoms=atoms)
+        #dyn_eq.attach(traj.write, interval=self.interval)
+
+        
+        dyn_eq.run(int(equil_steps))
+        print(f"Equilibration reached after {equil_steps} steps at T={self.temperature_k} K.")
+        
+
 
     def runMD(self, atoms):
         """
@@ -116,13 +156,16 @@ class MDBase:
 
         atoms.calc = self.potential()
 
+       
         MaxwellBoltzmannDistribution(atoms, temperature_K=self.temperature_k,
                                      force_temp=True)  # Initialize velocity according to temperature_k
 
+        self.equilibriumRun(atoms=atoms)
+
         dyn = self.integrator(atoms=atoms)
 
-        material_name = str(atoms.symbols)
-        print("MATERIALNAME: ", material_name)
+        #material_name = str(atoms.symbols)
+        #print("MATERIALNAMN: ", material_name)
 
         # save traj
         traj = Trajectory(filename=f"{self.output_file}.traj", mode="w", atoms=atoms)
@@ -142,7 +185,7 @@ class MDBase:
     def printEnergy(self, atoms):
         epot = atoms.get_potential_energy() / len(atoms)
         ekin = atoms.get_kinetic_energy() / len(atoms)
-        etot = epot + ekin
+        etot = (epot + ekin) 
         T = float(atoms.get_temperature())
 
         print(f"E_pot/atom={epot:.5f}  E_kin/atom={ekin:.5f}  E_tot/atom={etot:.5f}  T={T:.1f} K")
