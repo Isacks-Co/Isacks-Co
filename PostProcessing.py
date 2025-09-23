@@ -8,6 +8,7 @@ import numpy as np
 import json
 from ase.eos import EquationOfState
 from ase.calculators.emt import EMT
+from ase.neighborlist import NeighborList, natural_cutoffs, build_neighbor_list
 
 EV_PER_A3_TO_GPA = 160.21766208
 
@@ -60,7 +61,7 @@ class PostProcessing:
         """
         Calculates the lattice constant of a FCC crystal.
         """
-        atoms = read("POSCAR")
+        atoms = read(poscar_path)
         # 3x3 lattice matrix (rows are the lattice vectors in Cartesian Å)
         cell = atoms.cell.array  # numpy.ndarray of shape (3, 3)
 
@@ -75,20 +76,20 @@ class PostProcessing:
             # If these are primitive fcc vectors:
             a_from_V = (4.0 * V) ** (1.0 / 3.0)
             print("a (from primitive-cell volume) = {:.6f} Å".format(a_from_V))
-            return a_from_V
+            return float(a_from_V)
 
         elif struct == "BCC (primitive)":
             # If these are primitive bcc vectors:
             a_from_V = (2.0 * V) ** (1.0 / 3.0)
             print("a (from primitive-cell volume) = {:.6f} Å".format(a_from_V))
-            return a_from_V
+            return float(a_from_V)
 
         else:
             # If these were conventional cubic vectors (orthogonal, equal length):
             a_conv = np.linalg.norm(a1)  # would equal the conventional a
             print("a (if conventional cell) = {:.6f} Å".format(a_conv))
             #Added the section immediately above, because I don't remember much of solid state physics, and want to be sure I'm doing this right.
-            return a_conv
+            return float(a_conv)
 
     def ComputeBulkModulus(self, poscar_path: str = "POSCAR", scales = np.linspace(0.96, 1.04, 7)):
         """
@@ -110,7 +111,7 @@ class PostProcessing:
         v0, e0, B0 = eos.fit()  # B0 in eV/Å^3
         bulk_modulus = B0 * EV_PER_A3_TO_GPA
         print("Bulk modulus = {:.6f} GPa".format(bulk_modulus))
-        return bulk_modulus
+        return float(bulk_modulus)
 
     def ComputeInternalPressure(self):
         """
@@ -122,13 +123,49 @@ class PostProcessing:
         internal_pressure = []
         for atoms in traj:
             e_kin = atoms.get_kinetic_energy()
-            number_of_atoms = len(atoms)
+            number_of_atoms = atoms.get_global_number_of_atoms()
             volume = atoms.get_volume()
-            internal_pressure.append(((1/(3*volume))*((2*number_of_atoms*e_kin) + sum(atoms.get_forces()*atoms.get_positions())))*EV_PER_A3_TO_GPA)
+            internal_pressure.append(((1/(3*volume))*((2*number_of_atoms*e_kin) + np.sum(atoms.get_forces()*atoms.get_positions())))*EV_PER_A3_TO_GPA)
         internal_pressure = np.array(internal_pressure)
         average_internal_pressure = np.average(internal_pressure)
-        print("Average pressure = ", average_internal_pressure, "GPa")
-        return average_internal_pressure
+        print("Average internal pressure = ", average_internal_pressure, "GPa")
+        return float(average_internal_pressure)
+
+    def ComputeMSD(self):
+        traj = Trajectory(self.read_traj_file)
+
+        N = traj[0].get_global_number_of_atoms()
+        r_0 = traj[0].get_positions()
+        r_n = traj[-1].get_positions()
+        msd = np.sum((r_n - r_0)**2) / N
+        print("Mean square displacement = ", msd, " Å^2")
+        return float(msd)
+
+
+
+
+    def ComputeLindemannIndex(self, poscar_path: str = "POSCAR"):
+        """
+
+        """
+        traj = Trajectory(self.read_traj_file)
+        atoms = traj[0]
+        nl = build_neighbor_list(atoms)
+        old_nn_per_atom = None
+        for atoms in traj:
+            nl.update(atoms)
+            nn_per_atom = np.min([nearest_neighbor_distance_for_atom(i, atoms, nl) for i in range(len(atoms))])
+            nn_per_atom = float(nn_per_atom)
+            if old_nn_per_atom is None:
+                old_nn_per_atom = nn_per_atom
+            elif old_nn_per_atom is not None and (nn_per_atom >= 0) and (nn_per_atom <= old_nn_per_atom):
+                old_nn_per_atom = nn_per_atom
+
+        print("Overall nearest-neighbor distance [Å]: ", old_nn_per_atom)
+        msd = self.ComputeMSD()
+        L = np.sqrt(msd) / old_nn_per_atom
+        print("Lindemann index: ", L)
+        return float(L)
 
 
 def ParseLogFile(log_path: str = "data.log"):
@@ -199,3 +236,29 @@ def DetermineCrystalStructure(poscar_path="POSCAR"):
             return "SC (conventional)"
 
     return "Unknown/Other"
+
+def nearest_neighbor_distance_for_atom(i, atoms, nl):
+    indices, offsets = nl.get_neighbors(i)
+    if len(indices) == 0:
+        return float("nan")
+
+    cell = atoms.cell.array  # (3, 3)
+    translations = offsets @ cell  # (M, 3), periodic image translations
+    rij = atoms.positions[indices] + translations - atoms.positions[i]  # (M, 3)
+    dists = np.linalg.norm(rij, axis=1)
+
+    # Remove exact/near-zero self entries if any slipped in
+    positive = dists[dists > 1e-8]
+    return float(np.min(positive)) if positive.size else float("nan")
+
+
+    dist=99999999999999999
+    for index in indices:
+        rij = abs(atoms.positions[index] - atoms.positions[i])
+        rij = np.min(rij)
+        if (rij < dist) and (rij != 0) and (i != index):
+            dist = rij
+        #rij = rij @ atoms.cell.array
+    print(dist)
+    return float(dist)
+

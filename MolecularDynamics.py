@@ -81,6 +81,10 @@ if __name__ == "__main__":
         PostViz.ComputeBulkModulus()
         # Internal pressure
         PostViz.ComputeInternalPressure()
+        #Mean square displacement
+        PostViz.ComputeMSD()
+        #Lindemann index
+        PostViz.ComputeLindemannIndex()
     except Exception as err:
         log.error(f"Postprocessing failed: {err}")
         exit(1)
