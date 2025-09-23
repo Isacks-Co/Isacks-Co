@@ -219,3 +219,4 @@ class MDBase:
                         raise RuntimeWarning("Run canceled because simulation is not stable. Total energy change is greater than 2 standard deviations.")
                 else:
                     self.hits += 1
+                                
