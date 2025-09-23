@@ -1,9 +1,8 @@
 import json
 from MDBase import MDBase
 from ase.io.vasp import read_vasp
-from ase.visualize import view
 from ase.lattice.cubic import FaceCenteredCubic
-
+import numpy as np
 
 class PreProcessing:
     """
@@ -15,14 +14,20 @@ class PreProcessing:
     def __init__(self, input_settings, input_structure, flags):
         self.expected_keys = {"-T": "Temperature", "-E": "Ensemble", "-P" : "Pressure",
                                "-POT" : "Potential", "-TS" : "Timestep", "-N" : "Number_of_steps",
-                               "-F" : "Friction", "-C" : "Compressibility", "-I" : "Interval", "-O" : "Output_file"}
+                               "-F" : "Friction", "-C" : "Compressibility", "-I" : "Interval", "-O" : "Output_file","-S":"Supercells"}
 
-        self.settings = self.readSettings(input_settings)
-        #self.atoms = self.readAtomicStructure(input_structure)
+        
+        self.atoms = self.readAtomicStructure(input_structure)
         #self.atoms.pbc = True
-        self.atoms = FaceCenteredCubic(size=(5, 5, 5), symbol="Cu", pbc=True)
+        #self.atoms = FaceCenteredCubic(size=(5, 5, 5), symbol="Cu", pbc=True)
+        
+       
+        self.settings = self.readSettings(input_settings)
 
+        self.atoms.pbc = True
         self.readTerminalInput(flags)
+        self.sanityCheckAtomicStructure()
+        self.sanityCheckSettings()
         self.printInput()
 
     def readSettings(self, input_settings):
@@ -48,6 +53,7 @@ class PreProcessing:
         """Print out all settings to the terminal for validation"""
         for key, value in self.settings.items():
             print(f"{key} : {value}")
+        print("Number of atoms: ", len(self.atoms))
 
     def readTerminalInput(self, flags):
         """Overwrites self.settings if other settings was received from terminal"""
@@ -88,7 +94,66 @@ class PreProcessing:
                                       pressure_Pa=self.settings["Pressure"], compressibility=self.settings["Compressibility"])
             case _:
                 raise ValueError(f"Invalid ensemble setting: {self.settings['Ensemble']}")
-                
+    
+    def sanityCheckSettings(self):
+        """
+        Sanity check for the settings.json file. Makes sure that we only use EMT for 
+        valid metals. Also checks that relevant values are non-negative.
+        """
+        if self.settings["Potential"] == "EMT": 
+            elements = self.atoms.get_atomic_numbers()
+            print(elements)
+            if not np.all(np.isin(elements,[13, 28, 29, 46, 47, 78, 79])): # Check if the elements are supported for EMT potential
+                raise ValueError(f"Invalid potential: EMT potential only availible for Al, Cu, Ag, Au, Ni, Pd, Pt.")
+        elif self.settings["Temperature"] > 3000:
+            raise ValueError(f"Invalid temperature: Exceeds 3000K")
+        elif self.settings["Pressure"] < 0:
+            raise ValueError(f"Invalid pressure: Pressure has to be non-negative")
+        elif self.settings["Compressibility"] < 0:
+            raise ValueError(f"Invalid compressibility: Compressibility has to be non-negative")
+        elif self.settings["Friction"] < 0:
+            raise ValueError(f"Invalid timestep: timestep has to be non-negative")
+        elif self.settings["Timestep"] < 0:
+            raise ValueError(f"Invalid friction: Friction has to be non-negative")
+        elif self.settings["Number_of_steps"] < 0 or not isinstance(self.settings["Number_of_steps"],int):
+            raise ValueError(f"Invalid number of steps: Has to be a positive integer")
+        
+    def sanityCheckAtomicStructure(self):
+        """
+        Sanity check for the input atomic structure.
+        Such as valid lattice angles, constants and atomic positions
+        """
+        self.checkLattice()
+        self.checkDistances()
+
+    def checkLattice(self):
+        """
+        Check that the lattice is valid. 
+        """
+        cell = self.atoms.get_cell()
+        angles = cell.angles()
+        
+        lengths = cell.lengths()/(self.settings["Supercells"]+1)
+        
+        if np.any(angles <= 0) or np.any(angles >= 180): # Check that lattice angles are between 0 and 180
+            raise ValueError("Invalid Lattice: Lattice angles must be between 0 and 180 degrees")
+        elif np.any(lengths <= 0) or np.any(lengths >= 10): # Check so that lattice constants are not >= 10 Å (or <= 0)
+            raise ValueError("Invalid Lattice: Lattice constants need to be positive and < 10")
+
+    def checkDistances(self):
+        """
+        Checks that interatomic distances are reasonable. No atomic overlap
+        """
+        if len(self.atoms) >= 5000: # Gets really expensive to compute interatomic distances at larger numbers
+            distances_matrix= self.atoms.get_all_distances(pbc = True)
+            upper_indeces = np.triu_indices(len(distances_matrix), k = 1)
+            flat_distances = distances_matrix[upper_indeces]
+            print(flat_distances)
+            if np.any(flat_distances <= 0.5): # Not sure exactly what is a reasonable threshold as atomic radius varies alot. currently 0.5 Å
+                raise ValueError("Invalid atomic configuration: Atomic overlap")
+            
+        
+
 
 
 if __name__ == "__main__":
