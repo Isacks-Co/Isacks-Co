@@ -9,9 +9,12 @@ import json
 from ase.eos import EquationOfState
 from ase.calculators.emt import EMT
 
+EV_PER_A3_TO_GPA = 160.21766208
+
 class PostProcessing:
     """
-    Use MD log files to visualize and analyze results.
+        Uses the log files generates from the Molecular Dynamics class to vizualize and analyze the data
+        input trajectory file as traj_file 
     """
     def __init__(self, traj_file):
         try:
@@ -28,9 +31,6 @@ class PostProcessing:
         Definition: E_coh = (sum_i n_i E_i^atom − E_crystal_total) / N
         Note: Uses a fixed EMT calculator; does not read settings or apply fallbacks.
         """
-        # Local import to avoid changing global imports
-        from ase.calculators.emt import EMT
-
         # Read structure
         atoms = read(poscar_path)
 
@@ -58,7 +58,7 @@ class PostProcessing:
 
     def ComputeLatticeConstant(self, poscar_path: str = "POSCAR") -> float:
         """
-        Calculatess the lattice constant of a FCC crystal.
+        Calculates the lattice constant of a FCC crystal.
         """
         atoms = read("POSCAR")
         # 3x3 lattice matrix (rows are the lattice vectors in Cartesian Å)
@@ -90,12 +90,10 @@ class PostProcessing:
             #Added the section immediately above, because I don't remember much of solid state physics, and want to be sure I'm doing this right.
             return a_conv
 
-    def ComputeBulkModulus(self, poscar_path: str = "POSCAR", scales=np.linspace(0.96, 1.04, 7)):
+    def ComputeBulkModulus(self, poscar_path: str = "POSCAR", scales = np.linspace(0.96, 1.04, 7)):
         """
-        Compute bulk modulus from equation of states, by rescaling.
+        Computes bulk modulus from equation of states, by rescaling.
         """
-        EV_PER_A3_TO_GPA = 160.21766208
-
         atoms0 = read(poscar_path)
 
         vols, energies = [], []
@@ -113,6 +111,25 @@ class PostProcessing:
         bulk_modulus = B0 * EV_PER_A3_TO_GPA
         print("Bulk modulus = {:.6f} GPa".format(bulk_modulus))
         return bulk_modulus
+
+    def ComputeInternalPressure(self):
+        """
+        For NVT ensemble, computes internal pressure.
+        Instantaneous: P(t)  = (1/3V)[2NkT(t) + SUM_i(r_i*f_i)]
+        Average:       P = (1/M)SUM_i(P(nΔt))
+        """
+        traj = Trajectory(self.read_traj_file)
+        internal_pressure = []
+        for atoms in traj:
+            e_kin = atoms.get_kinetic_energy()
+            number_of_atoms = len(atoms)
+            volume = atoms.get_volume()
+            internal_pressure.append(((1/(3*volume))*((2*number_of_atoms*e_kin) + sum(atoms.get_forces()*atoms.get_positions())))*EV_PER_A3_TO_GPA)
+        internal_pressure = np.array(internal_pressure)
+        average_internal_pressure = np.average(internal_pressure)
+        print("Average pressure = ", average_internal_pressure, "GPa")
+        return average_internal_pressure
+
 
 def ParseLogFile(log_path: str = "data.log"):
     """

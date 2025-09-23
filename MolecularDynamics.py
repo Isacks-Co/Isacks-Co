@@ -74,10 +74,13 @@ if __name__ == "__main__":
         PostViz = PostProcessing(output_str) # (TODO) Hardcoded but settings.json will contain file name
         PostViz.vizualize()
         # Lattice constant
-        PostViz.LatticeConstantFCC()
-
+        PostViz.ComputeLatticeConstant()
         # Cohesive energy
         PostViz.ComputeCohesiveEnergy()
+        # Bulk modulus
+        PostViz.ComputeBulkModulus()
+        # Internal pressure
+        PostViz.ComputeInternalPressure()
     except Exception as err:
         log.error(f"Postprocessing failed: {err}")
         exit(1)
