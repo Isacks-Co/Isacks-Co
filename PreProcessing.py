@@ -120,6 +120,8 @@ class PreProcessing:
                 raise ValueError(f"Invalid potential: EMT potential only availible for Al, Cu, Ag, Au, Ni, Pd, Pt.")
         elif self.settings["Temperature"] > 3000:
             raise ValueError(f"Invalid temperature: Exceeds 3000K")
+        elif self.settings["Temperature"] < 0:
+            raise ValueError(f"Invalid temperature: Negative temperature")
         elif self.settings["Pressure"] < 0:
             raise ValueError(f"Invalid pressure: Pressure has to be non-negative")
         elif self.settings["Compressibility"] < 0:
@@ -157,7 +159,7 @@ class PreProcessing:
         """
         Checks that interatomic distances are reasonable. No atomic overlap
         """
-        if len(self.atoms) >= 5000: # Gets really expensive to compute interatomic distances at larger numbers
+        if len(self.atoms) <= 5000: # Gets really expensive to compute interatomic distances at larger numbers
             distances_matrix= self.atoms.get_all_distances(pbc = True)
             upper_indeces = np.triu_indices(len(distances_matrix), k = 1)
             flat_distances = distances_matrix[upper_indeces]
