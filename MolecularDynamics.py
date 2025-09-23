@@ -84,7 +84,7 @@ if __name__ == "__main__":
         #Mean square displacement
         PostViz.ComputeMSD()
         #Lindemann index
-        PostViz.ComputeLindemannIndex()
+        PostViz.CheckLindemannCriterion()
     except Exception as err:
         log.error(f"Postprocessing failed: {err}")
         exit(1)

@@ -144,7 +144,7 @@ class PostProcessing:
 
 
 
-    def ComputeLindemannIndex(self, poscar_path: str = "POSCAR"):
+    def CheckLindemannCriterion(self, poscar_path: str = "POSCAR"):
         """
 
         """
@@ -165,7 +165,12 @@ class PostProcessing:
         msd = self.ComputeMSD()
         L = np.sqrt(msd) / old_nn_per_atom
         print("Lindemann index: ", L)
-        return float(L)
+        if L >= 0.1:
+            print("Lindemann index is high.")
+            return True
+        else:
+            print("Lindemann index is low.")
+            return False
 
 
 def ParseLogFile(log_path: str = "data.log"):
@@ -247,18 +252,6 @@ def nearest_neighbor_distance_for_atom(i, atoms, nl):
     rij = atoms.positions[indices] + translations - atoms.positions[i]  # (M, 3)
     dists = np.linalg.norm(rij, axis=1)
 
-    # Remove exact/near-zero self entries if any slipped in
+    # Remove exact or near-zero self entries if any slipped in
     positive = dists[dists > 1e-8]
     return float(np.min(positive)) if positive.size else float("nan")
-
-
-    dist=99999999999999999
-    for index in indices:
-        rij = abs(atoms.positions[index] - atoms.positions[i])
-        rij = np.min(rij)
-        if (rij < dist) and (rij != 0) and (i != index):
-            dist = rij
-        #rij = rij @ atoms.cell.array
-    print(dist)
-    return float(dist)
-
