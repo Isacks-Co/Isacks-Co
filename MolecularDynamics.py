@@ -85,6 +85,8 @@ if __name__ == "__main__":
         PostViz.ComputeMSD()
         #Lindemann index
         PostViz.CheckLindemannCriterion()
+        #Self-Diffusion Coefficient
+        PostViz.diffusion_coefficient()
     except Exception as err:
         log.error(f"Postprocessing failed: {err}")
         exit(1)
