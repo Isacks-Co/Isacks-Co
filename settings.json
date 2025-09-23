@@ -6,13 +6,14 @@
   "Number_of_steps": 2000,
   "Interval": 50,
   "Potential": "EMT",
-  "Attachments": ["center_of_mass"],
+  "Attachments": ["energy"],
 
   "Friction": 1,
   "Pressure": 0,
   "Compressibility": 1e-7,
 
   "EquilSteps": 5000,
-  "Supercells": 0
+  "Supercells": 5,
+  "Output_file" : "output"
 
 }

@@ -22,11 +22,11 @@ class PreProcessing:
 
 
 
-        self.atoms = self.readAtomicStructure(input_structure)
         log.info("Reading settings file: %s", input_settings)
 
         self.settings = self.readSettings(input_settings)
 
+        self.atoms = self.readAtomicStructure(input_structure).repeat( tuple([self.settings["Supercells"]+1]*3))
         self.atoms.pbc = True
         self.readTerminalInput(flags)
         self.sanityCheckAtomicStructure()
@@ -62,7 +62,7 @@ class PreProcessing:
         """Print out all settings to the terminal for validation"""
         for key, value in self.settings.items():
             print(f"{key} : {value}")
-        log.info("Number of atoms: ", len(self.atoms))
+        log.info(f"Number of atoms: {len(self.atoms)}")
 
     def readTerminalInput(self, flags):
         """Overwrites self.settings if other settings was received from terminal"""
@@ -160,7 +160,7 @@ class PreProcessing:
         Checks that interatomic distances are reasonable. No atomic overlap
         """
         if len(self.atoms) <= 5000: # Gets really expensive to compute interatomic distances at larger numbers
-            distances_matrix= self.atoms.get_all_distances(pbc = True)
+            distances_matrix= self.atoms.get_all_distances()
             upper_indeces = np.triu_indices(len(distances_matrix), k = 1)
             flat_distances = distances_matrix[upper_indeces]
             print(flat_distances)

@@ -61,7 +61,8 @@ if __name__ == "__main__":
         exit(1)
 
     try:
-        PostViz = PostProcessing('data.traj') # (TODO) Hardcoded but settings.json will contain file name
+        output_str = PP.settings["Output_file"] + ".traj"
+        PostViz = PostProcessing(output_str) # (TODO) Hardcoded but settings.json will contain file name
         PostViz.vizualize()
     except Exception as err:
         log.error(f"Postprocessing failed: {err}")
