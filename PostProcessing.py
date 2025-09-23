@@ -6,7 +6,8 @@ import re
 from pathlib import Path
 import numpy as np
 import json
-
+from ase.eos import EquationOfState
+from ase.calculators.emt import EMT
 
 class PostProcessing:
     """
@@ -20,35 +21,6 @@ class PostProcessing:
         
     def vizualize(self):
         view(self.read_traj_file)
-
-    def ParseLogFile(self, log_path: str = "data.log"):
-        """
-        Read data.log and return numeric columns.
-        Keys: "Time[ps]", "Etot/N[eV]", "Epot/N[eV]", "Ekin/N[eV]", "T[K]".
-        Repeated headers and bad lines are ignored.
-        """
-        text = Path(log_path).read_text(errors="ignore")
-        lines = text.splitlines()
-        headers = ["Time[ps]", "Etot/N[eV]", "Epot/N[eV]", "Ekin/N[eV]", "T[K]"]
-        data = {h: [] for h in headers}
-        for line in lines:
-            line = line.strip()
-            if not line or line.startswith("Time[ps]"):
-                continue
-            parts = re.split(r"\s+", line)
-            if len(parts) < 5:
-                continue
-            try:
-                t, etot, epot, ekin, T = (float(parts[0]), float(parts[1]), float(parts[2]), float(parts[3]), float(parts[4]))
-            except ValueError:
-                continue
-            # Store
-            data[headers[0]].append(t)
-            data[headers[1]].append(etot)
-            data[headers[2]].append(epot)
-            data[headers[3]].append(ekin)
-            data[headers[4]].append(T)
-        return data
 
     def ComputeCohesiveEnergy(self, poscar_path: str = "POSCAR", settings_path: str = "settings.json") -> float:
         """
@@ -77,7 +49,6 @@ class PostProcessing:
 
         # Sum over composition
         N = len(symbols)
-        print("N = ", N)
         sum_iso = sum(unique[s] for s in symbols)
 
         # Cohesive energy per atom
@@ -85,7 +56,7 @@ class PostProcessing:
         print("E_coh = ", E_coh)
         return float(E_coh)
 
-    def LatticeConstantFCC(self, poscar_path: str = "POSCAR") -> float:
+    def ComputeLatticeConstant(self, poscar_path: str = "POSCAR") -> float:
         """
         Calculatess the lattice constant of a FCC crystal.
         """
@@ -94,23 +65,85 @@ class PostProcessing:
         cell = atoms.cell.array  # numpy.ndarray of shape (3, 3)
 
         a1, a2, a3 = cell[0], cell[1], cell[2]
-
-        struct = determine_crystal_structure(poscar_path)
-        print("Structure: ", struct)
-
         # compute volume
         V = abs(np.dot(a1, np.cross(a2, a3)))
 
-        # If these are primitive fcc vectors:
-        a_from_V = (4.0 * V) ** (1.0 / 3.0)
-        print("a (from primitive-cell volume) = {:.6f} Å".format(a_from_V))
+        struct = DetermineCrystalStructure(poscar_path)
+        print("Structure: ", struct)
 
-        # If these were conventional cubic vectors (orthogonal, equal length):
-        a_conv = np.linalg.norm(a1)  # would equal the conventional a
-        print("a (if conventional cell) = {:.6f} Å".format(a_conv))
-        #Added the section immediately above, because I don't remember much of solid state physics, and want to be sure I'm doing this right.'
+        if struct == "FCC (primitive)":
+            # If these are primitive fcc vectors:
+            a_from_V = (4.0 * V) ** (1.0 / 3.0)
+            print("a (from primitive-cell volume) = {:.6f} Å".format(a_from_V))
+            return a_from_V
 
-def determine_crystal_structure(poscar_path="POSCAR"):
+        elif struct == "BCC (primitive)":
+            # If these are primitive bcc vectors:
+            a_from_V = (2.0 * V) ** (1.0 / 3.0)
+            print("a (from primitive-cell volume) = {:.6f} Å".format(a_from_V))
+            return a_from_V
+
+        else:
+            # If these were conventional cubic vectors (orthogonal, equal length):
+            a_conv = np.linalg.norm(a1)  # would equal the conventional a
+            print("a (if conventional cell) = {:.6f} Å".format(a_conv))
+            #Added the section immediately above, because I don't remember much of solid state physics, and want to be sure I'm doing this right.
+            return a_conv
+
+    def ComputeBulkModulus(self, poscar_path: str = "POSCAR", scales=np.linspace(0.96, 1.04, 7)):
+        """
+        Compute bulk modulus from equation of states, by rescaling.
+        """
+        EV_PER_A3_TO_GPA = 160.21766208
+
+        atoms0 = read(poscar_path)
+
+        vols, energies = [], []
+        for s in scales:
+            a = atoms0.copy()
+            a.set_cell(atoms0.get_cell() * s, scale_atoms=True)
+            a.calc = EMT()
+            E = a.get_potential_energy()
+            V = a.get_volume()
+            energies.append(E)
+            vols.append(V)
+
+        eos = EquationOfState(vols, energies, eos='birchmurnaghan')
+        v0, e0, B0 = eos.fit()  # B0 in eV/Å^3
+        bulk_modulus = B0 * EV_PER_A3_TO_GPA
+        print("Bulk modulus = {:.6f} GPa".format(bulk_modulus))
+        return bulk_modulus
+
+def ParseLogFile(log_path: str = "data.log"):
+    """
+    Read data.log and return numeric columns.
+    Keys: "Time[ps]", "Etot/N[eV]", "Epot/N[eV]", "Ekin/N[eV]", "T[K]".
+    Repeated headers and bad lines are ignored.
+    """
+    text = Path(log_path).read_text(errors="ignore")
+    lines = text.splitlines()
+    headers = ["Time[ps]", "Etot/N[eV]", "Epot/N[eV]", "Ekin/N[eV]", "T[K]"]
+    data = {h: [] for h in headers}
+    for line in lines:
+        line = line.strip()
+        if not line or line.startswith("Time[ps]"):
+            continue
+        parts = re.split(r"\s+", line)
+        if len(parts) < 5:
+            continue
+        try:
+            t, etot, epot, ekin, T = (float(parts[0]), float(parts[1]), float(parts[2]), float(parts[3]), float(parts[4]))
+        except ValueError:
+            continue
+        # Store
+        data[headers[0]].append(t)
+        data[headers[1]].append(etot)
+        data[headers[2]].append(epot)
+        data[headers[3]].append(ekin)
+        data[headers[4]].append(T)
+    return data
+
+def DetermineCrystalStructure(poscar_path="POSCAR"):
     atoms = read(poscar_path)
     cell = atoms.cell.array
     fracs = atoms.get_scaled_positions(wrap=True)
