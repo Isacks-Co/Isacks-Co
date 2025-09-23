@@ -47,6 +47,7 @@ class MDBase:
         self.attachments = self.getAttachment(att_list)
         self.temp_history = []
         self.hits = 0
+        self.ensemble = integrator_str
 
     @classmethod
     def initNVE(cls, temperature: float,  pot_str:str, timestep:float,
@@ -171,7 +172,7 @@ class MDBase:
         logger = MDLogger(dyn, atoms=atoms, logfile=f"{self.output_file}.log",
                           header=True, peratom=True, mode='a')  # Create a logger for writing data
         dyn.attach(logger, interval=self.interval)  # Attach logger
-        dyn.attach(lambda: self.tempFailSafe(atoms), interval=5)
+        dyn.attach(lambda: self.failSafe(atoms), interval=1)
 
         dyn.run(self.steps)  # RUN
 
@@ -181,7 +182,7 @@ class MDBase:
         etot = (epot + ekin)
         T = float(atoms.get_temperature())
 
-        print(f"E_pot/atom={epot:.5f}  E_kin/atom={ekin:.5f}  E_tot/atom={etot:.5f}  T={T:.1f} K")
+        #print(f"E_pot/atom={epot:.5f}  E_kin/atom={ekin:.5f}  E_tot/atom={etot:.5f}  T={T:.1f} K")
 
     def printMomentum(self, atoms):
         momenta = atoms.get_momenta()
@@ -195,19 +196,26 @@ class MDBase:
     def printLatticeConstants(self, atoms):
         print("Lattice: ", atoms.cell.cellpar())
 
-    def visualizeTraj(self):
-        traj = Trajectory("data.traj")
-        view(traj)
-
-    def tempFailSafe(self, atoms):
-
-        self.temp_history.append(atoms.get_temperature())
+    def failSafe(self, atoms):
+        """
+        Checks if temperature diverges continously in one direction,
+        returns an error if thats the case, uses a 'window' number of last runs to calculate mean average
+        hits determines how many flucuations before exiting
+        """
+        window = 5
+        if (self.integrator != "NVE"):
+            self.temp_history.append(atoms.get_temperature())
+        else:
+            self.temp_history.append((atoms.get_potential_energi()+atoms.get_kinetic_energy())/len(atoms))
         if len(self.temp_history) > 1:
-            mean = np.mean(self.temp_history)
-            std  = np.std(self.temp_history)
-            print(f"temperature: {self.temp_history[-1]}.\ntemperature mean: {mean}.\ntemperature standard deviation: {std}.")
-            if self.temp_history[-1] > mean + 2 * std:
-                if (self.hits == 15):
-                    raise RuntimeWarning("Temperature change exceeds at least 2 standard deviations.")
+            mean = np.mean(self.temp_history[-window:])
+            std  = np.std(self.temp_history[-window:])
+            if abs(self.temp_history[-1] - mean) > 2 * std:
+                if (self.hits == 5):
+                    if (self.integrator != "NVE"):
+                        raise RuntimeWarning("Run canceled because simulation is not stable. Temperature change is greater than 2 standard deviations.")
+                    else:
+                        raise RuntimeWarning("Run canceled because simulation is not stable. Total energy change is greater than 2 standard deviations.")
                 else:
                     self.hits += 1
+                                
