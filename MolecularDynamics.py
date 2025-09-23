@@ -3,14 +3,12 @@ from PreProcessing import PreProcessing
 from MDBase import MDBase
 from PostProcessing import PostProcessing
 import logging
+import logger
 
 
 if __name__ == "__main__":
-    logging.basicConfig( level=logging.INFO,
-        format="%(levelname)s: %(message)s")
-
-    log = logging.getLogger("MD")
-
+    log = logger.logger_setup()
+    
 
     if len(sys.argv[1:]) % 2 != 0:
         raise AssertionError("Missing arguments") # Maybe other exception is better

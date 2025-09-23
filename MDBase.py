@@ -8,7 +8,7 @@ from ase.md.velocitydistribution import MaxwellBoltzmannDistribution
 from ase.units import fs
 from ase.visualize import view
 import logging
-
+import time
 
 
 log = logging.getLogger("MD")
@@ -137,6 +137,7 @@ class MDBase:
                      
         #NVT until equilibrium is reached
         from asap3.md.langevin import Langevin
+        start_eq_time = time.time()
         dyn_eq = Langevin(atoms,
                           timestep=self.timestep,
                           temperature_K=self.temperature_k,
