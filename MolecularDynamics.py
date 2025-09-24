@@ -73,6 +73,7 @@ if __name__ == "__main__":
         output_str = PP.settings["Output_file"] + ".traj"
         PostViz = PostProcessing(output_str) # (TODO) Hardcoded but settings.json will contain file name
         PostViz.vizualize()
+        """
         # Lattice constant
         PostViz.ComputeLatticeConstant()
         # Cohesive energy
@@ -85,6 +86,7 @@ if __name__ == "__main__":
         PostViz.ComputeMSD()
         #Lindemann index
         PostViz.CheckLindemannCriterion()
+        """
         #Self-Diffusion Coefficient
         PostViz.diffusion_coefficient()
     except Exception as err:

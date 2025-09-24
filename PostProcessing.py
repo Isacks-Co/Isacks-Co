@@ -12,6 +12,7 @@ from ase.neighborlist import NeighborList, natural_cutoffs, build_neighbor_list
 import json
 import mpmath as mp
 from ase.md.analysis import DiffusionCoefficient
+from ase.units import Bohr, Rydberg, kJ, kB, fs as fs_conversion, Hartree, mol, kcal, Ang
 
 EV_PER_A3_TO_GPA = 160.21766208
 
@@ -134,20 +135,20 @@ class PostProcessing:
         print("Average internal pressure = ", average_internal_pressure, "GPa")
         return float(average_internal_pressure)
 
-    def ComputeMSD(self):
+    def ComputeMSD(self, ignore_initial=1):
         traj = Trajectory(self.read_traj_file)
-
         N = traj[0].get_global_number_of_atoms()
         r_0 = traj[0].get_positions()
-        r_n = traj[-1].get_positions()
-        msd = np.sum((r_n - r_0)**2) / N
-        print("Mean square displacement = ", msd, " Å^2")
-        return float(msd)
+        msd = []
+
+        for atoms in traj[1:]:
+            r_n = atoms.get_positions()
+            msd.append(np.sum((r_n - r_0)**2) / N)
+        #print("Mean square displacement = ", msd, " Å^2")
+        return msd
 
 
-
-
-    def CheckLindemannCriterion(self, poscar_path: str = "POSCAR"):
+    def CheckLindemannCriterion(self):
         """
         Returns True if Lindemann criterion is met, False otherwise.
         """
@@ -166,6 +167,9 @@ class PostProcessing:
 
         print("Overall nearest-neighbor distance [Å]: ", old_nn_per_atom)
         msd = self.ComputeMSD()
+        msd = np.array(msd)
+        msd = np.mean(msd)
+        print("MSD:---------------------- ", msd)
         L = np.sqrt(msd) / old_nn_per_atom
         print("Lindemann index: ", L)
         if L >= 0.1:
@@ -175,39 +179,8 @@ class PostProcessing:
             print("Lindemann index is low.")
             return False
 
-    def diffusion_coefficient(self, settings_path="settings.json", log_path="data.log", ignore_initial=0):
+    def diffusion_coefficient(self, settings_path="settings.json", log_path="data.log", ignore_initial=1):
 
-        traj = Trajectory(self.read_traj_file)
-        atoms = traj[0]
-        try:
-            settings = json.loads(Path(settings_path).read_text())
-            timestep_fs = float(settings["Timestep_fs"])  # fs per MD step
-            interval = int(settings["Interval"])  # steps between saved frames
-        except Exception as e:
-            raise RuntimeError(f"Failed to read timing info from {settings_path}: {e}")
-
-        timestep_s = timestep_fs * 1e-15  # 1 fs = 1e-15 s
-
-        nl = build_neighbor_list(atoms)
-        atom_indices, offsets = nl.get_neighbors(0)
-
-        diff = DiffusionCoefficient(traj, timestep_s, atom_indices=atom_indices, molecule=False)
-        diff.calculate(ignore_n_images=ignore_initial, number_of_segments=1)
-
-        # diff.slopes gives slope m in: (1/(2n)) <|r(t)-r(0)|^2> = D t  => slope = D
-        # Actually diff.slopes is shape (n_atom_types, n_segments, 3)
-        slopes = diff.slopes  # D in each direction per type and segment
-        # If only one atom type assumed, take first
-        D_per_dir = slopes[0, 0, :]  # [Dx, Dy, Dz]
-        D_mean = D_per_dir.mean()
-        print("D_per_dir = ", D_per_dir)
-        print("D_mean = ", D_mean)
-
-        return D_per_dir, D_mean
-"""
-    def SelfDiffusionCoefficient(self, settings_path: str = "settings.json", fit_fraction: float = 0.5):
-
-        # Load trajectory and timing info
         traj = Trajectory(self.read_traj_file)
         try:
             settings = json.loads(Path(settings_path).read_text())
@@ -216,53 +189,14 @@ class PostProcessing:
         except Exception as e:
             raise RuntimeError(f"Failed to read timing info from {settings_path}: {e}")
 
-        dt_frame_ps = timestep_fs * interval * 1e-3  # fs → ps
+        timestep = interval * timestep_fs * fs_conversion
+        diff = DiffusionCoefficient(traj, timestep)
+        diff.calculate()
+        slopes, std = diff.get_diffusion_coefficients()
+        slope = (slopes[0] * fs_conversion)*1e-5
+        print("new slopes: ", slope)
+        return slope
 
-        T = len(traj)
-        if T < 2:
-            raise ValueError("Trajectory has fewer than 2 frames; cannot compute diffusion.")
-
-        # Initial positions and accumulator for unwrapped displacements (Å)
-        cum_disp = np.zeros_like(traj[0].get_positions())
-
-        times_ps = [0.0]
-        msd_vals = [0.0]
-
-        for k in range(1, T):
-            prev = traj[k - 1]
-            curr = traj[k]
-
-            if np.any(curr.get_pbc()):
-                # Minimum-image displacement in fractional coords, then map to Cartesian
-                sp_prev = prev.get_scaled_positions(wrap=True)
-                sp_curr = curr.get_scaled_positions(wrap=True)
-                dfrac = sp_curr - sp_prev
-                dfrac -= np.round(dfrac)  # nearest image
-                delta = dfrac @ curr.cell.array  # (N,3) Å
-            else:
-                delta = curr.get_positions() - prev.get_positions()
-
-            cum_disp += delta
-            msd_k = np.mean(np.sum(cum_disp ** 2, axis=1))  # average over atoms
-            msd_vals.append(float(msd_k))
-            times_ps.append(k * dt_frame_ps)
-
-        # Linear fit on the tail fraction of data
-        n_pts = T
-        start_idx = int((1.0 - float(fit_fraction)) * (n_pts - 1))
-        start_idx = max(0, min(start_idx, n_pts - 2))
-        t_fit = np.array(times_ps[start_idx:], dtype=float)
-        msd_fit = np.array(msd_vals[start_idx:], dtype=float)
-        if t_fit.size < 2:
-            raise ValueError("Not enough points for linear fit of MSD.")
-
-        slope, intercept = np.polyfit(t_fit, msd_fit, 1)  # MSD ≈ slope * t + intercept
-        D_A2_per_ps = slope / 6.0  # Å^2/ps
-        D_SI = float(D_A2_per_ps * 1e-8)  # 1 Å^2/ps = 1e-8 m^2/s
-
-        print(f"Self-diffusion: D = {D_A2_per_ps:.6e} Å^2/ps = {D_SI:.6e} m^2/s")
-        return D_SI
-"""
 
 def ParseLogFile(log_path: str = "data.log"):
     """
