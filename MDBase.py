@@ -9,7 +9,7 @@ from ase.units import fs
 from ase.visualize import view
 import logging
 import time
-
+from logger import log_timing
 
 log = logging.getLogger("MD")
 class MDBase:
@@ -76,6 +76,14 @@ class MDBase:
         return cls(temperature_k=temperature, pressure=pressure_Pa, compressibility=compressibility,
                    integrator_str="NPT", potential_str=pot_str, timestep_fs=timestep,
                    number_of_steps=steps, interval=interval,equil_steps=equilibrium_steps, output_file=output_file)
+
+
+    def pascalToAu(self, pressure_Pa):
+        pressure_au = pressure_Pa * 6.2415e-12
+        return pressure_au
+
+
+
     def getPotential(self, potential: str):
         """
         In:
@@ -137,7 +145,6 @@ class MDBase:
                      
         #NVT until equilibrium is reached
         from asap3.md.langevin import Langevin
-        start_eq_time = time.time()
         dyn_eq = Langevin(atoms,
                           timestep=self.timestep,
                           temperature_K=self.temperature_k,

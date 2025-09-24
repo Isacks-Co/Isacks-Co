@@ -1,4 +1,5 @@
 import logging
+import time
 
 class CustomFormatter(logging.Formatter):
     COLORS =  {
@@ -12,7 +13,9 @@ class CustomFormatter(logging.Formatter):
     RESET = "\033[0m"
 
     def format(self, record):
-        color = self.COLORS.get(record.levelno, self.RESET)
+        color = self.COLORS.get(record.levelno, "")
+        orig_levelname = record.levelname
+        record.levelname = f"{color}{orig_levelname}{self.RESET}" if color else orig_levelname
         message = super().format(record)
         return f"{color}{message}{self.RESET}"
 
@@ -21,10 +24,20 @@ class CustomFormatter(logging.Formatter):
 def logger_setup():
     log = logging.getLogger("MD")
     log.setLevel(logging.INFO)        # byt till DEBUG vid felsökning
-    log.propagate = False             # så vi inte bubblar upp till root och får dubletter
+    log.propagate = False        
 
-    if not log.handlers:              # skydda mot dubbla handlers om filen körs flera gånger
+    if not log.handlers:           
         h = logging.StreamHandler()
-        h.setFormatter(CustomFormatter("%(levelname)s: %(message)s"))
+        fmt = "%(asctime)s | %(levelname)s: %(message)s"
+        datefmt = "%H:%M:%S.%ms"  
+        h.setFormatter(CustomFormatter(fmt=fmt, datefmt=datefmt))        
         log.addHandler(h)
-        return log
+
+    return log
+
+
+
+def log_timing(msg, t0 ):
+    log = logging.getLogger("MD")
+    dt = time.perf_counter() - t0
+    log.info("%-35s | %8.3f s", msg, dt)
