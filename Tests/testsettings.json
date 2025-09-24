@@ -1,0 +1,13 @@
+{
+    "Temperature" : 300,
+    "Ensemble" : "NVE",
+    "Potential" : "EMT",
+    "Timestep" : 0.5,
+    "Number_of_steps" : 1000,
+    "Output_file" : "output",
+    "Friction" : 0,
+    "Compressibility" : 0,
+    "Pressure" : 0,
+    "Interval" : 50,
+    "Supercells": 5
+}
