@@ -69,6 +69,7 @@ class PreProcessing:
         if flags:
             for i in range(0, len(flags), 2):
                 if flags[i] not in self.expected_keys.keys():
+                    log.error(f"Flag is invalid: {flags[i]}")
                     raise ValueError(f"Flag is invalid: {flags[i]}")
                 self.settings[self.expected_keys[flags[i]]] = flags[i + 1]
 
