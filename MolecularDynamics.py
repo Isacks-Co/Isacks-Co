@@ -83,12 +83,14 @@ if __name__ == "__main__":
         # Internal pressure
         PostViz.ComputeInternalPressure()
         #Mean square displacement
-        PostViz.ComputeMSD()
-        #Lindemann index
-        PostViz.CheckLindemannCriterion()
         """
+        PostViz.ComputeMSD(reference=0, flags=flags)
+
+        #Lindemann index
+        PostViz.CheckLindemannCriterion(flags=flags)
+
         #Self-Diffusion Coefficient
-        PostViz.diffusion_coefficient()
+        PostViz.SelfDiffusionCoefficient()
     except Exception as err:
         log.error(f"Postprocessing failed: {err}")
         exit(1)

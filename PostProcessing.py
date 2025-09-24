@@ -1,6 +1,6 @@
 from ase.io.trajectory import Trajectory
 from ase.visualize import view
-from ase.io import read
+from ase.io import read, write
 from ase import Atoms
 import re
 from pathlib import Path
@@ -8,11 +8,19 @@ import numpy as np
 import json
 from ase.eos import EquationOfState
 from ase.calculators.emt import EMT
-from ase.neighborlist import NeighborList, natural_cutoffs, build_neighbor_list
+from ase.neighborlist import NeighborList, natural_cutoffs, build_neighbor_list, NeighborList
 import json
 import mpmath as mp
 from ase.md.analysis import DiffusionCoefficient
 from ase.units import Bohr, Rydberg, kJ, kB, fs as fs_conversion, Hartree, mol, kcal, Ang
+from ase.build import bulk
+from ase.data import atomic_numbers, atomic_names, atomic_masses, covalent_radii, cohesive_energies
+import MDAnalysis as mda
+from MDAnalysis.analysis import msd as mda_msd
+from MDAnalysis.tests.datafiles import RANDOM_WALK_TOPO, RANDOM_WALK
+import matplotlib.pyplot as plt
+from scipy.stats import linregress
+import PreProcessing
 
 EV_PER_A3_TO_GPA = 160.21766208
 
@@ -76,13 +84,13 @@ class PostProcessing:
         struct = DetermineCrystalStructure(poscar_path)
         print("Structure: ", struct)
 
-        if struct == "FCC (primitive)":
+        if struct == "fcc":
             # If these are primitive fcc vectors:
             a_from_V = (4.0 * V) ** (1.0 / 3.0)
             print("a (from primitive-cell volume) = {:.6f} Å".format(a_from_V))
             return float(a_from_V)
 
-        elif struct == "BCC (primitive)":
+        elif struct == "bcc":
             # If these are primitive bcc vectors:
             a_from_V = (2.0 * V) ** (1.0 / 3.0)
             print("a (from primitive-cell volume) = {:.6f} Å".format(a_from_V))
@@ -135,53 +143,77 @@ class PostProcessing:
         print("Average internal pressure = ", average_internal_pressure, "GPa")
         return float(average_internal_pressure)
 
-    def ComputeMSD(self, ignore_initial=1):
+    def ComputeMSD(self, time = -1, reference = None, flags = [], log_path = "data.log", settings_path = "settings.json"):
         traj = Trajectory(self.read_traj_file)
-        N = traj[0].get_global_number_of_atoms()
-        r_0 = traj[0].get_positions()
-        msd = []
+        data_log = ParseLogFile(log_path)
+        if reference is None:
+            ideal_atoms = PreProcessing.PreProcessing(input_settings=settings_path, input_structure=None, flags=flags)
+            N = (ideal_atoms.atoms).get_global_number_of_atoms()
+            r_0 = ideal_atoms.atoms.get_positions()
 
-        for atoms in traj[1:]:
-            r_n = atoms.get_positions()
-            msd.append(np.sum((r_n - r_0)**2) / N)
-        #print("Mean square displacement = ", msd, " Å^2")
+        else:
+            N = traj[reference].get_global_number_of_atoms()
+            r_0 = traj[reference].get_positions()
+
+        r_n = traj[time].get_positions()
+        msd = np.sum((r_n - r_0)**2) / N        #Å^2
+        print("MSD:---------------------- ", msd)
         return msd
 
+        """
+        # Convert ASE trajectory to a multi-frame XYZ
+        images = read("data.traj", index=":")
+        write("data.xyz", traj)     # multi-frame XYZ
+        u = mda.Universe("data.xyz")
+        print("hej")
+        EMSD = mda_msd.EinsteinMSD(u, select="all", msd_type="xyz", fft=True)
+        EMSD.run()
+        msd = EMSD.results.timeseries
+        print("MSD values:---------------------- ", msd[time])
+        return msd[time]
+        """
 
-    def CheckLindemannCriterion(self):
+    def CheckLindemannCriterion(self, poscar_path: str = "POSCAR", settings_path = "settings.json", flags = []):
         """
         Returns True if Lindemann criterion is met, False otherwise.
         """
+        #atoms_initial = read(poscar_path)
+        #supercell = atoms_initial.repeat([2,2,2])
+        ideal_atoms = PreProcessing.PreProcessing(input_settings=settings_path, input_structure=None, flags=flags)
+        supercell = ideal_atoms.atoms
+        cutoffs = natural_cutoffs(supercell)
+        nl_initial = NeighborList(cutoffs, self_interaction=False, bothways=True)
+        nl_initial.update(supercell)
+        min_dist = np.min([nearest_neighbor_distance_for_atom(j, supercell, nl_initial) for j in range(supercell.get_global_number_of_atoms())])
+        min_dist = float(min_dist)
+        print("First min dist-------------- ", min_dist)
+
         traj = Trajectory(self.read_traj_file)
-        atoms = traj[0]
-        nl = build_neighbor_list(atoms)
-        old_nn_per_atom = None
+        nl = build_neighbor_list(traj[0])
         for atoms in traj:
             nl.update(atoms)
             nn_per_atom = np.min([nearest_neighbor_distance_for_atom(i, atoms, nl) for i in range(len(atoms))])
             nn_per_atom = float(nn_per_atom)
-            if old_nn_per_atom is None:
-                old_nn_per_atom = nn_per_atom
-            elif old_nn_per_atom is not None and (nn_per_atom >= 0) and (nn_per_atom <= old_nn_per_atom):
-                old_nn_per_atom = nn_per_atom
+            if min_dist is None:
+                min_dist = nn_per_atom
+            elif min_dist is not None and (nn_per_atom >= 0) and (nn_per_atom <= min_dist):
+                min_dist = nn_per_atom
 
-        print("Overall nearest-neighbor distance [Å]: ", old_nn_per_atom)
+        print("Overall nearest-neighbor distance [Å]: ", min_dist)
         msd = self.ComputeMSD()
-        msd = np.array(msd)
-        msd = np.mean(msd)
-        print("MSD:---------------------- ", msd)
-        L = np.sqrt(msd) / old_nn_per_atom
-        print("Lindemann index: ", L)
-        if L >= 0.1:
+        l = np.sqrt(msd) / min_dist
+        print("Lindemann index: ", l)
+        if l >= 0.1:
             print("Lindemann index is high.")
             return True
         else:
             print("Lindemann index is low.")
             return False
 
-    def diffusion_coefficient(self, settings_path="settings.json", log_path="data.log", ignore_initial=1):
+    def SelfDiffusionCoefficient(self, settings_path="settings.json", log_path="data.log"):
 
         traj = Trajectory(self.read_traj_file)
+        data_log = ParseLogFile(log_path)
         try:
             settings = json.loads(Path(settings_path).read_text())
             timestep_fs = float(settings["Timestep_fs"])  # fs per MD step
@@ -189,13 +221,61 @@ class PostProcessing:
         except Exception as e:
             raise RuntimeError(f"Failed to read timing info from {settings_path}: {e}")
 
-        timestep = interval * timestep_fs * fs_conversion
-        diff = DiffusionCoefficient(traj, timestep)
-        diff.calculate()
-        slopes, std = diff.get_diffusion_coefficients()
-        slope = (slopes[0] * fs_conversion)*1e-5
-        print("new slopes: ", slope)
-        return slope
+        timestep_list = []
+        for i in range(len(data_log["Time[ps]"])):
+            if round(data_log["T[K]"][i], 0) == settings["Temperature"]:
+                timestep = data_log["Time[ps]"][i]
+                timestep_list.append([timestep, i])
+
+        print("Timestep list: ", timestep_list)
+        print(timestep_list[0][0], "--------", timestep_list[-1][0])
+
+
+        #halfway = int(round((len(timestep_list) - 1) / 2, 0))
+        msd_list = [self.ComputeMSD(time=timestep_list[0][1]),
+                    self.ComputeMSD(time=timestep_list[-1][1]),]
+        slope = (msd_list[-1] - msd_list[0])/ (timestep_list[-1][0] - timestep_list[0][0])
+        slope_m2_per_s = slope * 1e-8 / 6
+        print("Self-Diffusion Coefficient------------ [Å^2/s^-1]: ", slope_m2_per_s)
+        return slope_m2_per_s
+
+
+        """
+        images = read("data.traj", index=":")
+        write("data.xyz", traj)     # multi-frame XYZ
+        u = mda.Universe("data.xyz")
+
+        u = mda.Universe(RANDOM_WALK_TOPO, RANDOM_WALK)
+        MSD = mda_msd.EinsteinMSD(u, select='all', msd_type='xyz', fft=True)
+        MSD.run()
+        msd = MSD.results.timeseries
+
+        nframes = MSD.n_frames
+        timestep = timestep_fs * interval  # this needs to be the actual time between frames
+        lagtimes = np.arange(nframes) * timestep  # make the lag-time axis
+        fig = plt.figure()
+        ax = plt.axes()
+        # plot the actual MSD
+        ax.plot(lagtimes, msd, color="black", ls="-", label=r'3D random walk')
+        exact = lagtimes * 6
+        # plot the exact result
+        ax.plot(lagtimes, exact, color="black", ls="--", label=r'$y=2 D\tau$')
+        #plt.show()
+        plt.loglog(lagtimes, msd)
+        #plt.show()
+
+        #start_time = 20
+        start_index = 1 #int(start_time / timestep)
+        #end_time = 60
+        end_index = -1 #int(end_time / timestep)
+        linear_model = linregress(lagtimes[start_index:end_index],
+                                  msd[start_index:end_index])
+        slope = linear_model.slope
+        error = linear_model.stderr
+        # dim_fac is 3 as we computed a 3D msd with 'xyz'
+        D = slope * 1 * 1e-8 / (2 * MSD.dim_fac)
+        print(D)
+        """
 
 
 def ParseLogFile(log_path: str = "data.log"):
@@ -247,9 +327,9 @@ def DetermineCrystalStructure(poscar_path="POSCAR"):
     # Checks if primitive fcc or primitive bcc
     if eq_len:
         if all(near(x, 60.0, 2.0) for x in (al, be, ga)):
-            return "FCC (primitive)"
+            return "fcc"
         if all(near(x, 109.471, 2.0) for x in (al, be, ga)):
-            return "BCC (primitive)"
+            return "bcc"
 
     # Conventional cubic check
     if eq_len and all(near(x, 90.0, 2.0) for x in (al, be, ga)):
@@ -280,6 +360,7 @@ def nearest_neighbor_distance_for_atom(i, atoms, nl):
     # Remove exact or near-zero self entries if any slipped in
     positive = dists[dists > 1e-8]
     return float(np.min(positive)) if positive.size else float("nan")
+
 
 def numeric_limit_infinity(f, direction='+', t0=1.0, growth=2.0, steps=8):
     """Estimate lim_{x→±∞} f(x) by sampling x_k growing geometrically.
