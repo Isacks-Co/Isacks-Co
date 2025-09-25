@@ -1,3 +1,5 @@
+from random import randint
+
 from ase.io.trajectory import Trajectory
 from ase.visualize import view
 from ase.io import read, write
@@ -36,14 +38,15 @@ class PostProcessing:
         Uses the log files generates from the Molecular Dynamics class to vizualize and analyze the data
         input trajectory file as traj_file 
     """
-    def __init__(self, traj_file):
+    def __init__(self, traj_file, ideal):
         try:
-            self.read_traj_file = Trajectory(traj_file)
+            self.traj = Trajectory(traj_file)
+            self.ideal_atoms = ideal
         except FileNotFoundError:
             raise FileNotFoundError(f"Trajectory file {traj_file} not found")
         
     def vizualize(self):
-        view(self.read_traj_file)
+        view(self.traj)
 
     def computeCohesiveEnergy(self, poscar_path: str = "POSCAR", settings_path: str = "settings.json") -> float:
         """
@@ -88,7 +91,7 @@ class PostProcessing:
         # compute volume
         V = abs(np.dot(a1, np.cross(a2, a3)))
 
-        struct = DetermineCrystalStructure(poscar_path)
+        struct = self.determineCrystalStructure(poscar_path)
         print("Structure: ", struct)
 
         if struct == "fcc":
@@ -129,7 +132,7 @@ class PostProcessing:
         eos = EquationOfState(vols, energies, eos='birchmurnaghan')
         v0, e0, B0 = eos.fit()  # B0 in eV/Å^3
         bulk_modulus = B0 * EV_PER_A3_TO_GPA
-        print("Bulk modulus = {:.6f} GPa".format(bulk_modulus))
+        #print("Bulk modulus = {:.6f} GPa".format(bulk_modulus))
         return float(bulk_modulus)
 
     def computeInternalPressure(self):
@@ -138,7 +141,7 @@ class PostProcessing:
         Instantaneous: P(t)  = (1/3V)[2NkT(t) + SUM_i(r_i*f_i)]
         Average:       P = (1/M)SUM_i(P(nΔt))
         """
-        traj = Trajectory(self.read_traj_file)
+        traj = self.traj
         internal_pressure = []
         for atoms in traj:
             e_kin = atoms.get_kinetic_energy()
@@ -150,44 +153,32 @@ class PostProcessing:
         print("Average internal pressure = ", average_internal_pressure, "GPa")
         return float(average_internal_pressure)
 
-    def computeMSD(self, time = -1, reference = None, flags = [], log_path = "data.log", settings_path = "settings.json"):
-        traj = Trajectory(self.read_traj_file)
+    def computeMSD(self, time = -10 , reference = 0, log_path = "output.log", settings_path = "settings.json"):
+        traj = self.traj
         data_log = ParseLogFile(log_path)
-        if reference is None:
-            ideal_atoms = PreProcessing.PreProcessing(input_settings=settings_path, input_structure=None, flags=flags)
-            N = ideal_atoms.atoms.get_global_number_of_atoms()
-            r_0 = ideal_atoms.atoms.get_positions()
+        if time is None:
+            time = reference + 1
 
+        if reference is None:
+            N = self.ideal_atoms.get_global_number_of_atoms()
+            r_0 = self.ideal_atoms.get_positions()
         else:
             N = traj[reference].get_global_number_of_atoms()
             r_0 = traj[reference].get_positions()
 
+        #print("r_0:---------------------- ", r_0)
         r_n = traj[time].get_positions()
+        #print("r_n:---------------------- ", r_n)
         msd = np.sum((r_n - r_0)**2) / N        #Å^2
         print("MSD:---------------------- ", msd)
         return msd
 
-        """
-        # Convert ASE trajectory to a multi-frame XYZ
-        images = read("data.traj", index=":")
-        write("data.xyz", traj)     # multi-frame XYZ
-        u = mda.Universe("data.xyz")
-        print("hej")
-        EMSD = mda_msd.EinsteinMSD(u, select="all", msd_type="xyz", fft=True)
-        EMSD.run()
-        msd = EMSD.results.timeseries
-        print("MSD values:---------------------- ", msd[time])
-        return msd[time]
-        """
 
-    def CheckLindemannCriterion(self, poscar_path: str = "POSCAR", settings_path = "settings.json", flags = []):
+    def computeLindemannCriterion(self, poscar_path: str = "POSCAR", settings_path = "settings.json"):
         """
         Returns True if Lindemann criterion is met, False otherwise.
         """
-        #atoms_initial = read(poscar_path)
-        #supercell = atoms_initial.repeat([2,2,2])
-        ideal_atoms = PreProcessing.PreProcessing(input_settings=settings_path, input_structure=None, flags=flags)
-        supercell = ideal_atoms.atoms
+        supercell = self.ideal_atoms
         cutoffs = natural_cutoffs(supercell)
         nl_initial = NeighborList(cutoffs, self_interaction=False, bothways=True)
         nl_initial.update(supercell)
@@ -195,11 +186,11 @@ class PostProcessing:
         min_dist = float(min_dist)
         print("First min dist-------------- ", min_dist)
 
-        traj = Trajectory(self.read_traj_file)
+        traj = self.traj
         nl = build_neighbor_list(traj[0])
         for atoms in traj:
             nl.update(atoms)
-            nn_per_atom = np.min([nearest_neighbor_distance_for_atom(i, atoms, nl) for i in range(len(atoms))])
+            nn_per_atom = np.min([nearest_neighbor_distance_for_atom(i, atoms, nl) for i in range(atoms.get_global_number_of_atoms())])
             nn_per_atom = float(nn_per_atom)
             if min_dist is None:
                 min_dist = nn_per_atom
@@ -217,20 +208,27 @@ class PostProcessing:
             print("Lindemann index is low.")
             return False
 
-    def SelfDiffusionCoefficient(self, settings_path="settings.json", log_path="data.log"):
+    def computeSelfDiffusionCoefficient(self, settings_path="settings.json", log_path="output.log"):
 
-        traj = Trajectory(self.read_traj_file)
+        traj = self.traj
         data_log = ParseLogFile(log_path)
         try:
             settings = json.loads(Path(settings_path).read_text())
-            timestep_fs = float(settings["Timestep_fs"])  # fs per MD step
+            timestep_fs = float(settings["Timestep"])  # fs per MD step
             interval = int(settings["Interval"])  # steps between saved frames
         except Exception as e:
             raise RuntimeError(f"Failed to read timing info from {settings_path}: {e}")
 
         timestep_list = []
-        for i in range(len(data_log["Time[ps]"])):
-            if round(data_log["T[K]"][i], 0) == settings["Temperature"]:
+        temp_list = [round(data_log["T[K]"][i], -1) for i in range(len(data_log["T[K]"]))]
+        print("Temperature list: ", temp_list)
+        if settings["Temperature"] in temp_list:
+            for i in range(len(data_log["Time[ps]"])):
+                if temp_list[i] == settings["Temperature"]:
+                    timestep = data_log["Time[ps]"][i]
+                    timestep_list.append([timestep, i])
+        else:
+            for i in range(len(data_log["Time[ps]"])):
                 timestep = data_log["Time[ps]"][i]
                 timestep_list.append([timestep, i])
 
@@ -247,44 +245,7 @@ class PostProcessing:
         return slope_m2_per_s
 
 
-        """
-        images = read("data.traj", index=":")
-        write("data.xyz", traj)     # multi-frame XYZ
-        u = mda.Universe("data.xyz")
-
-        u = mda.Universe(RANDOM_WALK_TOPO, RANDOM_WALK)
-        MSD = mda_msd.EinsteinMSD(u, select='all', msd_type='xyz', fft=True)
-        MSD.run()
-        msd = MSD.results.timeseries
-
-        nframes = MSD.n_frames
-        timestep = timestep_fs * interval  # this needs to be the actual time between frames
-        lagtimes = np.arange(nframes) * timestep  # make the lag-time axis
-        fig = plt.figure()
-        ax = plt.axes()
-        # plot the actual MSD
-        ax.plot(lagtimes, msd, color="black", ls="-", label=r'3D random walk')
-        exact = lagtimes * 6
-        # plot the exact result
-        ax.plot(lagtimes, exact, color="black", ls="--", label=r'$y=2 D\tau$')
-        #plt.show()
-        plt.loglog(lagtimes, msd)
-        #plt.show()
-
-        #start_time = 20
-        start_index = 1 #int(start_time / timestep)
-        #end_time = 60
-        end_index = -1 #int(end_time / timestep)
-        linear_model = linregress(lagtimes[start_index:end_index],
-                                  msd[start_index:end_index])
-        slope = linear_model.slope
-        error = linear_model.stderr
-        # dim_fac is 3 as we computed a 3D msd with 'xyz'
-        D = slope * 1 * 1e-8 / (2 * MSD.dim_fac)
-        print(D)
-        """
-
-    def computeDebyeTemperature(self, log_path: str = "data.log", settings_path: str = "settings.json", poscar_path = "POSCAR" , flags = []):
+    def computeDebyeTemperature(self, log_path: str = "output.log", settings_path: str = "settings.json", poscar_path = "POSCAR" , flags = []):
         """
         atoms: ASE Atoms with an attached calculator that yields forces.
         supercell: supercell size for force constants.
@@ -294,10 +255,9 @@ class PostProcessing:
         Returns: dict with vT, vL, vm [m/s] and ThetaD [K].
         """
 
-        traj = Trajectory(self.read_traj_file)
+        traj = self.traj
         data_log = ParseLogFile(log_path)
         settings = json.loads(Path(settings_path).read_text())
-        #ideal = PreProcessing.PreProcessing(input_settings=settings_path, input_structure=None, flags=flags)
 
         """
         # Θ_D = [12 * π⁴ * Nk_B * T³/ (5*C_v)] ^ (1/3)            only works when T<<Θ_D ~ <<1/C_v.     Note: 12 * π⁴ * Nk_B / 5 ≈ 234
@@ -313,8 +273,6 @@ class PostProcessing:
         """
 
         # Θ_D = (ħ/kB) (6π^2 n)^(1/3) vm
-        #atoms = read(poscar_path)
-        #a = atoms.copy()
         debye = []
         for i in range(len(traj)):
             a = traj[i]
@@ -433,7 +391,53 @@ class PostProcessing:
             "C44_xy": float(C44_xy), "C44_xz": float(C44_xz), "C44_yz": float(C44_yz)
         }
 
-def ParseLogFile(log_path: str = "data.log"):
+    def determineCrystalStructure(self, poscar_path="POSCAR"):
+        atoms = self.ideal_atoms
+        [a, b, c, ang_bc, ang_ac, ang_ab] = atoms.get_cell_lengths_and_angles()
+        ang_bc = round(ang_bc, 0)
+        ang_ac = round(ang_ac, 0)
+        ang_ab = round(ang_ab, 0)
+        if (a == b and a == c and b == c) and (ang_bc == 90 and ang_ac == 90 and ang_ab == 90): # Assumes primitive cell in POSCAR
+            return "bcc"
+        elif (a == b and a == c and b == c) and (ang_bc == 60 and ang_ac == 60 and ang_ab == 60):   # Assumes primitive cell in POSCAR
+            return "fcc"
+
+        # Determining typ of unit cell
+        """
+        if (a == b and a == c and b == c) and (ang_bc == 90 and ang_ac == 90 and ang_ab == 90):
+            return "cubic"
+        elif (a == b and a != c and b != c) and (ang_bc == 90 and ang_ac == 90 and ang_ab == 90):
+            return "tetragonal"
+        elif (a != b and a != c and b != c) and (ang_bc == 90 and ang_ac == 90 and ang_ab == 90):
+            return "orthorhombic"
+        elif (a != b and a != c and b != c) and (ang_bc == 90 and ang_ac != 90 and ang_ab == 90):
+            return "monoclinic"
+        elif (a == b and a != c and b != c) and (ang_bc == 90 and ang_ac == 90 and ang_ab == 120):
+            return "hexagonal"
+        elif (a == b and a == c and b == c) and (ang_bc != 90 and ang_ac != 90 and ang_ab != 90):
+            return "rhombohedral"
+        elif (a != b and a != c and b != c) and (ang_bc != ang_ac and ang_bc != ang_ab and ang_ac != ang_ab and ang_bc != 90 and ang_ac != 90 and ang_ab != 90):
+            return "triclinic"
+        else:
+            return "Unknown/Other"
+        """
+
+def nearest_neighbor_distance_for_atom(i, atoms, nl):
+    indices, offsets = nl.get_neighbors(i)
+    if len(indices) == 0:
+        return float("nan")
+
+    cell = atoms.cell.array  # (3, 3)
+    translations = offsets @ cell  # (M, 3), periodic image translations
+    rij = atoms.positions[indices] + translations - atoms.positions[i]  # (M, 3)
+    dists = np.linalg.norm(rij, axis=1)
+
+    # Remove exact or near-zero self entries if any slipped in
+    positive = dists[dists > 1e-8]
+    return float(np.min(positive)) if positive.size else float("nan")
+
+
+def ParseLogFile(log_path: str = "output.log"):
     """
     Read data.log and return numeric columns.
     Keys: "Time[ps]", "Etot/N[eV]", "Epot/N[eV]", "Ekin/N[eV]", "T[K]".
@@ -461,57 +465,3 @@ def ParseLogFile(log_path: str = "data.log"):
         data[headers[3]].append(ekin)
         data[headers[4]].append(T)
     return data
-
-def DetermineCrystalStructure(poscar_path="POSCAR"):
-    atoms = read(poscar_path)
-    cell = atoms.cell.array
-    fracs = atoms.get_scaled_positions(wrap=True)
-
-    def lengths_angles(M):
-        a, b, c = [np.linalg.norm(v) for v in M]
-        def ang(u, v):
-            cos = np.clip(np.dot(u, v) / (np.linalg.norm(u)*np.linalg.norm(v)), -1, 1)
-            return np.degrees(np.arccos(cos))
-        alpha, beta, gamma = ang(M[1], M[2]), ang(M[0], M[2]), ang(M[0], M[1])
-        return (a, b, c), (alpha, beta, gamma)
-
-    (a, b, c), (al, be, ga) = lengths_angles(cell)
-    eq_len = max(abs(a-b), abs(b-c), abs(a-c)) / max(a, b, c) < 1e-3    #- Angle tolerances are ±2 degrees, fractional-position tolerance is ~1e-3 in fractional coordinates.
-    near = lambda x, y, tol: abs(x - y) < tol
-
-    # Checks if primitive fcc or primitive bcc
-    if eq_len:
-        if all(near(x, 60.0, 2.0) for x in (al, be, ga)):
-            return "fcc"
-        if all(near(x, 109.471, 2.0) for x in (al, be, ga)):
-            return "bcc"
-
-    # Conventional cubic check
-    if eq_len and all(near(x, 90.0, 2.0) for x in (al, be, ga)):
-        key = lambda p: tuple(np.round(np.mod(p, 1.0)/1e-3).astype(int))
-        pos = {key(p) for p in fracs}
-        sc  = {key([0,0,0])}
-        bcc = {key([0,0,0]), key([0.5,0.5,0.5])}
-        fcc = {key([0,0,0]), key([0,0.5,0.5]), key([0.5,0,0.5]), key([0.5,0.5,0])}
-        if pos == fcc:
-            return "FCC (conventional)"
-        if pos == bcc:
-            return "BCC (conventional)"
-        if pos == sc:
-            return "SC (conventional)"
-
-    return "Unknown/Other"
-
-def nearest_neighbor_distance_for_atom(i, atoms, nl):
-    indices, offsets = nl.get_neighbors(i)
-    if len(indices) == 0:
-        return float("nan")
-
-    cell = atoms.cell.array  # (3, 3)
-    translations = offsets @ cell  # (M, 3), periodic image translations
-    rij = atoms.positions[indices] + translations - atoms.positions[i]  # (M, 3)
-    dists = np.linalg.norm(rij, axis=1)
-
-    # Remove exact or near-zero self entries if any slipped in
-    positive = dists[dists > 1e-8]
-    return float(np.min(positive)) if positive.size else float("nan")
