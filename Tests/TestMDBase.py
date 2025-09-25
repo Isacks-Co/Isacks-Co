@@ -6,13 +6,16 @@ from MDBase import MDBase
 from ase.lattice.cubic import FaceCenteredCubic
 import unittest
 from asap3 import EMT as asap_EMT
+import logging
 
+logger = logging.getLogger(__name__)
 
 class TestMDBase(TestBase):
     """Control that each initializer attach appropriate functions"""
 
     def testNVEinit(self):
         MD = MDBase.initNVE(temperature=293, pot_str="EMT", timestep=0.5, steps=500, interval=5, output_file="data")
+        logger.info("Checking that NVE has VelocityVerlet")
         assert str(MD.integrator).startswith("functools.partial(<function VelocityVerlet")
 
     def testNVTinit(self):
