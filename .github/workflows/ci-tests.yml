@@ -22,13 +22,14 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install cython ase numpy==1.26.4 scipy matplotlib mpi4py ipython \
-        sphinx sphinx_rtd_theme numpy==1.26.4 asap3 unittest-xml-reporting
+        sphinx sphinx_rtd_theme numpy==1.26.4 asap3 pytest
 
     - name: CI-tests
-      run: python -m xmlrunner Tests\Test*
+      run: |
+        cd .\Tests
+        pytest --junit-xml=report.xml
 
     - name: Upload-results
       uses: actions/upload-test-report@v1
       with:
-        path: .
-        report_paths: "**/*.xml"
+        path: Tests\*.xml
