@@ -45,7 +45,7 @@ class PostProcessing:
     def vizualize(self):
         view(self.read_traj_file)
 
-    def ComputeCohesiveEnergy(self, poscar_path: str = "POSCAR", settings_path: str = "settings.json") -> float:
+    def computeCohesiveEnergy(self, poscar_path: str = "POSCAR", settings_path: str = "settings.json") -> float:
         """
         Compute cohesive energy per atom for the crystal in POSCAR.
         Definition: E_coh = (sum_i n_i E_i^atom − E_crystal_total) / N
@@ -76,7 +76,7 @@ class PostProcessing:
         print("E_coh = ", E_coh)
         return float(E_coh)
 
-    def ComputeLatticeConstant(self, poscar_path: str = "POSCAR") -> float:
+    def computeLatticeConstant(self, poscar_path: str = "POSCAR") -> float:
         """
         Calculates the lattice constant of a FCC crystal.
         """
@@ -110,7 +110,7 @@ class PostProcessing:
             #Added the section immediately above, because I don't remember much of solid state physics, and want to be sure I'm doing this right.
             return float(a_conv)
 
-    def ComputeBulkModulus(self, poscar_path: str = "POSCAR", scales = np.linspace(0.96, 1.04, 7)):
+    def computeBulkModulus(self, poscar_path: str = "POSCAR", scales = np.linspace(0.96, 1.04, 7)):
         """
         Computes bulk modulus from equation of states, by rescaling.
         """
@@ -132,7 +132,7 @@ class PostProcessing:
         print("Bulk modulus = {:.6f} GPa".format(bulk_modulus))
         return float(bulk_modulus)
 
-    def ComputeInternalPressure(self):
+    def computeInternalPressure(self):
         """
         For NVT ensemble, computes internal pressure.
         Instantaneous: P(t)  = (1/3V)[2NkT(t) + SUM_i(r_i*f_i)]
@@ -150,7 +150,7 @@ class PostProcessing:
         print("Average internal pressure = ", average_internal_pressure, "GPa")
         return float(average_internal_pressure)
 
-    def ComputeMSD(self, time = -1, reference = None, flags = [], log_path = "data.log", settings_path = "settings.json"):
+    def computeMSD(self, time = -1, reference = None, flags = [], log_path = "data.log", settings_path = "settings.json"):
         traj = Trajectory(self.read_traj_file)
         data_log = ParseLogFile(log_path)
         if reference is None:
@@ -207,7 +207,7 @@ class PostProcessing:
                 min_dist = nn_per_atom
 
         print("Overall nearest-neighbor distance [Å]: ", min_dist)
-        msd = self.ComputeMSD()
+        msd = self.computeMSD()
         l = np.sqrt(msd) / min_dist
         print("Lindemann index: ", l)
         if l >= 0.1:
@@ -239,8 +239,8 @@ class PostProcessing:
 
 
         #halfway = int(round((len(timestep_list) - 1) / 2, 0))
-        msd_list = [self.ComputeMSD(time=timestep_list[0][1]),
-                    self.ComputeMSD(time=timestep_list[-1][1]),]
+        msd_list = [self.computeMSD(time=timestep_list[0][1]),
+                    self.computeMSD(time=timestep_list[-1][1]),]
         slope = (msd_list[-1] - msd_list[0])/ (timestep_list[-1][0] - timestep_list[0][0])
         slope_m2_per_s = slope * 1e-8 / 6
         print("Self-Diffusion Coefficient------------ [Å^2/s^-1]: ", slope_m2_per_s)
@@ -284,7 +284,7 @@ class PostProcessing:
         print(D)
         """
 
-    def ComputeDebyeTemperature(self, log_path: str = "data.log", settings_path: str = "settings.json", poscar_path = "POSCAR" , flags = []):
+    def computeDebyeTemperature(self, log_path: str = "data.log", settings_path: str = "settings.json", poscar_path = "POSCAR" , flags = []):
         """
         atoms: ASE Atoms with an attached calculator that yields forces.
         supercell: supercell size for force constants.
@@ -322,15 +322,15 @@ class PostProcessing:
             a.calc = EMT()
             V = a.get_volume() * 1e-30
             N = a.get_global_number_of_atoms()
-            out = self.ComputeShearModulus_from_elastic_cubic(a)
-            print(out)  # G in GPa
+            out = self.computeShearModulus_from_elastic_cubic(a)
+            #print(out)  # G in GPa
 
             shear_modulus = out["G"] * 1e9
             mass = sum(a.get_masses())
             density = (mass / V) * ATOMIC_MASS_IN_KG
             vt = sqrt(shear_modulus / density)
 
-            bulk_modulus = self.ComputeBulkModulus() * 1e9
+            bulk_modulus = self.computeBulkModulus() * 1e9
             vl = sqrt((bulk_modulus + 4*shear_modulus/3)/density)
 
             vm = ((3/((1/(vl**3)) + (2/(vt**3))))**(1/3))
@@ -345,7 +345,7 @@ class PostProcessing:
         return debye_avg
 
 
-    def ComputeShearModulus_from_elastic_cubic(self, atoms, eps_list=(2e-3, 3e-3, 5e-3)):
+    def computeShearModulus_from_elastic_cubic(self, atoms, eps_list=(2e-3, 3e-3, 5e-3)):
         """
         Compute cubic elastic constants (C11, C12, C44), bulk modulus K and shear modulus G (VRH).
         Intended for fcc (or any cubic) cells. Requires a calculator that provides stress.
