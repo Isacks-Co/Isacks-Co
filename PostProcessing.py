@@ -38,10 +38,12 @@ class PostProcessing:
         Uses the log files generates from the Molecular Dynamics class to vizualize and analyze the data
         input trajectory file as traj_file 
     """
-    def __init__(self, traj_file, ideal):
+    def __init__(self, pp, traj_file = "output.traj", settings_path = "settings.json", log_path = "output.log"):
         try:
             self.traj = Trajectory(traj_file)
-            self.ideal_atoms = ideal
+            self.settings = json.loads(Path(settings_path).read_text())
+            self.data_log = ParseLogFile(log_path)
+            self.ideal_atoms = pp.readAtomicStructure('POSCAR').repeat( tuple([self.settings["Supercells"]+1]*3))
         except FileNotFoundError:
             raise FileNotFoundError(f"Trajectory file {traj_file} not found")
         
@@ -54,9 +56,18 @@ class PostProcessing:
         Definition: E_coh = (sum_i n_i E_i^atom − E_crystal_total) / N
         Note: Uses a fixed EMT calculator; does not read settings or apply fallbacks.
         """
+
         # Read structure
         atoms = read(poscar_path)
 
+        # Taget från databas
+        atomic_number = (atoms.get_atomic_numbers())[0]
+        energy = cohesive_energies.cohesive_energy_kittel2005[atomic_number]
+        print("E_coh _--------------------------------------------------= ", energy)
+        return energy
+
+        # Manuell uträkning
+        """
         # Crystal total energy
         atoms_cryst = atoms.copy()
         atoms_cryst.calc = EMT()
@@ -78,6 +89,7 @@ class PostProcessing:
         E_coh = (sum_iso - E_cryst) / N
         print("E_coh = ", E_coh)
         return float(E_coh)
+        """
 
     def computeLatticeConstant(self, poscar_path: str = "POSCAR") -> float:
         """
@@ -178,11 +190,10 @@ class PostProcessing:
         """
         Returns True if Lindemann criterion is met, False otherwise.
         """
-        supercell = self.ideal_atoms
-        cutoffs = natural_cutoffs(supercell)
+        cutoffs = natural_cutoffs(self.ideal_atoms)
         nl_initial = NeighborList(cutoffs, self_interaction=False, bothways=True)
-        nl_initial.update(supercell)
-        min_dist = np.min([nearest_neighbor_distance_for_atom(j, supercell, nl_initial) for j in range(supercell.get_global_number_of_atoms())])
+        nl_initial.update(self.ideal_atoms)
+        min_dist = np.min([nearest_neighbor_distance_for_atom(j, self.ideal_atoms, nl_initial) for j in range(self.ideal_atoms.get_global_number_of_atoms())])
         min_dist = float(min_dist)
         print("First min dist-------------- ", min_dist)
 

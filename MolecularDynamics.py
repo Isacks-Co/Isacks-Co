@@ -57,7 +57,7 @@ if __name__ == "__main__":
     try:
         log.info("Reading settings and setting atomic structures ")
         PP = PreProcessing(settings, poscar, flags)
-        ideal = PP.atoms
+        PP_copy = PP
         log.info("Setting ensemble: %s and passing relevant parameters", PP.settings['Ensemble'])
         MD = PP.createMD()
     except Exception as err:
@@ -72,7 +72,7 @@ if __name__ == "__main__":
 
     try:
         output_str = PP.settings["Output_file"] + ".traj"
-        PostViz = PostProcessing(output_str, ideal) # (TODO) Hardcoded but settings.json will contain file name
+        PostViz = PostProcessing(PP, output_str) # (TODO) Hardcoded but settings.json will contain file name
         PostViz.vizualize()
     except Exception as err:
         log.error(f"Postprocessing failed: {err}")
