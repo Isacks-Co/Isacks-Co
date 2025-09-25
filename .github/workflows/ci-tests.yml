@@ -30,4 +30,5 @@ jobs:
     - name: Upload-results
       uses: actions/upload-test-report@v1
       with:
-        path: "*.xml"
+        path: .
+        report_paths: "**/*.xml"
