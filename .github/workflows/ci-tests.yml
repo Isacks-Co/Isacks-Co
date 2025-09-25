@@ -28,6 +28,7 @@ jobs:
       run: |
         cd .\Tests
         pytest --junit-xml=report.xml
+        cd ..
 
     - name: Upload-results
       uses: actions/upload-test-report@v1
