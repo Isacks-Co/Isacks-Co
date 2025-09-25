@@ -83,14 +83,14 @@ if __name__ == "__main__":
         # Internal pressure
         PostViz.ComputeInternalPressure()
         #Mean square displacement
-        """
         PostViz.ComputeMSD(reference=0, flags=flags)
-
         #Lindemann index
         PostViz.CheckLindemannCriterion(flags=flags)
-
         #Self-Diffusion Coefficient
         PostViz.SelfDiffusionCoefficient()
+        """
+        #Debye temperature
+        PostViz.ComputeDebyeTemperature()
     except Exception as err:
         log.error(f"Postprocessing failed: {err}")
         exit(1)

@@ -8,6 +8,7 @@ import numpy as np
 import json
 from ase.eos import EquationOfState
 from ase.calculators.emt import EMT
+from ase.calculators.eam import EAM
 from ase.neighborlist import NeighborList, natural_cutoffs, build_neighbor_list, NeighborList
 import json
 import mpmath as mp
@@ -21,8 +22,14 @@ from MDAnalysis.tests.datafiles import RANDOM_WALK_TOPO, RANDOM_WALK
 import matplotlib.pyplot as plt
 from scipy.stats import linregress
 import PreProcessing
+from phonopy import Phonopy
+from phonopy.structure.atoms import PhonopyAtoms
+from scipy.constants import pi, hbar, k as kB
+from phonopy.interface.calculator import read_crystal_structure
+from math import sqrt
 
 EV_PER_A3_TO_GPA = 160.21766208
+ATOMIC_MASS_IN_KG = 1.66053906892e-27
 
 class PostProcessing:
     """
@@ -148,7 +155,7 @@ class PostProcessing:
         data_log = ParseLogFile(log_path)
         if reference is None:
             ideal_atoms = PreProcessing.PreProcessing(input_settings=settings_path, input_structure=None, flags=flags)
-            N = (ideal_atoms.atoms).get_global_number_of_atoms()
+            N = ideal_atoms.atoms.get_global_number_of_atoms()
             r_0 = ideal_atoms.atoms.get_positions()
 
         else:
@@ -277,6 +284,154 @@ class PostProcessing:
         print(D)
         """
 
+    def ComputeDebyeTemperature(self, log_path: str = "data.log", settings_path: str = "settings.json", poscar_path = "POSCAR" , flags = []):
+        """
+        atoms: ASE Atoms with an attached calculator that yields forces.
+        supercell: supercell size for force constants.
+        disp: displacement amplitude [Å].
+        qmax_rlu: max fractional q (in reciprocal lattice units) for linear slope fit.
+
+        Returns: dict with vT, vL, vm [m/s] and ThetaD [K].
+        """
+
+        traj = Trajectory(self.read_traj_file)
+        data_log = ParseLogFile(log_path)
+        settings = json.loads(Path(settings_path).read_text())
+        #ideal = PreProcessing.PreProcessing(input_settings=settings_path, input_structure=None, flags=flags)
+
+        """
+        # Θ_D = [12 * π⁴ * Nk_B * T³/ (5*C_v)] ^ (1/3)            only works when T<<Θ_D ~ <<1/C_v.     Note: 12 * π⁴ * Nk_B / 5 ≈ 234
+        C_v = 385    # [J kg-1 K-1]     To be replaced with the return value from the C_v function, for the material
+        D3 = []
+        for i in range(len(data_log["T[K]"])):
+            D3.append(234  * (data_log["T[K]"][i])**3 / C_v)
+        print("Debye temperature ^3: ", D3)
+        D3_mean = np.average(D3)
+        print("Average Debye temperature ^3: ", D3_mean)
+        Θ_D = round(D3_mean**(1/3), 0)
+        print("Θ_D = ", Θ_D)
+        """
+
+        # Θ_D = (ħ/kB) (6π^2 n)^(1/3) vm
+        #atoms = read(poscar_path)
+        #a = atoms.copy()
+        debye = []
+        for i in range(len(traj)):
+            a = traj[i]
+            #a.calc = EAM(potential="Cu_u3.eam.alloy")
+            a.calc = EMT()
+            V = a.get_volume() * 1e-30
+            N = a.get_global_number_of_atoms()
+            out = self.ComputeShearModulus_from_elastic_cubic(a)
+            print(out)  # G in GPa
+
+            shear_modulus = out["G"] * 1e9
+            mass = sum(a.get_masses())
+            density = (mass / V) * ATOMIC_MASS_IN_KG
+            vt = sqrt(shear_modulus / density)
+
+            bulk_modulus = self.ComputeBulkModulus() * 1e9
+            vl = sqrt((bulk_modulus + 4*shear_modulus/3)/density)
+
+            vm = ((3/((1/(vl**3)) + (2/(vt**3))))**(1/3))
+
+            n = N / V
+            D = (hbar/kB) * vm * (6 * (pi**2) * n)**(1/3)
+            #print("Debye temperature: ", D)
+            debye.append(D)
+
+        debye_avg = np.average(debye)
+        print("Average Debye temperature: ", debye_avg)
+        return debye_avg
+
+
+    def ComputeShearModulus_from_elastic_cubic(self, atoms, eps_list=(2e-3, 3e-3, 5e-3)):
+        """
+        Compute cubic elastic constants (C11, C12, C44), bulk modulus K and shear modulus G (VRH).
+        Intended for fcc (or any cubic) cells. Requires a calculator that provides stress.
+
+        Returns dict with C11, C12, C44, K, G [GPa].
+        """
+        C0 = atoms.cell.array
+
+        def stress_of(cell):
+            a = atoms.copy()
+            a.calc = atoms.calc  # ensure calculator on copy
+            a.set_cell(cell, scale_atoms=True)
+            s = a.get_stress(voigt=True) * EV_PER_A3_TO_GPA  # GPa
+            return s
+
+        eps_list = np.atleast_1d(eps_list)
+
+        # 1) Orthorhombic (volume-conserving to 1st order) → C11 - C12
+        #    Using σ1-σ2 ≈ 2 (C11 - C12) ε
+        sig_diffs = []
+        for eps in eps_list:
+            Bp = np.diag([1 + eps, 1 - eps, 1 / (1 - eps ** 2)])
+            Bm = np.diag([1 - eps, 1 + eps, 1 / (1 - eps ** 2)])
+            sp = stress_of(C0 @ Bp)
+            sm = stress_of(C0 @ Bm)
+            sig = (sp - sm) / 2.0
+            sig_diffs.append(0.5 * (sig[0] - sig[1]))  # ≈ (C11 - C12) * 2ε
+        # Linear fit through origin: sig_diff ≈ 2 (C11 - C12) ε
+        coeff = np.polyfit(eps_list, sig_diffs, 1)[0]
+        C11_minus_C12 = 0.5 * coeff  # GPa
+
+        # 2) Simple shear → C44 via σ6 ≈ 2 C44 ε
+        def C44_from_shear(component_index, eps_list):
+            # component_index: 5→xy, 4→xz, 3→yz in Voigt order [xx,yy,zz,yz,xz,xy]
+            sig6 = []
+            for eps in eps_list:
+                Bp = np.eye(3)
+                Bm = np.eye(3)
+                # define symmetric shear in the chosen plane
+                if component_index == 5:  # xy
+                    Bp[0, 1] = Bp[1, 0] = eps
+                    Bm[0, 1] = Bm[1, 0] = -eps
+                elif component_index == 4:  # xz
+                    Bp[0, 2] = Bp[2, 0] = eps
+                    Bm[0, 2] = Bm[2, 0] = -eps
+                elif component_index == 3:  # yz
+                    Bp[1, 2] = Bp[2, 1] = eps
+                    Bm[1, 2] = Bm[2, 1] = -eps
+                sp = stress_of(C0 @ Bp)
+                sm = stress_of(C0 @ Bm)
+                sig6.append(((sp[component_index] - sm[component_index]) / 2.0))
+            coeff = np.polyfit(eps_list, sig6, 1)[0]  # ≈ 2 C44 ε
+            return 0.5 * coeff
+
+        C44_xy = C44_from_shear(5, eps_list)
+        C44_xz = C44_from_shear(4, eps_list)
+        C44_yz = C44_from_shear(3, eps_list)
+        C44 = float(np.mean([C44_xy, C44_xz, C44_yz]))
+
+        # 3) Isotropic strain → bulk modulus K via P ≈ 3 K ε, P = −(σ1+σ2+σ3)/3
+        P_eps = []
+        for eps in eps_list:
+            Bp = (1 + eps) * np.eye(3)
+            Bm = (1 - eps) * np.eye(3)
+            sp = stress_of(C0 @ Bp)
+            sm = stress_of(C0 @ Bm)
+            P = (-(np.mean(sp[:3]) - np.mean(sm[:3])) / 2.0)
+            P_eps.append(P)
+        K = (np.polyfit(eps_list, P_eps, 1)[0]) / 3.0  # GPa
+
+        # 4) Recover C11 and C12 from K and (C11 - C12)
+        S = 3.0 * K
+        D = C11_minus_C12
+        C12 = (S - D) / 3.0
+        C11 = D + C12
+
+        # 5) VRH shear modulus for cubic
+        G_V = (C11 - C12 + 3.0 * C44) / 5.0
+        G_R = 5.0 * (C11 - C12) * C44 / (4.0 * C44 + 3.0 * (C11 - C12))
+        G = 0.5 * (G_V + G_R)
+
+        return {
+            "C11": float(C11), "C12": float(C12), "C44": float(C44),
+            "K": float(K), "G": float(G),
+            "C44_xy": float(C44_xy), "C44_xz": float(C44_xz), "C44_yz": float(C44_yz)
+        }
 
 def ParseLogFile(log_path: str = "data.log"):
     """
@@ -360,24 +515,3 @@ def nearest_neighbor_distance_for_atom(i, atoms, nl):
     # Remove exact or near-zero self entries if any slipped in
     positive = dists[dists > 1e-8]
     return float(np.min(positive)) if positive.size else float("nan")
-
-
-def numeric_limit_infinity(f, direction='+', t0=1.0, growth=2.0, steps=8):
-    """Estimate lim_{x→±∞} f(x) by sampling x_k growing geometrically.
-    direction: '+' for +∞, '-' for -∞
-    t0 > 0 sets the starting magnitude; growth > 1 controls how fast x grows.
-    """
-    import mpmath as mp
-
-    if growth <= 1:
-        raise ValueError("growth must be > 1")
-
-    xs = []
-    x = float(t0)
-    for _ in range(steps):
-        xs.append(x if direction == '+' else -x)
-        x *= growth
-
-    vals = [f(xx) for xx in xs]
-    vals = [v for v in vals if mp.isfinite(v)]
-    return (mp.mpf(sum(vals)) / len(vals)) if vals else mp.nan
