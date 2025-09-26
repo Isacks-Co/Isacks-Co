@@ -31,6 +31,6 @@ jobs:
         cd ..
 
     - name: Upload-results
-      uses: actions/upload-test-report@v1
+      uses: actions/upload-artifact@v3
       with:
         path: Tests\*.xml
