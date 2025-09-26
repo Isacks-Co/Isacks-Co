@@ -9,5 +9,5 @@
     "Compressibility" : 0,
     "Pressure" : 0,
     "Interval" : 50,
-    "Supercells": 5
+    "Supercells": [5,5,5]
 }

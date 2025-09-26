@@ -9,9 +9,14 @@ class TestPreProcessing(TestBase):
 
     def testSettings(self):
         PP = PreProcessing("testsettings.json", "TESTPOSCAR", None)
-        PP.sanityCheckSettings()
+        # Make sure ValueError is raised for bad settings.
+        PP.settings["Temperature"] = 4000
+
+        with self.assertRaises(ValueError):
+            PP.sanityCheckSettings()
 
     def testAtomicStructure(self):
+        """Test that supercells is working properly."""
         PP = PreProcessing("testsettings.json", "TESTPOSCAR", None)
         assert len(PP.atoms) == 125
 

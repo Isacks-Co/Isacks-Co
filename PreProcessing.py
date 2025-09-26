@@ -25,8 +25,8 @@ class PreProcessing:
         log.info("Reading settings file: %s", input_settings)
 
         self.settings = self.readSettings(input_settings)
-
-        self.atoms = self.readAtomicStructure(input_structure).repeat( tuple([self.settings["Supercells"]+1]*3))
+        print(self.settings["Supercells"])
+        self.atoms = self.readAtomicStructure(input_structure) * tuple(self.settings["Supercells"])
         self.atoms.pbc = True
         self.readTerminalInput(flags)
         self.sanityCheckAtomicStructure()
@@ -119,7 +119,7 @@ class PreProcessing:
             print(elements)
             if not np.all(np.isin(elements,[13, 28, 29, 46, 47, 78, 79])): # Check if the elements are supported for EMT potential
                 raise ValueError(f"Invalid potential: EMT potential only availible for Al, Cu, Ag, Au, Ni, Pd, Pt.")
-        elif self.settings["Temperature"] > 3000:
+        if self.settings["Temperature"] > 3000:
             raise ValueError(f"Invalid temperature: Exceeds 3000K")
         elif self.settings["Temperature"] < 0:
             raise ValueError(f"Invalid temperature: Negative temperature")
@@ -149,7 +149,7 @@ class PreProcessing:
         cell = self.atoms.get_cell()
         angles = cell.angles()
 
-        lengths = cell.lengths()/(self.settings["Supercells"]+1)
+        lengths = np.array([a /i for a,i in zip(cell.lengths(), self.settings["Supercells"])])
 
         if np.any(angles <= 0) or np.any(angles >= 180): # Check that lattice angles are between 0 and 180
             raise ValueError("Invalid Lattice: Lattice angles must be between 0 and 180 degrees")
