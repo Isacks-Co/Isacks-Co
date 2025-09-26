@@ -324,7 +324,7 @@ Icon
 
 # Thumbnails
 ._*
-
+*.pyc
 __pycache__/*
 */__pycache__/*
 .vscode/*
