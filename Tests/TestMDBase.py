@@ -11,9 +11,10 @@ import logging
 logger = logging.getLogger(__name__)
 
 class TestMDBase(TestBase):
-    """Control that each initializer attach appropriate functions"""
+    """Tests for the class MDBase"""
 
     def testNVEinit(self):
+        """Check that the correct function is attached for all the ensembles"""
         MD = MDBase.initNVE(temperature=293, pot_str="EMT", timestep=0.5, steps=500, interval=5, output_file="data")
         logger.info("Checking that NVE has VelocityVerlet")
         assert str(MD.integrator).startswith("functools.partial(<function VelocityVerlet")

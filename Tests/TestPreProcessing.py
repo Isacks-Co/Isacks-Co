@@ -6,7 +6,7 @@ from PreProcessing import PreProcessing
 from ase.visualize import view
 
 class TestPreProcessing(TestBase):
-
+    """Tests for class PreProcessing"""
     def testSettings(self):
         PP = PreProcessing("testsettings.json", "TESTPOSCAR", None)
         # Make sure ValueError is raised for bad settings.
@@ -24,3 +24,8 @@ class TestPreProcessing(TestBase):
         PP = PreProcessing("testsettings.json", "TESTPOSCAR", None)
         MD = PP.createMD()
         assert str(MD.integrator).startswith("functools.partial(<function VelocityVerlet")
+
+    def testTerminalRead(self):
+        PP = PreProcessing("testsettings.json", "TESTPOSCAR", None)
+        PP.readTerminalInput(["-T", 50])
+        assert PP.settings["Temperature"] == 50
