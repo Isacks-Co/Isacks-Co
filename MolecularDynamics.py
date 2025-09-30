@@ -8,7 +8,16 @@ import logger
 
 if __name__ == "__main__":
     log = logger.logger_setup()
-    
+
+
+    # Clear previous simulation outputs to ensure a clean run
+    try:
+        for path in ("output.log", "output.traj"):
+            with open(path, "w"):
+                pass
+    except Exception:
+        pass
+
 
     if len(sys.argv[1:]) % 2 != 0:
         raise AssertionError("Missing arguments") # Maybe other exception is better
@@ -48,6 +57,7 @@ if __name__ == "__main__":
     try:
         log.info("Reading settings and setting atomic structures ")
         PP = PreProcessing(settings, poscar, flags)
+        PP_copy = PP
         log.info("Setting ensemble: %s and passing relevant parameters", PP.settings['Ensemble'])
         MD = PP.createMD()
     except Exception as err:
@@ -62,10 +72,66 @@ if __name__ == "__main__":
 
     try:
         output_str = PP.settings["Output_file"] + ".traj"
-        PostViz = PostProcessing(output_str) # (TODO) Hardcoded but settings.json will contain file name
+        PostViz = PostProcessing(PP, output_str) # (TODO) Hardcoded but settings.json will contain file name
         PostViz.vizualize()
     except Exception as err:
         log.error(f"Postprocessing failed: {err}")
         exit(1)
+
+    try:
+        # Lattice constant
+        PostViz.computeLatticeConstant()
+    except Exception as err:
+        log.error(f"computeLatticeConstant failed: {err}")
+        pass
+
+    try:
+        # Cohesive energy
+        PostViz.computeCohesiveEnergy()
+    except Exception as err:
+        log.error(f"computeCohesiveEnergy failed: {err}")
+        pass
+
+    try:
+        # Bulk modulus
+        PostViz.computeBulkModulus()
+    except Exception as err:
+        log.error(f"computeBulkModulusfailed: {err}")
+        pass
+
+    try:
+        # Internal pressure
+        PostViz.computeInternalPressure()
+    except Exception as err:
+        log.error(f"computeInternalPressure failed: {err}")
+        pass
+
+    try:
+        # Mean square displacement
+        PostViz.computeMSD(time=-1, reference=0)
+    except Exception as err:
+        log.error(f"computeMSD failed: {err}")
+        pass
+
+    try:
+        # Lindemann criterion
+        PostViz.computeLindemannCriterion()
+    except Exception as err:
+        log.error(f"computeLindemannCriterion failed: {err}")
+        pass
+
+    try:
+        # Self-Diffusion Coefficient
+        PostViz.computeSelfDiffusionCoefficient()
+    except Exception as err:
+        log.error(f"computeSelfDiffusionCoefficient failed: {err}")
+        pass
+
+    try:
+        # Debye temperature
+        PostViz.computeDebyeTemperature()
+    except Exception as err:
+        log.error(f"computeDebyeTemperature failed: {err}")
+        pass
 
     log.info("Simulation done")
