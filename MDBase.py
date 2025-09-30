@@ -237,7 +237,7 @@ class MDBase:
         if (self.ensemble != "NVE"):
             self.temp_history.append(atoms.get_temperature())
         else:
-            self.temp_history.append((atoms.get_potential_energi()+atoms.get_kinetic_energy())/len(atoms))
+            self.temp_history.append((atoms.get_potential_energy()+atoms.get_kinetic_energy())/len(atoms))
         if len(self.temp_history) > 1:
             mean = np.mean(self.temp_history[-window:])
             std  = np.std(self.temp_history[-window:])
