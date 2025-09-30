@@ -2,7 +2,7 @@ import sys
 
 sys.path.append("..")
 from Tests.TestBase import TestBase
-from PreProcessing import PreProcessing
+from SourceCode.PreProcessing import PreProcessing
 from ase.visualize import view
 
 class TestPreProcessing(TestBase):
