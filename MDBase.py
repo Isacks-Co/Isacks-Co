@@ -49,6 +49,9 @@ class MDBase:
         self.integrator = self.getIntegrator(integrator_str)
         self.attachments = self.getAttachment(att_list)
         self.equilibrium_steps = equil_steps
+        self.temp_history = []
+        self.hits = 0
+        self.ensemble = integrator_str
 
         log.debug(
         "MDBase init: dt(fs)=%s steps=%s interval=%s T=%sK friction=%s pot=%s integrator=%s out=%s",
@@ -197,7 +200,7 @@ class MDBase:
         logger = MDLogger(dyn, atoms=atoms, logfile=f"{self.output_file}.log",
                           header=True, peratom=True, mode='a')  # Create a logger for writing data
         dyn.attach(logger, interval=self.interval)  # Attach logger
-
+        dyn.attach(lambda: self.failSafe(atoms), interval=self.interval)
         dyn.run(self.steps)  # RUN
 
     def printEnergy(self, atoms):
@@ -223,3 +226,29 @@ class MDBase:
     def visualizeTraj(self):
         traj = Trajectory("data.traj")
         view(traj)
+
+    def failSafe(self, atoms):
+        """
+        Checks if temperature diverges continously in one direction,
+        returns an error if that's the case, uses a 'window' number of last runs to calculate mean average
+        hits determines how many flucuations before exiting
+        """
+        window = 20
+        if (self.ensemble != "NVE"):
+            self.temp_history.append(atoms.get_temperature())
+        else:
+            self.temp_history.append((atoms.get_potential_energi()+atoms.get_kinetic_energy())/len(atoms))
+        if len(self.temp_history) > 1:
+            mean = np.mean(self.temp_history[-window:])
+            std  = np.std(self.temp_history[-window:])
+            #print(f"Temperature {self.temp_history[-1]}. Mean temp is {mean}, standard deviation is {std}")
+            #print(f"Result is {abs(self.temp_history[0]-mean)}")
+            if abs(self.temp_history[0] - mean) > 2 * std:
+                if (self.hits == 2):
+                    if (self.ensemble != "NVE"):
+                        raise RuntimeWarning("Run canceled because simulation is not stable. Temperature change is greater than 2 standard deviations.")
+                    else:
+                        raise RuntimeWarning("Run canceled because simulation is not stable. Total energy change is greater than 2 standard deviations.")
+                else:
+                    self.hits += 1
+                                
