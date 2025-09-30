@@ -1,29 +1,22 @@
 import sys
-from PreProcessing import PreProcessing
-from MDBase import MDBase
-from PostProcessing import PostProcessing
-import logging
-import logger
+from SourceCode.PreProcessing import PreProcessing
+from SourceCode.MDBase import MDBase
+from SourceCode.PostProcessing import PostProcessing
+from SourceCode.logger import logger_setup
 
 
 if __name__ == "__main__":
-    log = logger.logger_setup()
+    log = logger_setup()
 
 
     # Clear previous simulation outputs to ensure a clean run
-    try:
-        for path in ("output.log", "output.traj"):
-            with open(path, "w"):
-                pass
-    except Exception:
-        pass
 
 
     if len(sys.argv[1:]) % 2 != 0:
         raise AssertionError("Missing arguments") # Maybe other exception is better
 
-    settings = "settings.json"
-    poscar = "POSCAR"
+    settings = "Settings/settings.json"
+    poscar = "AtomicStructure/POSCAR"
     try:
         flags = sys.argv[1:]
         if flags[0] == "--help":
@@ -51,9 +44,6 @@ if __name__ == "__main__":
         flags = None
         pass
 
-    settings = "settings.json"
-    poscar = "POSCAR"
-
     try:
         log.info("Reading settings and setting atomic structures ")
         PP = PreProcessing(settings, poscar, flags)
@@ -63,6 +53,12 @@ if __name__ == "__main__":
     except Exception as err:
         log.error(f"Preprocessing failed: {err}") #should probably add the err, here instead
         exit(1)
+    try:
+        for path in (PP.settings["Output_file"] + ".traj", PP.settings["Output_file"] + ".log"):
+            with open(path, "w"):
+                pass
+    except Exception:
+        pass
 
     try:
         MD.runMD(PP.atoms)
@@ -71,8 +67,9 @@ if __name__ == "__main__":
         exit(1)
 
     try:
-        output_str = PP.settings["Output_file"] + ".traj"
-        PostViz = PostProcessing(PP, output_str) # (TODO) Hardcoded but settings.json will contain file name
+        trajectory_file = PP.settings["Output_file"] + ".traj"
+        data_log_file = PP.settings["Output_file"] + ".log"
+        PostViz = PostProcessing(settings, poscar, trajectory_file, data_log_file) # (TODO) Hardcoded but settings.json will contain file name
         PostViz.vizualize()
     except Exception as err:
         log.error(f"Postprocessing failed: {err}")
