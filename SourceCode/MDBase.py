@@ -31,8 +31,7 @@ class MDBase:
                  integrator_str: str = "Verlet", output_file: str = "data",
                  temperature_k: float = 293, friction: float = 0.01, potential_str: str = "EMT",
                  att_list: list = ["energy"],
-                 pressure: float = 10e+6, compressibility: float = 10e-11,  equil_steps: int = 2000,
-                 integrator_eq_str = None, integrator_prod_str = None):
+                 pressure: float = 10e+6, compressibility: float = 10e-11,  equil_steps: int = 2000):
         """
         In:
             timestep_fs : timestesp (femto) FLOAT
@@ -50,31 +49,21 @@ class MDBase:
         self.interval = int(interval) if interval else 10
         self.output_file = output_file
         self.temperature_k = float(temperature_k)
-        self.friction = float(friction)
+        self.friction = float(friction) / fs
         self.pressure = float(pressure)
         self.compressibility = compressibility
         self.potential = self.getPotential(potential_str)
-        # Resolve which integrators to use for equilibration and production
-        eq_str = integrator_eq_str if integrator_eq_str is not None else integrator_str
-        prod_str = integrator_prod_str if integrator_prod_str is not None else integrator_str
-        self.integrator_eq = self.getIntegrator(eq_str)
-        self.integrator_prod = self.getIntegrator(prod_str)
-        # Backward compatibility: expose production integrator under the old name
-        self.integrator = self.integrator_prod
+        self.integrator = self.getIntegrator(integrator_str)
         self.attachments = self.getAttachment(att_list)
         self.equilibrium_steps = equil_steps
         self.temp_history = []
         self.hits = 0
-        self.use_LJ = False
-        # Track ensembles for logging and failSafe behavior
-        self.ensemble_eq = eq_str
-        self.ensemble_prod = prod_str
-        self.ensemble = eq_str
+        self.ensemble = integrator_str
 
         log.debug(
-        "MDBase init: dt(fs)=%s steps=%s interval=%s T=%sK friction=%s pot=%s eq_integrator=%s prod_integrator=%s out=%s",
+        "MDBase init: dt(fs)=%s steps=%s interval=%s T=%sK friction=%s pot=%s integrator=%s out=%s",
         timestep_fs, number_of_steps, self.interval, self.temperature_k, self.friction,
-        potential_str, eq_str, prod_str, self.output_file
+        potential_str, integrator_str, self.output_file
         )
 
 
@@ -216,16 +205,39 @@ class MDBase:
 
     def equilibriumRun(self, atoms):
 
-        # Use the equilibration integrator
-        self.ensemble = self.ensemble_eq
-        dyn_eq = self.integrator_eq(atoms=atoms)
+        #NVT until equilibrium is reached
+        from asap3.md.langevin import Langevin
 
-        dyn_eq.attach(lambda: self.failSafe(atoms), interval=self.interval)
-        log.info(f"Starting equilibrium run with {self.ensemble_eq} Ensemble to reach desired temperature of {self.temperature_k} K")
+        gamma = self.friction * 3.0
+        dyn_eq = Langevin(atoms,
+                          timestep=self.timestep,
+                          temperature_K=self.temperature_k,
+                          friction=gamma)
 
-        dyn_eq.run(self.equilibrium_steps)
-        current_T = atoms.get_temperature()
-        log.info(f"Systems temperature is {round(current_T, 2)} K after {self.equilibrium_steps} steps")
+        real_ensemble = prev_ensemble = getattr(self, "ensemble", None)
+        self.ensemble = "NVT"
+        self.equil_mode = True
+
+        #traj = Trajectory(filename=f"{self.output_file}.traj", mode="w", atoms=atoms)
+        #dyn_eq.attach(traj.write, interval=self.interval)
+        dyn_eq.attach(lambda: self.failSafe(atoms), interval= max(10, self.interval//2 ))
+        log.info(f"Starting equilibrium run with NVT Ensemble to reach desired temperature of {self.temperature_k} K")
+        try:
+            dyn_eq.run(int(self.equilibrium_steps))
+            current_T = atoms.get_temperature()
+            log.info(f"Systems temperature is {round(current_T,2)} K after {self.equilibrium_steps} steps")
+        except StopIteration as ok:
+            log.info(f"Equilibrium reached early: {ok}")
+        except RuntimeWarning as err:
+            log.warning(f"Equilibrium aborted due to instability: {err}")
+        finally:
+
+            if real_ensemble is not None:
+                self.ensemble = real_ensemble
+                self.equil_mode = False
+                self.temp_history = []
+
+
 
 
     def runMD(self, atoms):
@@ -243,11 +255,8 @@ class MDBase:
                                      force_temp=True)  # Initialize velocity according to temperature_k
 
         self.equilibriumRun(atoms=atoms)
-        log.info("Switching to production ensemble: %s", self.ensemble_prod)
-        self.ensemble = self.ensemble_prod
         log.info("MD run starts with: %i steps", self.steps)
-
-        dyn = self.integrator_prod(atoms=atoms)
+        dyn = self.integrator(atoms=atoms)
 
         #material_name = str(atoms.symbols)
         #print("MATERIALNAMN: ", material_name)
@@ -355,13 +364,30 @@ class MDBase:
         hits determines how many flucuations before exiting
         """
         window = 20
+        temperature_tol = self.temperature_k * 0.05
+
         if (self.ensemble != "NVE"):
             self.temp_history.append(atoms.get_temperature())
         else:
             self.temp_history.append((atoms.get_potential_energy()+atoms.get_kinetic_energy())/len(atoms))
+
+
         if len(self.temp_history) > 1:
-            mean = np.mean(self.temp_history[-window:])
-            std  = np.std(self.temp_history[-window:])
+            recent = self.temp_history[-window:]
+            mean = np.mean(recent)
+            std  = np.std(recent)
+
+            #Specifically for the equil run, to stop iteratign when at the target temperature for ~5 iterations or more
+            if self.ensemble != "NVE":
+                lastN = recent[-7:]
+                if ( self.equil_mode and len(recent) >= 7 ):
+                    nb_in_tolerance =sum(abs(x - self.temperature_k) <= temperature_tol for x in lastN)
+                    if nb_in_tolerance >= 5:
+                        raise StopIteration(
+                        f"Target T reached: stopping at T = {atoms.get_temperature():.2f} K  "
+                        )
+
+
             # TODO Changed for problematic effects, needs to be looked at
             # if abs(self.temp_history[0] - mean) > 2 * std:
             if std > self.temp_history[0]:
