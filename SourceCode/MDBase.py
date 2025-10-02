@@ -205,35 +205,35 @@ class MDBase:
 
     def equilibriumRun(self, atoms):
 
-        #NVT until equilibrium is reached
-        from asap3.md.langevin import Langevin
-
         gamma = self.friction * 3.0
-        dyn_eq = Langevin(atoms,
-                          timestep=self.timestep,
-                          temperature_K=self.temperature_k,
-                          friction=gamma)
-
-        real_ensemble = prev_ensemble = getattr(self, "ensemble", None)
-        self.ensemble = "NVT"
+        dyn_eq = self.integrator(atoms=atoms)
+        real_ensemble  = getattr(self, "ensemble", None)
         self.equil_mode = True
+        dyn_eq.attach(lambda: self.checkConvergence(atoms), interval= max(10, self.interval//2 ))
+        log.info(f"Starting equilibrium run with {self.ensemble} Ensemble to reach desired temperature of {self.temperature_k} K")
 
-        #traj = Trajectory(filename=f"{self.output_file}.traj", mode="w", atoms=atoms)
-        #dyn_eq.attach(traj.write, interval=self.interval)
-        dyn_eq.attach(lambda: self.failSafe(atoms), interval= max(10, self.interval//2 ))
-        log.info(f"Starting equilibrium run with NVT Ensemble to reach desired temperature of {self.temperature_k} K")
         try:
             dyn_eq.run(int(self.equilibrium_steps))
+
             current_T = atoms.get_temperature()
             log.info(f"Systems temperature is {round(current_T,2)} K after {self.equilibrium_steps} steps")
+
+        except RuntimeError as e:
+            # Python 3.7+ translaterar StopIteration->RuntimeError inuti generatorer (PEP 479)
+            if "generator raised StopIteration" in str(e):
+                log.info(f"Equilibrium reached early (observer signaled StopIteration) at T = {round(atoms.get_temperature(), 2)}.")
+            else:
+                raise
+
         except StopIteration as ok:
             log.info(f"Equilibrium reached early: {ok}")
+
         except RuntimeWarning as err:
             log.warning(f"Equilibrium aborted due to instability: {err}")
-        finally:
 
+        finally:
             if real_ensemble is not None:
-                self.ensemble = real_ensemble
+               # self.ensemble = real_ensemble
                 self.equil_mode = False
                 self.temp_history = []
 
@@ -357,6 +357,30 @@ class MDBase:
         traj = Trajectory("data.traj")
         view(traj)
 
+
+    def checkConvergence(self, atoms):
+        window = 20
+        temperature_tol = self.temperature_k * 0.05
+
+        if (self.ensemble != "NVE"):
+            self.temp_history.append(atoms.get_temperature())
+        else:
+            self.temp_history.append((atoms.get_potential_energy() + atoms.get_kinetic_energy()) / len(atoms))
+
+        if len(self.temp_history) > 1:
+            recent = self.temp_history[-window:]
+
+            # Specifically for the equil run, to stop iteratign when at the target temperature for ~5 iterations or more
+            if self.ensemble != "NVE":
+                lastN = recent[-7:]
+                if (self.equil_mode and len(recent) >= 7):
+                    nb_in_tolerance = sum(abs(x - self.temperature_k) <= temperature_tol for x in lastN)
+                    if nb_in_tolerance >= 5:
+                        raise StopIteration(
+                            f"Target T reached: stopping at T = {atoms.get_temperature():.2f} K  "
+                        )
+
+
     def failSafe(self, atoms):
         """
         Checks if temperature diverges continously in one direction,
@@ -364,38 +388,69 @@ class MDBase:
         hits determines how many flucuations before exiting
         """
         window = 20
-        temperature_tol = self.temperature_k * 0.05
+        tol_temp_percentage = 0.25
+        tol_energy_percentage = 0.02
 
         if (self.ensemble != "NVE"):
-            self.temp_history.append(atoms.get_temperature())
+            self.temp_history.append(atoms.get_temperature()) #temperature
         else:
-            self.temp_history.append((atoms.get_potential_energy()+atoms.get_kinetic_energy())/len(atoms))
-
+            self.temp_history.append((atoms.get_potential_energy() + atoms.get_kinetic_energy()) / len(atoms)) #energy
 
         if len(self.temp_history) > 1:
             recent = self.temp_history[-window:]
             mean = np.mean(recent)
-            std  = np.std(recent)
+            std = np.std(recent)
 
-            #Specifically for the equil run, to stop iteratign when at the target temperature for ~5 iterations or more
+
+            temperature_tol = self.temperature_k * tol_temp_percentage
             if self.ensemble != "NVE":
-                lastN = recent[-7:]
-                if ( self.equil_mode and len(recent) >= 7 ):
-                    nb_in_tolerance =sum(abs(x - self.temperature_k) <= temperature_tol for x in lastN)
-                    if nb_in_tolerance >= 5:
-                        raise StopIteration(
-                        f"Target T reached: stopping at T = {atoms.get_temperature():.2f} K  "
+                if len(recent) >= 10:
+                    lastN = recent[-10:]
+                    nb_outside_tolerance = sum(abs(x - self.temperature_k) >= temperature_tol for x in lastN)
+                    if nb_outside_tolerance >= 5:
+                        #log.warning()
+                        raise RuntimeWarning(
+                            f"Run canceled because simulation is not stable. The temperature oscillations are greater than {tol_temp_percentage * 100}% of desired temperature.")
+
+                    if self.ensemble == "NPT":
+                        pass
+
+
+            else:
+                dt_ps = self.timestep / (1000.0 * fs)
+                dt_eff_ps = self.interval * dt_ps
+                window_ps = 2.0
+                N = max(10, int(round(window_ps / dt_eff_ps)))
+
+                if len(self.temp_history) >= N:
+                    lastN = np.asarray(self.temp_history[-N:], dtype=float)
+                    mean_energy = float(np.mean(lastN))
+                    energy_tol = max(tol_energy_percentage * abs(mean_energy), 1e-4)
+                    nb_outside = int(np.sum(np.abs(lastN - mean_energy) >= energy_tol))
+                    thresh_hold = max(3, int(np.ceil(0.3 * N)))
+
+                    if nb_outside >= thresh_hold:
+                        raise RuntimeWarning(
+                            f"NVE: unstable total energy/atom deviates more than "
+                            f"{tol_energy_percentage * 100:.0f}% of the window mean "
+                            f"(threshold = {energy_tol:.6e} eV/atom)"
                         )
 
+                """
+                 print(f"Standard devation: {std}, mean: {mean}")
+                 if (abs(self.temperature_k - mean) > std)  or self.temp_history[-1] > 2*self.temperature_k:
+                     # if std > self.temp_history[0]:
+                     if self.hits == 5:
+                         if (self.ensemble != "NVE"):
 
-            # TODO Changed for problematic effects, needs to be looked at
-            # if abs(self.temp_history[0] - mean) > 2 * std:
-            if std > self.temp_history[0]:
-                if (self.hits == 2):
-                    if (self.ensemble != "NVE"):
-                        raise RuntimeWarning("Run canceled because simulation is not stable. Temperature change is greater than 2 standard deviations.")
-                    else:
-                        raise RuntimeWarning("Run canceled because simulation is not stable. Total energy change is greater than 2 standard deviations.")
-                else:
-                    self.hits += 1
+                         else:
+                             raise RuntimeWarning("Run canceled because simulation is not stable. Total energy change is greater than 2 standard deviations.")
+                     else:
+                         self.hits += 1
+                         print(self.hits)
+                 """
+
+
+
+
                                 
