@@ -1,81 +1,82 @@
 from dataclasses import dataclass
 from ase import Atoms
 
-
-@dataclass
 class SimulationSettings:
     """
     Abstract class for simulation settings.
-    Shouldnt be used by itself
+    Shouldn't be used by itself
     """
-    timestep: float
-    total_time: float
-    potential: str
+    def __init__(self, timestep: float, total_time: float, potential: str):
+        self.timestep = timestep
+        self.total_time = total_time
+        self.potential = potential
 
-@dataclass
+
 class NVESettings(SimulationSettings):
-
     @property
-    def ensemble(self): 
+    def ensemble(self):
         return "NVE"
-    
-    def __str__(self):
-        return  (
-                f"Ensemble: {self.ensemble} \n"
-                f"Potential : {self.potential} \n"
-                f"Timestep: {self.timestep} fs  \n"
-                f"Total time : {self.total_time} fs \n"
-                )
 
-@dataclass
+    def __str__(self):
+        return (
+            f"Ensemble: {self.ensemble} \n"
+            f"Potential : {self.potential} \n"
+            f"Timestep: {self.timestep} fs  \n"
+            f"Total time : {self.total_time} fs \n"
+        )
+
+
 class NVTSettings(SimulationSettings):
-    temperature: float
-    
+    def __init__(self, timestep: float, total_time: float, potential: str, temperature: float):
+        super().__init__(timestep, total_time, potential)
+        self.temperature = temperature
+
     @property
-    def ensemble(self): 
+    def ensemble(self):
         return "NVT"
 
     def __str__(self):
-        return  (
-                f"Ensemble: {self.ensemble} \n"
-                f"Potential : {self.potential} \n"
-                f"Temperature: {self.temperature } K\n"
-                f"Timestep: {self.timestep} fs \n"
-                f"Total time : {self.total_time} fs \n"
-                )
-     
+        return (
+            f"Ensemble: {self.ensemble} \n"
+            f"Potential : {self.potential} \n"
+            f"Temperature: {self.temperature} K\n"
+            f"Timestep: {self.timestep} fs \n"
+            f"Total time : {self.total_time} fs \n"
+        )
 
-@dataclass
+
 class NPTSettings(SimulationSettings):
-    temperature: float
-    pressure: float
-    
+    def __init__(self, timestep: float, total_time: float, potential: str, temperature: float, pressure: float):
+        super().__init__(timestep, total_time, potential)
+        self.temperature = temperature
+        self.pressure = pressure
+
     @property
-    def ensemble(self): 
+    def ensemble(self):
         return "NPT"
-    
+
     def __str__(self):
-        return  (
-                f"Ensemble: {self.ensemble} \n"
-                f"Potential : {self.potential} \n"
-                f"Temperature: {self.temperature } K\n"
-                f"Pressure: {self.pressure } Gpa \n"
-                f"Timestep: {self.timestep} fs \n"
-                f"Total time : {self.total_time} fs \n"
+        return (
+            f"Ensemble: {self.ensemble} \n"
+            f"Potential : {self.potential} \n"
+            f"Temperature: {self.temperature} K\n"
+            f"Pressure: {self.pressure} Gpa \n"
+            f"Timestep: {self.timestep} fs \n"
+            f"Total time : {self.total_time} fs \n"
+        )
 
-                )
-    
 
-@dataclass
 class SimulationInput:
-    atoms: Atoms 
-    settings: SimulationSettings
+    def __init__(self, atoms, settings: SimulationSettings):
+        self.atoms = atoms
+        self.settings = settings
 
-    def __str__(self) -> str:
-        return  (
-                f"Atomic structure: {self.atoms} \n"
-                f"{self.settings}"
-                )
+    def __str__(self):
+        return (
+            f"Atomic structure: {self.atoms} \n"
+            f"{self.settings}"
+        )
+
 
 
 if __name__ == "__main__":
