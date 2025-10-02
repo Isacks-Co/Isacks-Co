@@ -407,10 +407,11 @@ class MDBase:
                 if len(recent) >= 10:
                     lastN = recent[-10:]
                     nb_outside_tolerance = sum(abs(x - self.temperature_k) >= temperature_tol for x in lastN)
-                    if nb_outside_tolerance >= 5:
+                    if nb_outside_tolerance >= 6 :
                         #log.warning()
                         raise RuntimeWarning(
-                            f"Run canceled because simulation is not stable. The temperature oscillations are greater than {tol_temp_percentage * 100}% of desired temperature.")
+                        f"Run canceled because simulation is not stable. The temperature oscillations"
+                        f" are greater than {tol_temp_percentage * 100}% of desired temperature.")
 
                     if self.ensemble == "NPT":
                         pass
