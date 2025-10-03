@@ -3,7 +3,7 @@ import time
 
 class CustomFormatter(logging.Formatter):
     COLORS =  {
-    logging.DEBUG: "\033[37m",   # Grå/vit
+    logging.DEBUG: "\033[36m",   # Grå/vit
     logging.INFO: "\033[32m",    # Grön
     logging.WARNING: "\033[33m", # Gul
     logging.ERROR: "\033[31m",   # Röd
@@ -19,11 +19,9 @@ class CustomFormatter(logging.Formatter):
         message = super().format(record)
         return f"{color}{message}{self.RESET}"
 
-
-
-def logger_setup():
-    log = logging.getLogger("MD")
-    log.setLevel(logging.INFO)        # byt till DEBUG vid felsökning
+def loggerSetup(debug):
+    log = logging.getLogger()
+    log.setLevel(logging.INFO if not debug else logging.DEBUG)
     log.propagate = False        
 
     if not log.handlers:           
@@ -33,11 +31,3 @@ def logger_setup():
         h.setFormatter(CustomFormatter(fmt=fmt, datefmt=datefmt))        
         log.addHandler(h)
 
-    return log
-
-
-
-def log_timing(msg, t0 ):
-    log = logging.getLogger("MD")
-    dt = time.perf_counter() - t0
-    log.info("%-35s | %8.3f s", msg, dt)

@@ -3,6 +3,8 @@ import sys
 import ast
 
 import argparse
+from logger import loggerSetup
+import logging
 
 class SingleMetavarHelpFormatter(argparse.HelpFormatter):
     def _format_action_invocation(self, action):
@@ -30,6 +32,10 @@ class InputParser():
         self.input_args = args
         self.args = vars(self.argparser.parse_args(args[1:]))
         
+        loggerSetup(self.args["debug"])
+        log = logging.getLogger(__name__)
+
+        
 
     def addArguments(self):
         """ Whenever a new setting is added, add the corresponding flag here."""
@@ -41,13 +47,14 @@ class InputParser():
         self.argparser.add_argument("-T","--Temperature", metavar="<TEMPERATURE>", type=float, help="Temperature in K")
         self.argparser.add_argument("-P","--Pressure", metavar="<PRESSURE>", type=float, help="Pressure in Pa")
         self.argparser.add_argument("-POT","--Potential" , metavar="<POTENTIAL>", type=str, help="Potential as a string (EMT, LJ, MACE)")
-        self.argparser.add_argument("-TS", "--Timestep", metavar="<TIMESTEP>", type=float, help="Timestep as a float")
+        self.argparser.add_argument("-TS", "--Timestep", metavar="<TIMESTEP>", type=float, help="Timestep as a float (fs)")
         self.argparser.add_argument("-µ", "--Friction", metavar="<FRICTION>", type=float, help="Friction coefficent as a float (For NVT)")
         self.argparser.add_argument("-C","--Compressibility", metavar="<COMPRESSIBILITY>", type=float, help="Compressibility as a float (NPT)")
         self.argparser.add_argument("-SI", "--Sample_interval", metavar="<INTERVAL>", type=int, help="Sample frequency as an integer" )
         self.argparser.add_argument("-S", "--Supercells", metavar="<SUPERCELL>", type=self.parseList, help="Repetition of input cell e.g [3,3,3], use [1,1,1] for only unit cell")
         self.argparser.add_argument("-O", "--Output_file", metavar="<PATH>", type=str, help="Path to where the output file will be written")
         self.argparser.add_argument("-N", "--Number_of_steps", metavar="<NUMBER_OF_STEPS>", type=str, help="Total number of timesteps as an integer")
+        self.argparser.add_argument("--debug", action="store_true", help="Debug")
         
 
     def parseList(self, arg):

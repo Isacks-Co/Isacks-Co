@@ -5,7 +5,7 @@ from ase.md import MDLogger
 from ase.md.velocitydistribution import MaxwellBoltzmannDistribution
 from ase.units import fs, GPa
 from ase.visualize import view
-from SourceCode.logger import logger_setup
+import logging
 from SourceCode.simulationInput import SimulationSettings
 from SourceCode.LJRegistry import LJParams, calcMaxRc
 
@@ -14,8 +14,7 @@ from SourceCode.LJRegistry import LJParams, calcMaxRc
 from logger import logger_setup
 from simulationInput import SimulationSettings
 
-log = logger_setup()
-
+log = logging.getLogger(__name__)
 class MDBase:
     """
     basic MD class

@@ -1,13 +1,14 @@
 import json
 import sys
+
 from MDBase import MDBase
 from ase.io import read
 from ase.lattice.cubic import FaceCenteredCubic
 import numpy as np
-from logger import logger_setup
+import logging
 from simulationInput import NPTSettings,NVESettings,NVTSettings
 from inputParser import InputParser
-log = logger_setup()
+log = logging.getLogger(__name__)
 
 class PreProcessing:
     """
@@ -20,6 +21,7 @@ class PreProcessing:
 
         #Init argparser, all inputs from terminal available in self.argparser.args (dict)
         self.argparser = InputParser(args)
+
         #Init settings and atomic structure
         self.settings = self.readSettings(self.argparser.args["input_settings"])
         self.atoms = self.readAtomicStructure(self.argparser.args["input_structure"])
@@ -27,8 +29,8 @@ class PreProcessing:
         #Physical check of the input
         self.sanityCheckAtomicStructure()
         self.sanityCheckSettings()
-
         self.printInput()
+        
 
     def readSettings(self, input_settings):
         """Reads settings from json file, checks all expected settings present. Overwrite settings file if a terminal flag is set."""
@@ -48,13 +50,19 @@ class PreProcessing:
 
         log.debug("Settings loaded: %r", temp_settings)
         return temp_settings
+    
 
     def readAtomicStructure(self, input_structure):
         """Reads atomic structure from a file, and extend cell according to supercell setting"""
+
         try:
+            
             log.info("Reading atomic structure from: %s", input_structure)
             atoms = read(input_structure) * tuple(self.settings["Supercells"])
             atoms.pbc = True #TODO, Hard coded pbc always true for now.
+            with open(input_structure, "r") as file: # Manually read the first line and add as a comment.
+                structure_name = file.readline().strip()
+                atoms.info["comment"] = structure_name
             return atoms
         except FileNotFoundError:
             log.error("Structure file not found: %s", input_structure)
