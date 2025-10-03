@@ -4,9 +4,9 @@ from MDBase import MDBase
 from ase.io import read
 from ase.lattice.cubic import FaceCenteredCubic
 import numpy as np
-from SourceCode.logger import logger_setup
-from SourceCode.simulationInput import NPTSettings,NVESettings,NVTSettings
-from SourceCode.inputParser import InputParser
+from logger import logger_setup
+from simulationInput import NPTSettings,NVESettings,NVTSettings
+from inputParser import InputParser
 log = logger_setup()
 
 class PreProcessing:
@@ -71,6 +71,7 @@ class PreProcessing:
         log.info(f"Number of atoms: {len(self.atoms)}")
 
     def createSettings(self):
+        log.info("Creating Settings object for ensemble: %s", self.settings["Ensemble"])
         match self.settings["Ensemble"]:
             case "NVE":
                 

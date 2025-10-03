@@ -1,4 +1,3 @@
-
 from ase import Atoms
 
 class SimulationSettings:
