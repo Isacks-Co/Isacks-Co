@@ -43,7 +43,7 @@ class MDBase:
         self.friction = float(friction) / fs
         self.pressure = float(pressure)
         self.compressibility = compressibility
-        self.potential_factory = self.getPotential(potential_str)
+        self.potential = self.getPotential(potential_str)
         self.integrator = self.getIntegrator(integrator_str)
         self.attachments = self.getAttachment(att_list)
         self.equilibrium_steps = equil_steps
@@ -220,7 +220,7 @@ class MDBase:
         Depending on attachments will possibly print some data.
         Will always save a trajectory and log file.        
         """
-        atoms.calc = self.potential_factory(atoms)
+        atoms.calc = self.potential(atoms)
        
         MaxwellBoltzmannDistribution(atoms, temperature_K=self.temperature_k,
                                      force_temp=True)  # Initialize velocity according to temperature_k
