@@ -205,7 +205,6 @@ class MDBase:
 
     def equilibriumRun(self, atoms):
 
-        gamma = self.friction * 3.0
         dyn_eq = self.integrator(atoms=atoms)
         real_ensemble  = getattr(self, "ensemble", None)
         self.equil_mode = True
@@ -295,7 +294,7 @@ class MDBase:
         logger = MDLogger(dyn, atoms=atoms, logfile=f"{self.output_file}.log",
                           header=True, peratom=True, mode='a')  # Create a logger for writing data
         dyn.attach(logger, interval=self.interval)  # Attach logger
-        dyn.attach(lambda: self.failSafe(atoms), interval=self.interval)
+        dyn.attach(lambda: self.checkDivergence(atoms), interval=self.interval) # TODO Possibly include checkConvergence here?
 
         # Apply a short sequence of slight, controlled strains and run a few steps at each.
         # This creates trajectory frames with non-zero strain for robust post-processing of elastic constants.
@@ -370,7 +369,7 @@ class MDBase:
         if len(self.temp_history) > 1:
             recent = self.temp_history[-window:]
 
-            # Specifically for the equil run, to stop iteratign when at the target temperature for ~5 iterations or more
+            # Specifically for the equil run, to stop iterating when at the target temperature for ~5 iterations or more
             if self.ensemble != "NVE":
                 lastN = recent[-7:]
                 if (self.equil_mode and len(recent) >= 7):
@@ -381,54 +380,56 @@ class MDBase:
                         )
 
 
-    def failSafe(self, atoms):
+    def checkDivergence(self, atoms):
         """
-        Checks if temperature diverges continously in one direction,
+        Checks if temperature or energy diverges continously in one direction,
         returns an error if that's the case, uses a 'window' number of last runs to calculate mean average
         hits determines how many flucuations before exiting
         """
         window = 20
         tol_temp_percentage = 0.25
         tol_energy_percentage = 0.02
-
+        # Either check temperature if ensemble is NPT or NVT or total energy if ensemble is NVE.
         if (self.ensemble != "NVE"):
-            self.temp_history.append(atoms.get_temperature()) #temperature
+            self.temp_history.append(atoms.get_temperature())
         else:
-            self.temp_history.append((atoms.get_potential_energy() + atoms.get_kinetic_energy()) / len(atoms)) #energy
+            self.temp_history.append((atoms.get_potential_energy() + atoms.get_kinetic_energy()) / len(atoms))
 
         if len(self.temp_history) > 1:
             recent = self.temp_history[-window:]
-            mean = np.mean(recent)
-            std = np.std(recent)
 
-
-            temperature_tol = self.temperature_k * tol_temp_percentage
             if self.ensemble != "NVE":
+                temperature_tol = self.temperature_k * tol_temp_percentage
                 if len(recent) >= 10:
                     lastN = recent[-10:]
                     nb_outside_tolerance = sum(abs(x - self.temperature_k) >= temperature_tol for x in lastN)
-                    if nb_outside_tolerance >= 6 :
-                        #log.warning()
+                        # Check for oscillation behaviour in temperature
+                    if all([nb_outside_tolerance > 3, nb_outside_tolerance < 6]):
+                        # Print warning in log, continues the run
+                        log.warning("Warning temperature oscillates, might want to check the parameters.")
+                    elif nb_outside_tolerance >= 6:
+                        # End the run and raise warning.
                         raise RuntimeWarning(
                         f"Run canceled because simulation is not stable. The temperature oscillations"
                         f" are greater than {tol_temp_percentage * 100}% of desired temperature.")
 
                     if self.ensemble == "NPT":
+                        # TODO Do we wanna check volume?
                         pass
 
 
             else:
-                dt_ps = self.timestep / (1000.0 * fs)
-                dt_eff_ps = self.interval * dt_ps
-                window_ps = 2.0
-                N = max(10, int(round(window_ps / dt_eff_ps)))
+                # TODO Might want to check other Divergence for energy
+                dt_eff_ps = self.interval * self.timestep / (1000 * fs)
+                window_ps = 2.0 #
+                num_points = max(10, int(round(window_ps / dt_eff_ps)))
 
-                if len(self.temp_history) >= N:
-                    lastN = np.asarray(self.temp_history[-N:], dtype=float)
+                if len(self.temp_history) >= num_points:
+                    lastN = np.asarray(self.temp_history[-num_points:], dtype=float)
                     mean_energy = float(np.mean(lastN))
                     energy_tol = max(tol_energy_percentage * abs(mean_energy), 1e-4)
                     nb_outside = int(np.sum(np.abs(lastN - mean_energy) >= energy_tol))
-                    thresh_hold = max(3, int(np.ceil(0.3 * N)))
+                    thresh_hold = max(3, int(np.ceil(0.3 * num_points)))
 
                     if nb_outside >= thresh_hold:
                         raise RuntimeWarning(
@@ -436,22 +437,3 @@ class MDBase:
                             f"{tol_energy_percentage * 100:.0f}% of the window mean "
                             f"(threshold = {energy_tol:.6e} eV/atom)"
                         )
-
-                """
-                 print(f"Standard devation: {std}, mean: {mean}")
-                 if (abs(self.temperature_k - mean) > std)  or self.temp_history[-1] > 2*self.temperature_k:
-                     # if std > self.temp_history[0]:
-                     if self.hits == 5:
-                         if (self.ensemble != "NVE"):
-
-                         else:
-                             raise RuntimeWarning("Run canceled because simulation is not stable. Total energy change is greater than 2 standard deviations.")
-                     else:
-                         self.hits += 1
-                         print(self.hits)
-                 """
-
-
-
-
-                                
