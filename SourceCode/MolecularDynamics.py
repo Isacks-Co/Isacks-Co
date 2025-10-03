@@ -2,18 +2,19 @@ import sys
 from PreProcessing import PreProcessing
 from MDBase import MDBase
 from PostProcessing import PostProcessing
-from logger import logger_setup
+import logging
+
 
 if __name__ == "__main__":
-    log = logger_setup()
 
 
     # Clear previous simulation outputs to ensure a clean run
 
     try:
-        log.info("Reading settings and setting atomic structures ")
+        
         PP = PreProcessing(sys.argv)
         settings = PP.createSettings()
+        log = logging.getLogger(__name__)
         log.info("Setting ensemble: %s and passing relevant parameters", PP.settings['Ensemble'])
         
     except Exception as err:
