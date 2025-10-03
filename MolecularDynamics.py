@@ -97,7 +97,7 @@ if __name__ == "__main__":
     except Exception as err:
         log.error(f"computeBulkModulusfailed: {err}")
         pass
-    """
+
     try:
         # Internal pressure
         PostViz.computeInternalPressure()
@@ -125,7 +125,7 @@ if __name__ == "__main__":
     except Exception as err:
         log.error(f"computeSelfDiffusionCoefficient failed: {err}")
         pass
-    """
+
 
     try:
         # Specific heat capacity
@@ -134,12 +134,12 @@ if __name__ == "__main__":
         log.error(f"computeSpecificHeat failed: {err}")
         pass
 
-    """
+
     try:
         # Debye temperature
         PostViz.computeDebyeTemperature()
     except Exception as err:
         log.error(f"computeDebyeTemperature failed: {err}")
         pass
-    """
+
     log.info("Simulation done")

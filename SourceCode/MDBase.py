@@ -261,27 +261,18 @@ class MDBase:
         def save_custom_data():
             """Store custom calculations in atoms.info"""
             atoms.info['potential_energy eV'] = atoms.get_potential_energy()
-            atoms.info['potential_energy J'] = atoms.get_potential_energy() * EV_TO_JOULE
             atoms.info['kinetic_energy eV'] = atoms.get_kinetic_energy()
-            atoms.info['kinetic_energy J'] = atoms.get_kinetic_energy() * EV_TO_JOULE
             atoms.info['total_energy eV'] = atoms.get_total_energy()
-            atoms.info['total_energy J'] = atoms.get_total_energy() * EV_TO_JOULE
             atoms.info['temperature'] = atoms.get_temperature()
             atoms.info['volume A3'] = atoms.get_volume()
-            atoms.info['volume m3'] = atoms.get_volume() * 1e-30
             atoms.info['forces eV/A'] = atoms.get_forces()
-            atoms.info['forces J/m'] = atoms.get_forces() * EV_TO_JOULE * 1e10
             atoms.info['positions'] = atoms.get_positions()
             atoms.info['stress eV/A3'] = atoms.get_stress(voigt=True)
-            atoms.info['stress GPa'] = atoms.get_stress(voigt=True) * EV_PER_A3_TO_GPA
             atoms.info['number_of_atoms'] = atoms.get_global_number_of_atoms()
             atoms.info['cell'] = atoms.get_cell()
             atoms.info['cell_volume A3'] = atoms.get_cell().volume
-            atoms.info['cell_volume m3'] = atoms.get_cell().volume * A_TO_M**3
             atoms.info['masses u'] = atoms.get_masses()
-            atoms.info['masses kg'] = atoms.get_masses() * AMU_TO_KG
-            atoms.info['density kg/m3'] = (sum(atoms.get_masses()) / atoms.get_volume()) * AMU_TO_KG * 1e30
-            atoms.info['density u/A3'] = sum(atoms.get_masses()) / atoms.get_volume()
+            atoms.info['density u/A3'] = sum(atoms.info['masses u']) / atoms.get_volume()
 
 
             # Add any other custom calculations here

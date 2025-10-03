@@ -1,29 +1,19 @@
 import json
 import re
 import math
-from math import *
-import mpmath
 from pathlib import Path
 
-from mpmath import polylog
-
-from SourceCode.PreProcessing import PreProcessing
 import numpy as np
 from SourceCode.logger import logger_setup
 from ase import Atoms
 from ase.build import bulk
-from ase.calculators.eam import EAM
-from ase.calculators.emt import EMT
-from ase.data import atomic_numbers, atomic_names, atomic_masses, covalent_radii, cohesive_energies
-from ase.eos import EquationOfState
-from ase.io import read, write
+from ase.io import read
 from ase.io.trajectory import Trajectory
 from ase.md.analysis import DiffusionCoefficient
-from ase.neighborlist import NeighborList, natural_cutoffs, build_neighbor_list, NeighborList
-from ase.units import Bohr, Rydberg, kJ, kB, fs as fs_conversion, Hartree, mol, kcal, Ang
+from ase.neighborlist import NeighborList, natural_cutoffs, build_neighbor_list
+from ase.units import Bohr, kB, Hartree
 from ase.visualize import view
-from scipy.constants import pi, hbar, k, physical_constants
-from scipy.stats import linregress
+from scipy.constants import pi, k, physical_constants
 
 # Common conversions
 EV_PER_A3_TO_GPA = 160.21766208
@@ -71,11 +61,7 @@ class PostProcessing:
         try:
             self.traj = Trajectory(trajectory_file)
             self.settings = json.loads(Path(settings_path).read_text())
-            self.atoms = read(input_structure)
-            self.data_log = ParseLogFile(data_log_file)
-            self.ideal_atoms = self.atoms * tuple(self.settings["Supercells"])
             self.elastic_properties = self._cubic_constants_from_traj(ref=self.traj[0])
-            self.debye_temperature = self.computeDebyeTemperature()
         except FileNotFoundError:
             raise FileNotFoundError(f"Trajectory file {trajectory_file} not found")
 
@@ -98,36 +84,21 @@ class PostProcessing:
         return_unit : str
             "J_per_atom" (default) or "eV_per_atom".
         """
-        # Try to use per-atom energies from the log first
-        Epot_per_atom_eV = None
-        Ekin_per_atom_eV = None
-        try:
-            Epot_per_atom_eV = np.asarray(self.data_log.get("Epot/N[eV]", []), dtype=float)
-            Ekin_per_atom_eV = np.asarray(self.data_log.get("Ekin/N[eV]", []), dtype=float)
-            if Epot_per_atom_eV.size == 0 or Ekin_per_atom_eV.size == 0:
-                Epot_per_atom_eV = None  # trigger fallback
-        except Exception:
-            Epot_per_atom_eV = None
 
-        if Epot_per_atom_eV is None:
-            # Fallback: build per-atom arrays from trajectory info
-            pot_list = []
-            kin_list = []
-            for fr in self.traj:
-                try:
-                    N = int(fr.info['number_of_atoms'])
-                    pot = float(fr.info['potential_energy eV']) / N
-                    kin = float(fr.info['kinetic_energy eV']) / N
-                    pot_list.append(pot)
-                    kin_list.append(kin)
-                except Exception:
-                    continue
-            Epot_per_atom_eV = np.asarray(pot_list, dtype=float)
-            Ekin_per_atom_eV = np.asarray(kin_list, dtype=float)
-
-        if Epot_per_atom_eV.size == 0 or Ekin_per_atom_eV.size == 0:
-            logger.info("Cohesive energy cannot be computed: no energy data found in log or trajectory.")
-            return float('nan')
+        pot_list = []
+        kin_list = []
+        N = int(self.traj[0].info['number_of_atoms'])
+        for snapshot in self.traj:
+            try:
+                pot = float(snapshot.info['potential_energy eV']) / N
+                kin = float(snapshot.info['kinetic_energy eV']) / N
+                pot_list.append(pot)
+                kin_list.append(kin)
+            except Exception:
+                logger.error("Could not acquire energy per atom for the cohesive energy")
+                raise RuntimeError("Could not acquire energy per atom for the cohesive energy")
+        Epot_per_atom_eV = np.asarray(pot_list, dtype=float)
+        Ekin_per_atom_eV = np.asarray(kin_list, dtype=float)
 
         # Discard an initial fraction to avoid transients
         start = int(round(discard_fraction * Epot_per_atom_eV.size)) if Epot_per_atom_eV.size > 5 else 0
@@ -217,16 +188,13 @@ class PostProcessing:
         return avg_Pa
 
     def computeMSD(self, time=-10, reference=0, return_SI=True):
+        # TODO Shouldn't this be some mean value of many of the late snapshots in trajectory
         traj = self.traj
         if time is None:
             time = reference + 1
 
-        if reference is None:
-            N = self.ideal_atoms.get_global_number_of_atoms()
-            r_0 = self.ideal_atoms.get_positions()  # Å
-        else:
-            N = traj[reference].get_global_number_of_atoms()
-            r_0 = traj[reference].get_positions()  # Å
+        N = traj[reference].get_global_number_of_atoms()
+        r_0 = traj[reference].get_positions()  # Å
 
         r_n = traj[time].get_positions()  # Å
         # convert to atomic units (Bohr), do calculation in a.u.
@@ -246,18 +214,17 @@ class PostProcessing:
         """
         Returns True if Lindemann criterion is met, False otherwise.
         """
-        cutoffs = natural_cutoffs(self.ideal_atoms)
-        nl_initial = NeighborList(cutoffs, self_interaction=False, bothways=True)
-        nl_initial.update(self.ideal_atoms)
-        min_dist = np.min([nearest_neighbor_distance_for_atom(j, self.ideal_atoms, nl_initial) for j in range(self.ideal_atoms.get_global_number_of_atoms())])
+
+        cutoffs = natural_cutoffs(self.traj[0])
+        neighbor_list = NeighborList(cutoffs, self_interaction=False, bothways=True)
+        neighbor_list.update(self.traj[0])
+        min_dist = np.min([nearest_neighbor_distance_for_atom(j, self.traj[0], neighbor_list) for j in range(self.traj[0].get_global_number_of_atoms())])
         min_dist = float(min_dist)
         logger.info(f"First min dist-------------- {min_dist}")
 
-
-        nl = build_neighbor_list(self.traj[0])
         for atoms in self.traj:
-            nl.update(atoms)
-            nn_per_atom = np.min([nearest_neighbor_distance_for_atom(i, atoms, nl) for i in range(atoms.get_global_number_of_atoms())])
+            neighbor_list.update(atoms)
+            nn_per_atom = np.min([nearest_neighbor_distance_for_atom(i, atoms, neighbor_list) for i in range(atoms.get_global_number_of_atoms())])
             nn_per_atom = float(nn_per_atom)
             if min_dist is None:
                 min_dist = nn_per_atom
@@ -265,6 +232,7 @@ class PostProcessing:
                 min_dist = nn_per_atom
 
         logger.info(f"Overall nearest-neighbor distance [Å]: {min_dist}")
+        # TODO ComputeMSD is only a snapshot, not mean. This is a problem I believe
         msd_m2 = self.computeMSD()  # SI m^2
         min_dist_m = min_dist * A_TO_M
         l = float(np.sqrt(msd_m2) / min_dist_m)
@@ -278,15 +246,15 @@ class PostProcessing:
 
     def computeSelfDiffusionCoefficient(self):  # Needs constant temperature, for current implementation
         timestep_list = []
-        temp_list = [round(self.data_log["T[K]"][i], -1) for i in range(len(self.data_log["T[K]"]))]
+        temp_list = [round(self.traj[i].info["temperature"], -1) for i in range(len(self.traj))]
         if self.settings["Temperature"] in temp_list:
-            for i in range(len(self.data_log["Time[ps]"])):
+            for i in range(len(self.traj)):
                 if temp_list[i] == self.settings["Temperature"]:
-                    timestep = self.data_log["Time[ps]"][i]
+                    timestep = i * self.settings["Timestep"] * self.settings["Interval"]
                     timestep_list.append([timestep, i])
         else:
-            for i in range(len(self.data_log["Time[ps]"])):
-                timestep = self.data_log["Time[ps]"][i]
+            for i in range(len(self.traj)):
+                timestep = i * self.settings["Timestep"] * self.settings["Interval"]
                 timestep_list.append([timestep, i])
 
         logger.info(f"{timestep_list[0][0]} -------- {timestep_list[-1][0]}")
@@ -308,7 +276,6 @@ class PostProcessing:
 
     def computeSpecificHeat(self):  # Requires NVT, might implement for NVE as well
 
-        N = len(self.traj[0])
         # total energy per frame in eV; convert to Hartree for a.u. computation
         energy_eV = np.array([atom_frame.get_potential_energy() + atom_frame.get_kinetic_energy() for atom_frame in self.traj])
         energy_Eh = ev_to_hartree(energy_eV)
@@ -491,7 +458,7 @@ class PostProcessing:
         }
 
     def determineCrystalStructure(self):
-        atoms = self.ideal_atoms
+        atoms = self.traj[0]
         [a, b, c, ang_bc, ang_ac, ang_ab] = atoms.get_cell_lengths_and_angles()
         ang_bc = round(ang_bc, 0)
         ang_ac = round(ang_ac, 0)
