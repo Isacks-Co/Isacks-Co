@@ -1,12 +1,13 @@
 import json
-from SourceCode.MDBase import MDBase
-from ase.io.vasp import read_vasp
+import sys
+from MDBase import MDBase
+from ase.io import read
 from ase.lattice.cubic import FaceCenteredCubic
 import numpy as np
 from SourceCode.logger import logger_setup
 from SourceCode.simulationInput import NPTSettings,NVESettings,NVTSettings
+from SourceCode.inputParser import InputParser
 log = logger_setup()
-
 
 class PreProcessing:
     """
@@ -15,45 +16,46 @@ class PreProcessing:
     for the MD class
     """
 
-    def __init__(self, input_settings, input_structure, flags):
-        self.expected_keys = {"-T": "Temperature", "-E": "Ensemble", "-P": "Pressure",
-                              "-POT": "Potential", "-TS": "Timestep", "-N": "Number_of_steps",
-                              "-F": "Friction", "-C": "Compressibility", "-I": "Interval", "-O": "Output_file",
-                              "_A": "Attachments", "-ES": "EquilSteps", "-S": "Supercells",
-                              "-EE": "EquilEnsemble", "-EP": "ProductionEnsemble"}
+    def __init__(self, args):
 
-        log.info("Reading settings file: %s", input_settings)
+        #Init argparser, all inputs from terminal available in self.argparser.args (dict)
+        self.argparser = InputParser(args)
+        #Init settings and atomic structure
+        self.settings = self.readSettings(self.argparser.args["input_settings"])
+        self.atoms = self.readAtomicStructure(self.argparser.args["input_structure"])
 
-        self.settings = self.readSettings(input_settings)
-        log.info(self.settings["Supercells"])
-        self.atoms = self.readAtomicStructure(input_structure) * tuple(self.settings["Supercells"])
-        self.atoms.pbc = True
-        self.readTerminalInput(flags)
+        #Physical check of the input
         self.sanityCheckAtomicStructure()
         self.sanityCheckSettings()
+
         self.printInput()
 
     def readSettings(self, input_settings):
-        """Reads settings from json file, checks all expected settings present"""
+        """Reads settings from json file, checks all expected settings present. Overwrite settings file if a terminal flag is set."""
+        log.info("Reading settings file: %s", self.argparser.args["input_structure"])
         try:
             with open(input_settings, "r") as file:
                 temp_settings = json.load(file)
         except FileNotFoundError:
             log.error("Settings file not found: %s", input_settings)
             raise FileNotFoundError(f"File {input_settings} not found, please check it exists")
-        for input in temp_settings.keys():
-            if not input in self.expected_keys.values():
-                log.error("Got unexpected setting input: %s", input)
-                raise ValueError(f"Got unexpected setting input: {input}")
+        for key, value in temp_settings.items():
+            if not key in self.argparser.args.keys():
+                log.error("Got unexpected setting input: %s", key)
+                raise ValueError(f"Got unexpected setting input: {key}")
+            elif self.argparser.args[key] != None:
+                temp_settings[key] = self.argparser.args[key]
 
         log.debug("Settings loaded: %r", temp_settings)
         return temp_settings
 
     def readAtomicStructure(self, input_structure):
-        """Reads atomic structure from a file with POSCAR structure"""
+        """Reads atomic structure from a file, and extend cell according to supercell setting"""
         try:
-            log.info("Reading atomic structure from POSCAR: %s", input_structure)
-            return read_vasp(input_structure)
+            log.info("Reading atomic structure from: %s", input_structure)
+            atoms = read(input_structure) * tuple(self.settings["Supercells"])
+            atoms.pbc = True #TODO, Hard coded pbc always true for now.
+            return atoms
         except FileNotFoundError:
             log.error("Structure file not found: %s", input_structure)
             raise FileNotFoundError(f"File {input_structure} not found, please check it exists")
@@ -68,14 +70,6 @@ class PreProcessing:
             log.info(f"{key} : {value}")
         log.info(f"Number of atoms: {len(self.atoms)}")
 
-    def readTerminalInput(self, flags):
-        """Overwrites self.settings if other settings was received from terminal"""
-        if flags:
-            for i in range(0, len(flags), 2):
-                if flags[i] not in self.expected_keys.keys():
-                    log.error(f"Flag is invalid: {flags[i]}")
-                    raise ValueError(f"Flag is invalid: {flags[i]}")
-                self.settings[self.expected_keys[flags[i]]] = flags[i + 1]
     def createSettings(self):
         match self.settings["Ensemble"]:
             case "NVE":
@@ -101,91 +95,7 @@ class PreProcessing:
             case _:
                 log.error("Invalid ensemble setting: %s", self.settings["Ensemble"])
                 raise ValueError(f"Invalid ensemble setting: {self.settings['Ensemble']}")
-    def createMD(self):
-        """Init MD objects, throws errors if crucial setting is missing."""
-        NVE_settings = ["Temperature", "Potential", "Timestep", "Number_of_steps", "Interval", "Output_file"]
-        NVT_settings = ["Temperature", "Potential", "Timestep", "Number_of_steps", "Interval", "Output_file",
-                        "Friction"]
-        NPT_settings = ["Temperature", "Potential", "Timestep", "Number_of_steps", "Interval", "Output_file",
-                        "Pressure", "Compressibility"]
 
-        # If user specified separate ensembles for equilibration/production, use them
-        eq_ens = self.settings.get("EquilEnsemble")
-        prod_ens = self.settings.get("ProductionEnsemble")
-        if eq_ens or prod_ens:
-            # Fallbacks to single Ensemble value if one is missing
-            base_ens = self.settings.get("Ensemble", None)
-            if eq_ens is None:
-                eq_ens = base_ens
-            if prod_ens is None:
-                prod_ens = base_ens
-            if eq_ens is None or prod_ens is None:
-                raise ValueError(
-                    "EquilEnsemble/ProductionEnsemble provided but one is missing and no 'Ensemble' fallback is set")
-
-            # Validate required settings
-            required = ["Temperature", "Potential", "Timestep", "Number_of_steps", "Interval", "Output_file",
-                        "EquilSteps"]
-            for setting in required:
-                if setting not in self.settings:
-                    raise ValueError(f"Missing the setting: {setting}")
-            if (eq_ens == "NVT" or prod_ens == "NVT") and ("Friction" not in self.settings):
-                raise ValueError("Missing the setting: Friction (required for NVT)")
-            if (eq_ens == "NPT" or prod_ens == "NPT"):
-                for setting in ["Pressure", "Compressibility"]:
-                    if setting not in self.settings:
-                        raise ValueError(f"Missing the setting: {setting} (required for NPT)")
-
-            log.info("Creating MD object with EquilEnsemble=%s, ProductionEnsemble=%s", eq_ens, prod_ens)
-            return MDBase(
-                timestep_fs=self.settings["Timestep"],
-                number_of_steps=self.settings["Number_of_steps"],
-                interval=self.settings["Interval"],
-                integrator_str=prod_ens,  # production as base
-                integrator_eq_str=eq_ens,
-                integrator_prod_str=prod_ens,
-                output_file=self.settings["Output_file"],
-                temperature_k=self.settings["Temperature"],
-                friction=self.settings.get("Friction", 0.01),
-                potential_str=self.settings["Potential"],
-                pressure=self.settings.get("Pressure", 0.0),
-                compressibility=self.settings.get("Compressibility", 0.0),
-                equil_steps=self.settings["EquilSteps"],
-                att_list=self.settings.get("Attachments", ["energy"])
-            )
-
-        # Backward-compatible path using a single Ensemble key
-        log.info("Creating MD object for ensemble: %s", self.settings["Ensemble"])
-        match self.settings["Ensemble"]:
-            case "NVE":
-                for setting in NVE_settings:
-                    if setting not in self.settings.keys():
-                        raise ValueError(f"Missing the setting: {setting}")
-                return MDBase.initNVE(temperature=self.settings["Temperature"], pot_str=self.settings["Potential"],
-                                      timestep=self.settings["Timestep"], steps=self.settings["Number_of_steps"],
-                                      interval=self.settings["Interval"], output_file=self.settings["Output_file"],
-                                      equilibrium_steps=self.settings["EquilSteps"])
-            case "NVT":
-                for setting in NVT_settings:
-                    if setting not in self.settings.keys():
-                        raise ValueError(f"Missing the setting: {setting}")
-                return MDBase.initNVT(temperature=self.settings["Temperature"], pot_str=self.settings["Potential"],
-                                      timestep=self.settings["Timestep"], steps=self.settings["Number_of_steps"],
-                                      interval=self.settings["Interval"], output_file=self.settings["Output_file"],
-                                      friction=self.settings["Friction"], equilibrium_steps=self.settings["EquilSteps"])
-            case "NPT":
-                for setting in NPT_settings:
-                    if setting not in self.settings.keys():
-                        raise ValueError(f"Missing the setting: {setting}")
-                return MDBase.initNPT(temperature=self.settings["Temperature"], pot_str=self.settings["Potential"],
-                                      timestep=self.settings["Timestep"], steps=self.settings["Number_of_steps"],
-                                      interval=self.settings["Interval"], output_file=self.settings["Output_file"],
-                                      pressure_Pa=self.settings["Pressure"],
-                                      compressibility=self.settings["Compressibility"],
-                                      equilibrium_steps=self.settings["EquilSteps"])
-            case _:
-                log.error("Invalid ensemble setting: %s", self.settings["Ensemble"])
-                raise ValueError(f"Invalid ensemble setting: {self.settings['Ensemble']}")
 
     def sanityCheckSettings(self):
         """
@@ -250,4 +160,4 @@ class PreProcessing:
 
 
 if __name__ == "__main__":
-    PreProcessing("settings.json", "poscar", None)
+    PreProcessing(sys.argv)

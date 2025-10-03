@@ -25,11 +25,11 @@ class MDBase:
     """
     def __init__(self, settings: SimulationSettings):
         """
-        Create a MD runner from the settings specified in the
-        SimulationSettings object.
+        Create a MD runner from the settings specified in the 
+        SimulationSettings object. 
         In:
             SimulationSettings object of type NVE,NVT or NPT
-
+        
         """
 
         #General parameters
@@ -38,7 +38,7 @@ class MDBase:
         self.steps = settings.num_steps
         self.interval = settings.sample_interval
         self.output_file = settings.output_file
-
+        
 
         #Ensemble specific parameters
         if settings.ensemble == "NVE":
@@ -52,7 +52,7 @@ class MDBase:
             self.temperature_k = settings.temperature
             self.pressure = settings.pressure * GPa * 1e-9 # Pa to Au
             self.compressibility = settings.compressibility/(GPa*1e-9) # Pa^-1 to Au
-
+        
         self.integrator = self.getIntegrator(self.ensemble)
         self.potential = self.getPotential(settings.potential)
 
