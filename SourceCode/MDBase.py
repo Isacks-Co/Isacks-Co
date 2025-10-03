@@ -1,11 +1,9 @@
 import functools
 import numpy as np
-from ase import Atoms
 from ase.io.trajectory import Trajectory
-from ase.lattice.cubic import FaceCenteredCubic
 from ase.md import MDLogger
 from ase.md.velocitydistribution import MaxwellBoltzmannDistribution
-from ase.units import fs,GPa
+from ase.units import fs, GPa
 from ase.visualize import view
 from SourceCode.logger import logger_setup
 from SourceCode.simulationInput import SimulationSettings
@@ -13,9 +11,10 @@ from SourceCode.LJRegistry import LJParams, calcMaxRc
 
 
 
+from logger import logger_setup
+from simulationInput import SimulationSettings
 
 log = logger_setup()
-
 
 class MDBase:
     """
@@ -53,6 +52,7 @@ class MDBase:
             self.pressure = settings.pressure * GPa * 1e-9 # Pa to Au
             self.compressibility = settings.compressibility/(GPa*1e-9) # Pa^-1 to Au
         
+        #Integrator and potential
         self.integrator = self.getIntegrator(self.ensemble)
         self.potential = self.getPotential(settings.potential)
 
@@ -137,6 +137,14 @@ class MDBase:
             raise ValueError(f"Invalid potential function: {potential}")
 
     def getIntegrator(self, integrator: str):
+        """
+        Based on the argument return the integrator as a partial
+        function with prefilled data
+        args:
+            str integrator: either NVE,NVT,NPT
+        return:
+            partial integrator: partial function of ASE integrator
+        """
         integrator_lower = integrator.lower()
         if integrator_lower in ["verlet", "nve"]:
             from asap3.md.verlet import VelocityVerlet
@@ -239,6 +247,9 @@ class MDBase:
                        interval=self.interval)  # Attach the different functions for printing
 
         dyn.attach(traj.write, interval=self.interval)
+
+
+
 
         logger = MDLogger(dyn, atoms=atoms, logfile=f"{self.output_file}.log",
                           header=True, peratom=True, mode='a')  # Create a logger for writing data
