@@ -12,13 +12,12 @@ class SimulationSettings:
         str output_file: Path to write output --> output_file.traj
         
     """
-    def __init__(self, timestep: float, num_steps: int, potential: str, output_file: str , equil_steps: int, supercells: list, interval: int = 5 ):
+    def __init__(self, timestep: float, num_steps: int, potential: str, output_file: str , supercells: list, interval: int = 5 ):
         self.timestep = timestep
         self.num_steps = num_steps
         self.sample_interval = interval
         self.potential = potential
         self.output_file = output_file
-        self.equil_steps = equil_steps
         self.supercells = supercells
         
 
@@ -39,8 +38,8 @@ class NVESettings(SimulationSettings):
                         to the kinetic energy. 
     """
 
-    def __init__(self,timestep: float, num_steps: int, potential: str, interval: int, init_temp: float, supercells: list, equil_steps: int = 2000, output_file: str = "output.traj"):
-        super().__init__(timestep, num_steps, potential, output_file, equil_steps, supercells, interval)
+    def __init__(self,timestep: float, num_steps: int, potential: str, interval: int, init_temp: float, supercells: list, output_file: str = "output.traj"):
+        super().__init__(timestep, num_steps, potential, output_file, supercells, interval)
         self.initial_temperature = init_temp
 
     @property
@@ -74,8 +73,8 @@ class NVTSettings(SimulationSettings):
                             Here we want to keep this temperature constant. Where in NVE we let it change and only needed a starting point.
         float friction: Friction for simulatio in fs^-1. Controlls how quickly temperature changes. Large friction -> less change
     """
-    def __init__(self,timestep: float, num_steps: int, potential: str, interval: int, temperature: float, friction: float, supercells: list, equil_steps: int = 2000,  output_file: str = "output.traj"):
-        super().__init__(timestep, num_steps, potential, output_file, equil_steps, supercells, interval )
+    def __init__(self,timestep: float, num_steps: int, potential: str, interval: int, temperature: float, friction: float, supercells: list,  output_file: str = "output.traj"):
+        super().__init__(timestep, num_steps, potential, output_file, supercells, interval )
         self.temperature = temperature
         self.friction = friction 
 
@@ -112,8 +111,8 @@ class NPTSettings(SimulationSettings):
         float compressibility: Compressibility for the NPT simulation in units Pa^-1. Large comp -> box volume fluctuates easily
 
     """
-    def __init__(self,timestep: float, num_steps: int, potential: str, interval: int, temperature: float,pressure: float, compressibility: float, supercells: list, equil_steps: int = 2000, output_file: str = "output.traj"):
-        super().__init__(timestep, num_steps, potential, output_file,  equil_steps, supercells, interval)
+    def __init__(self,timestep: float, num_steps: int, potential: str, interval: int, temperature: float,pressure: float, compressibility: float, supercells: list, output_file: str = "output.traj"):
+        super().__init__(timestep, num_steps, potential, output_file, supercells, interval)
         self.temperature = temperature
         self.pressure = pressure
         self.compressibility = compressibility

@@ -77,22 +77,22 @@ class PreProcessing:
                 
                 return NVESettings(init_temp=self.settings["Temperature"], potential=self.settings["Potential"],
                                       timestep=self.settings["Timestep"], num_steps=self.settings["Number_of_steps"],
-                                      interval=self.settings["Interval"], output_file=self.settings["Output_file"],
-                                      equil_steps = self.settings["EquilSteps"],supercells= self.settings["Supercells"])
+                                      interval=self.settings["Sample_interval"], output_file=self.settings["Output_file"],
+                                      supercells= self.settings["Supercells"])
             case "NVT":
                 
                 return NVTSettings(temperature=self.settings["Temperature"], potential=self.settings["Potential"],
                                       timestep=self.settings["Timestep"], num_steps=self.settings["Number_of_steps"],
-                                      interval=self.settings["Interval"], output_file=self.settings["Output_file"],
-                                      friction=self.settings["Friction"], equil_steps = self.settings["EquilSteps"],
+                                      interval=self.settings["Sample_interval"], output_file=self.settings["Output_file"],
+                                      friction=self.settings["Friction"],
                                       supercells= self.settings["Supercells"])
             case "NPT":
                 
                 return NPTSettings(temperature=self.settings["Temperature"], potential=self.settings["Potential"],
                                       timestep=self.settings["Timestep"], num_steps=self.settings["Number_of_steps"],
-                                      interval=self.settings["Interval"], output_file=self.settings["Output_file"],
+                                      interval=self.settings["Sample_interval"], output_file=self.settings["Output_file"],
                                       pressure=self.settings["Pressure"], compressibility=self.settings["Compressibility"],
-                                      equil_steps = self.settings["EquilSteps"],supercells= self.settings["Supercells"])
+                                      supercells= self.settings["Supercells"])
             case _:
                 log.error("Invalid ensemble setting: %s", self.settings["Ensemble"])
                 raise ValueError(f"Invalid ensemble setting: {self.settings['Ensemble']}")
@@ -105,9 +105,7 @@ class PreProcessing:
         """
         if self.settings["Potential"] == "EMT":
             elements = self.atoms.get_atomic_numbers()
-            log.info(elements)
-            if not np.all(np.isin(elements, [13, 28, 29, 46, 47, 78,
-                                             79])):  # Check if the elements are supported for EMT potential
+            if not np.all(np.isin(elements,[13, 28, 29, 46, 47, 78, 79])): # Check if the elements are supported for EMT potential
                 raise ValueError(f"Invalid potential: EMT potential only availible for Al, Cu, Ag, Au, Ni, Pd, Pt.")
         if self.settings["Temperature"] > 3000:
             raise ValueError(f"Invalid temperature: Exceeds 3000K")
@@ -154,9 +152,7 @@ class PreProcessing:
             distances_matrix = self.atoms.get_all_distances()
             upper_indeces = np.triu_indices(len(distances_matrix), k=1)
             flat_distances = distances_matrix[upper_indeces]
-            log.info(flat_distances)
-            if np.any(
-                    flat_distances <= 0.5):  # Not sure exactly what is a reasonable threshold as atomic radius varies alot. currently 0.5 Å
+            if np.any(flat_distances <= 0.5): # Not sure exactly what is a reasonable threshold as atomic radius varies alot. currently 0.5 Å
                 raise ValueError("Invalid atomic configuration: Atomic overlap")
 
 
