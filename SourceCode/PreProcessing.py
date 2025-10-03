@@ -9,6 +9,10 @@ import logging
 from ase.io import read
 from ase.lattice.cubic import FaceCenteredCubic
 import numpy as np
+from SourceCode.logger import logger_setup
+from SourceCode.simulationInput import NPTSettings,NVESettings,NVTSettings
+from SourceCode.inputParser import InputParser
+log = logger_setup()
 
 
 log = logging.getLogger(__name__)
@@ -32,7 +36,7 @@ class PreProcessing:
         #Physical check of the input
         self.sanityCheckAtomicStructure()
         self.sanityCheckSettings()
-        
+
 
     def readSettings(self, input_settings):
         """Reads settings from json file, checks all expected settings present. Overwrite settings file if a terminal flag is set."""
@@ -52,17 +56,17 @@ class PreProcessing:
 
         log.debug("Settings loaded: %r", temp_settings)
         return temp_settings
-    
+
 
     def readAtomicStructure(self, input_structure):
         """Reads atomic structure from a file, and extend cell according to supercell setting"""
 
         try:
-            
+
             log.info("Reading atomic structure from: %s", input_structure)
             atoms = read(input_structure) * tuple(self.settings["Supercells"])
             atoms.pbc = True #TODO, Hard coded pbc always true for now.
-    
+
             with open(input_structure, "r") as file: # Manually read the first line and add as a comment.
                 structure_name = file.readline().strip()
                 atoms.info["comment"] = structure_name
