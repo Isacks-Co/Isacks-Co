@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+
 from ase import Atoms
 
 class SimulationSettings:
@@ -78,7 +78,7 @@ class NVTSettings(SimulationSettings):
     def __init__(self,timestep: float, num_steps: int, potential: str, interval: int, temperature: float, friction: float, supercells: list, equil_steps: int = 2000,  output_file: str = "output.traj"):
         super().__init__(timestep, num_steps, potential, output_file, equil_steps, supercells, interval )
         self.temperature = temperature
-        self.friction = friction
+        self.friction = friction 
 
     @property
     def ensemble(self):

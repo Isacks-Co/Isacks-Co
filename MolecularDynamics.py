@@ -45,11 +45,17 @@ if __name__ == "__main__":
     try:
         log.info("Reading settings and setting atomic structures ")
         PP = PreProcessing(settings, poscar, flags)
+        settings = PP.createSettings()
+        print(settings)
+
+
         PP_copy = PP
         ens_log = PP.settings.get('Ensemble',
                                   f"Equil={PP.settings.get('EquilEnsemble', '?')}, Prod={PP.settings.get('ProductionEnsemble', '?')}")
         log.info("Setting ensemble(s): %s and passing relevant parameters", ens_log)
         MD = PP.createMD()
+        log.info("Setting ensemble: %s and passing relevant parameters", PP.settings['Ensemble'])
+        MD = MDBase(settings)
     except Exception as err:
         log.error(f"Preprocessing failed: {err}")  # should probably add the err, here instead
         exit(1)
@@ -63,6 +69,7 @@ if __name__ == "__main__":
 
     try:
         MD.runMD(PP.atoms)
+        quit()
     except Exception as err:
         log.error(f"Simulation failed: {err}")  # should probably add the err, here instead
         exit(1)
@@ -73,6 +80,8 @@ if __name__ == "__main__":
         PostViz = PostProcessing(settings, trajectory_file)  # (TODO) Hardcoded but settings.json will contain file name
         PostViz.vizualize()
         PostViz.nearestNeightborsMean()
+        #PostViz = PostProcessing(settings, poscar, trajectory_file, data_log_file) # (TODO) Hardcoded but settings.json will contain file name
+        #PostViz.vizualize()
     except Exception as err:
         log.error(f"Postprocessing failed: {err}")
         exit(1)
