@@ -4,7 +4,7 @@ from ase.io.vasp import read_vasp
 from ase.lattice.cubic import FaceCenteredCubic
 import numpy as np
 from SourceCode.logger import logger_setup
-
+from SourceCode.simulationInput import NPTSettings,NVESettings,NVTSettings
 log = logger_setup()
 
 
@@ -76,7 +76,31 @@ class PreProcessing:
                     log.error(f"Flag is invalid: {flags[i]}")
                     raise ValueError(f"Flag is invalid: {flags[i]}")
                 self.settings[self.expected_keys[flags[i]]] = flags[i + 1]
-
+    def createSettings(self):
+        match self.settings["Ensemble"]:
+            case "NVE":
+                
+                return NVESettings(init_temp=self.settings["Temperature"], potential=self.settings["Potential"],
+                                      timestep=self.settings["Timestep"], num_steps=self.settings["Number_of_steps"],
+                                      interval=self.settings["Interval"], output_file=self.settings["Output_file"],
+                                      equil_steps = self.settings["EquilSteps"],supercells= self.settings["Supercells"])
+            case "NVT":
+                
+                return NVTSettings(temperature=self.settings["Temperature"], potential=self.settings["Potential"],
+                                      timestep=self.settings["Timestep"], num_steps=self.settings["Number_of_steps"],
+                                      interval=self.settings["Interval"], output_file=self.settings["Output_file"],
+                                      friction=self.settings["Friction"], equil_steps = self.settings["EquilSteps"],
+                                      supercells= self.settings["Supercells"])
+            case "NPT":
+                
+                return NPTSettings(temperature=self.settings["Temperature"], potential=self.settings["Potential"],
+                                      timestep=self.settings["Timestep"], num_steps=self.settings["Number_of_steps"],
+                                      interval=self.settings["Interval"], output_file=self.settings["Output_file"],
+                                      pressure=self.settings["Pressure"], compressibility=self.settings["Compressibility"],
+                                      equil_steps = self.settings["EquilSteps"],supercells= self.settings["Supercells"])
+            case _:
+                log.error("Invalid ensemble setting: %s", self.settings["Ensemble"])
+                raise ValueError(f"Invalid ensemble setting: {self.settings['Ensemble']}")
     def createMD(self):
         """Init MD objects, throws errors if crucial setting is missing."""
         NVE_settings = ["Temperature", "Potential", "Timestep", "Number_of_steps", "Interval", "Output_file"]
