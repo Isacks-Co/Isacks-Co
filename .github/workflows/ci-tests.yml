@@ -33,4 +33,4 @@ jobs:
     - name: Upload-results
       uses: actions/upload-artifact@v4
       with:
-        path: Tests\*.xml
+        path: Tests\report.xml
