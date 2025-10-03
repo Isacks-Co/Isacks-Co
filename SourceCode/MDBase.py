@@ -8,7 +8,7 @@ from ase.md.velocitydistribution import MaxwellBoltzmannDistribution
 from ase.units import fs
 from ase.visualize import view
 from SourceCode.logger import logger_setup
-
+from SourceCode.lj_registry import lj_params
 log = logger_setup()
 class MDBase:
     """
@@ -50,6 +50,7 @@ class MDBase:
         self.temp_history = []
         self.hits = 0
         self.ensemble = integrator_str
+        self.use_LJ = False
 
         log.debug(
         "MDBase init: dt(fs)=%s steps=%s interval=%s T=%sK friction=%s pot=%s integrator=%s out=%s",
@@ -83,6 +84,55 @@ class MDBase:
         pressure_au = pressure_Pa * 6.2415e-12
         return pressure_au
 
+    def setup_lj_calculator(self, atoms):
+        symbols = atoms.get_chemical_symbols()
+        uniq = sorted(set(symbols))
+        if len(uniq) != 1:
+            raise ValueError(
+                f"ASE LennardJones supports a single atom type only; found {uniq}. "
+            )
+
+        material_key = uniq[0].lower()
+        params = lj_params(material=material_key)
+        atomic_number = [(atoms.get_atomic_numbers()[0])]
+        eps = params["epsilon_eV"]
+        sig = params["sigma_A"]
+        rc = params["rc_A"]
+
+
+        try:
+            from asap3 import LennardJones as asap_LJ
+            calc_asap = asap_LJ(
+                atomic_number,
+                epsilon=[eps],
+                sigma=[sig],
+                rCut=rc,
+                modified=True
+            )
+
+            atoms.calc = calc_asap
+            _ = atoms.get_potential_energy()
+            log.info("Using asap3 LJ | element=%s (Z=%s) | ε=%.4g eV | σ=%.4g Å | rc=%.4g Å ",
+                     material_key, atomic_number[0], eps, sig, rc )
+            return calc_asap
+
+
+        except Exception as e:
+            from ase.calculators.lj import LennardJones as ase_LJ
+            calc_ase = ase_LJ(
+            epsilon=eps,
+            sigma=sig,
+            rc=rc,
+            ro=params["ro_A"]
+            )
+            log.warning(
+                f"Falling back to ASE LJ | Reason: {e}"
+            )
+            return calc_ase
+
+
+
+
 
 
     def getPotential(self, potential: str):
@@ -96,12 +146,11 @@ class MDBase:
         if potential_lower in ["emt"]:
             from asap3 import EMT as asap_EMT
             log.info("Potential: EMT")
-            return asap_EMT
+            return lambda atoms: asap_EMT()
 
         elif potential_lower in ["lj", "lennardjones", "lennard_jones"]:
-            from ase.calculators.lj import LennardJones
             log.info("Potential: Lennard Jones")
-            return LennardJones
+            return self.setup_lj_calculator
         else:
             log.error("Invalid potential function: %s", potential)
             raise ValueError(f"Invalid potential function: {potential}")
@@ -171,9 +220,7 @@ class MDBase:
         Depending on attachments will possibly print some data.
         Will always save a trajectory and log file.        
         """
-
-        atoms.calc = self.potential()
-
+        atoms.calc = self.potential(atoms)
        
         MaxwellBoltzmannDistribution(atoms, temperature_K=self.temperature_k,
                                      force_temp=True)  # Initialize velocity according to temperature_k
