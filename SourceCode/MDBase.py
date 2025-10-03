@@ -5,98 +5,63 @@ from ase.io.trajectory import Trajectory
 from ase.lattice.cubic import FaceCenteredCubic
 from ase.md import MDLogger
 from ase.md.velocitydistribution import MaxwellBoltzmannDistribution
-from ase.units import fs
+from ase.units import fs,GPa
 from ase.visualize import view
 from SourceCode.logger import logger_setup
+from SourceCode.simulationInput import SimulationSettings
 from SourceCode.LJRegistry import LJParams, calcMaxRc
 
 
-EV_PER_A3_TO_GPA = 160.21766208
-EV_PER_A3_TO_PA = 160.21766208e9  # Pa per (eV/Å^3)
-AMU_TO_KG = 1.66053906892e-27
-EV_TO_JOULE = 1.6021766208e-19
-AVOGRADO = 6.02214076e23
-A_TO_M = 1e-10
+
 
 log = logger_setup()
 
 
 class MDBase:
     """
-        basic MD class
-        from preprocessing class we should get an atom-object with initialized settings.
-        When initialized it represents a MD-simulation with prefilled settings that can be used for multiple runs with 
-        different atomic structures.
+    basic MD class
+    When initialized it represents a MD-simulation with prefilled settings that can be used for multiple runs with
+    different atomic structures.
     """
-
-    def __init__(self, timestep_fs: float = 2, number_of_steps: int = 200, interval: int = 10,
-                 integrator_str: str = "Verlet", output_file: str = "data",
-                 temperature_k: float = 293, friction: float = 0.01, potential_str: str = "EMT",
-                 att_list: list = ["energy"],
-                 pressure: float = 10e+6, compressibility: float = 10e-11, equil_steps: int = 2000):
+    def __init__(self, settings: SimulationSettings):
         """
+        Create a MD runner from the settings specified in the
+        SimulationSettings object.
         In:
-            timestep_fs : timestesp (femto) FLOAT
-            number_of_steps : timesteps INT
-            inteval: dead variable will be removing soon.
-            output_file : output file path STR
-            temperature_k : Temperature in Kelvin for Langevin simualtion
-            friction: Friction for Langevin simulation
-            potential_str: potential to be used in simulation.
-            att_list: list of attachments
-            
+            SimulationSettings object of type NVE,NVT or NPT
+
         """
-        self.timestep = float(timestep_fs * fs)
-        self.steps = int(number_of_steps)
-        self.interval = int(interval) if interval else 10
-        self.output_file = output_file
-        self.temperature_k = float(temperature_k)
-        self.friction = float(friction) / fs
-        self.pressure = float(pressure)
-        self.compressibility = compressibility
-        self.potential = self.getPotential(potential_str)
-        self.integrator = self.getIntegrator(integrator_str)
-        self.attachments = self.getAttachment(att_list)
-        self.equilibrium_steps = equil_steps
-        self.ensemble = integrator_str
-        self.quantity_list = []
 
-        log.debug(
-            "MDBase init: dt(fs)=%s steps=%s interval=%s T=%sK friction=%s pot=%s integrator=%s out=%s",
-            timestep_fs, number_of_steps, self.interval, self.temperature_k, self.friction,
-            potential_str, integrator_str, self.output_file
-        )
+        #General parameters
+        self.ensemble = settings.ensemble
+        self.timestep = settings.timestep * fs
+        self.steps = settings.num_steps
+        self.interval = settings.sample_interval
+        self.output_file = settings.output_file
 
-    @classmethod
-    def initNVE(cls, temperature: float, pot_str: str, timestep: float,
-                steps: int, interval: int, output_file: str, equilibrium_steps: int):
 
-        return cls(temperature_k=temperature, integrator_str="NVE", potential_str=pot_str,
-                   timestep_fs=timestep, number_of_steps=steps, interval=interval, equil_steps=equilibrium_steps,
-                   output_file=output_file)
+        #Ensemble specific parameters
+        if settings.ensemble == "NVE":
+            self.temperature_k = settings.initial_temperature
 
-    @classmethod
-    def initNVT(cls, temperature: float, friction: float, pot_str: str, timestep: float,
-                steps: int, interval: int, equilibrium_steps: int, output_file: str):
-        return cls(temperature_k=temperature, friction=friction, integrator_str="NVT", potential_str=pot_str,
-                   timestep_fs=timestep, number_of_steps=steps, interval=interval, equil_steps=equilibrium_steps,
-                   output_file=output_file)
+        elif settings.ensemble == "NVT":
+            self.temperature_k = settings.temperature
+            self.friction = settings.friction / fs
 
-    @classmethod
-    def initNPT(cls, temperature: float, timestep: float,
-                steps: int, interval: int, pressure_Pa: float, compressibility: float, pot_str: str,
-                equilibrium_steps: int, output_file: str):
-        return cls(temperature_k=temperature, pressure=pressure_Pa, compressibility=compressibility,
-                   integrator_str="NPT", potential_str=pot_str, timestep_fs=timestep,
-                   number_of_steps=steps, interval=interval, equil_steps=equilibrium_steps, output_file=output_file)
+        elif settings.ensemble == "NPT":
+            self.temperature_k = settings.temperature
+            self.pressure = settings.pressure * GPa * 1e-9 # Pa to Au
+            self.compressibility = settings.compressibility/(GPa*1e-9) # Pa^-1 to Au
 
-    def pascalToAu(self, pressure_Pa):
-        pressure_au = pressure_Pa * 6.2415e-12
-        return pressure_au
+        self.integrator = self.getIntegrator(self.ensemble)
+        self.potential = self.getPotential(settings.potential)
 
-    def compressibilityAu(self, compressibility):
-        compressibility_au = compressibility / 6.2415e-12
-        return compressibility_au
+
+
+
+
+
+
 
     def setupLJCalculator(self, atoms):
         symbols = atoms.get_chemical_symbols()
@@ -119,7 +84,6 @@ class MDBase:
             log.warning("The rCut is larger than the cell size, will use cell size to derive new value for rCut")
             rc = rc_max
             ro = 0.9*float(rc)
-
 
         print("using this rc ", rc)
         try:
@@ -175,12 +139,12 @@ class MDBase:
     def getIntegrator(self, integrator: str):
         integrator_lower = integrator.lower()
         if integrator_lower in ["verlet", "nve"]:
-            from asap3.md.verlet import VelocityVerlet  # för NVE
+            from asap3.md.verlet import VelocityVerlet
             log.info("Integrator: Verlet")
             return functools.partial(VelocityVerlet, timestep=self.timestep)
 
         elif integrator_lower in ["langevin", "nvt"]:
-            from asap3.md.langevin import Langevin  # för NVT
+            from asap3.md.langevin import Langevin
             log.info("Integrator: Langevin")
             return functools.partial(Langevin, timestep=self.timestep, temperature_K=self.temperature_k,
                                      friction=self.friction)
@@ -204,6 +168,7 @@ class MDBase:
         for a in attachments:
             if a not in pos_attachments.keys():
                 raise ValueError(f"Invalid attachment: {a}")
+
 
         return [pos_attachments[a] for a in attachments]
 
@@ -258,7 +223,6 @@ class MDBase:
         log.info("MD run starts with: %i steps", self.steps)
         dyn = self.integrator(atoms=atoms)
 
-        # save traj
         traj = Trajectory(filename=f"{self.output_file}.traj", mode="w", atoms=atoms)
 
         # Custom calculation function
@@ -383,7 +347,7 @@ class MDBase:
         if (self.checkInstability(self.quantity_list)):
             # End the run and raise warning.
             raise RuntimeError(f"{self.ensemble}: Run cancelled.")
-        
+
     def checkInstability(self, data_buffer):
         """
         Uses an input list to calculate stability, returns false if stable and true if unstable.
@@ -431,7 +395,7 @@ class MDBase:
         else:
             return (not nb_outside_tolerance > 10)
         return False
-    
+
     def _updateQuantityList(self, atoms):
         """
         Help function that appends quantities into quantity_list.
