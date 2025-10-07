@@ -71,7 +71,7 @@ if __name__ == "__main__":
     try:
         trajectory_file = PP.settings["Output_file"] + ".traj"
         data_log_file = PP.settings["Output_file"] + ".log"
-        PostViz = PostProcessing(settings, poscar, trajectory_file, data_log_file) # (TODO) Hardcoded but settings.json will contain file name
+        PostViz = PostProcessing(settings, trajectory_file) # (TODO) Hardcoded but settings.json will contain file name
         PostViz.vizualize()
     except Exception as err:
         log.error(f"Postprocessing failed: {err}")

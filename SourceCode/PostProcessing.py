@@ -57,7 +57,7 @@ class PostProcessing:
         Uses the log files generates from the Molecular Dynamics class to vizualize and analyze the data
         input trajectory file as trajectory_file 
     """
-    def __init__(self, settings_path: str, input_structure: str, trajectory_file: str, data_log_file: str):
+    def __init__(self, settings_path: str, trajectory_file: str):
         try:
             self.traj = Trajectory(trajectory_file)
             self.settings = json.loads(Path(settings_path).read_text())
@@ -467,6 +467,16 @@ class PostProcessing:
             return "bcc"
         elif (a == b and a == c and b == c) and (ang_bc == 60 and ang_ac == 60 and ang_ab == 60):   # Assumes primitive cell in POSCAR
             return "fcc"
+
+    def NearestNeightborsMean(self, trajectory_index: int = 0):
+        """Calculate the mean distance of nearest neighbor in the strcuture"""
+        atoms = self.traj[trajectory_index]
+        for i in range(atoms.get_global_number_of_atoms()):
+            for j in range(i, atoms.get_global_number_of_atoms()):
+                cutoff = natural_cutoffs(atoms)
+                neighbor_list = NeighborList(cutoff, self_interaction=False, bothways=True)
+                neighbor_list.update(atoms)
+
 
 
 def nearest_neighbor_distance_for_atom(i, atoms, nl):

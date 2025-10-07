@@ -51,9 +51,7 @@ class MDBase:
         self.output_file = output_file
         self.temperature_k = float(temperature_k)
         self.friction = float(friction)
-        #self.pressure = float(self.pascalToAu(pressure))
         self.pressure = float(pressure)
-        #self.compressibility = self.compressibilityAu(compressibility)
         self.compressibility = compressibility
         self.potential = self.getPotential(potential_str)
         # Resolve which integrators to use for equilibration and production
