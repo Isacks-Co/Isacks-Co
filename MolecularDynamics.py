@@ -16,7 +16,7 @@ if __name__ == "__main__":
         raise AssertionError("Missing arguments") # Maybe other exception is better
 
     settings = "Settings/settings.json"
-    poscar = "AtomicStructure/POSCAR"
+    poscar = "AtomicStructure/FCC_Al.vasp"
     try:
         flags = sys.argv[1:]
         if flags[0] == "--help":
@@ -48,13 +48,15 @@ if __name__ == "__main__":
         log.info("Reading settings and setting atomic structures ")
         PP = PreProcessing(settings, poscar, flags)
         PP_copy = PP
-        log.info("Setting ensemble: %s and passing relevant parameters", PP.settings['Ensemble'])
+        ens_log = PP.settings.get('Ensemble', f"Equil={PP.settings.get('EquilEnsemble','?')}, Prod={PP.settings.get('ProductionEnsemble','?')}")
+        log.info("Setting ensemble(s): %s and passing relevant parameters", ens_log)
         MD = PP.createMD()
     except Exception as err:
         log.error(f"Preprocessing failed: {err}") #should probably add the err, here instead
         exit(1)
     try:
         for path in (PP.settings["Output_file"] + ".traj", PP.settings["Output_file"] + ".log"):
+            log.info("Creating file: %s", path)
             with open(path, "w"):
                 pass
     except Exception:
@@ -69,7 +71,7 @@ if __name__ == "__main__":
     try:
         trajectory_file = PP.settings["Output_file"] + ".traj"
         data_log_file = PP.settings["Output_file"] + ".log"
-        PostViz = PostProcessing(settings, poscar, trajectory_file, data_log_file) # (TODO) Hardcoded but settings.json will contain file name
+        PostViz = PostProcessing(settings, trajectory_file) # (TODO) Hardcoded but settings.json will contain file name
         PostViz.vizualize()
     except Exception as err:
         log.error(f"Postprocessing failed: {err}")
@@ -123,6 +125,15 @@ if __name__ == "__main__":
     except Exception as err:
         log.error(f"computeSelfDiffusionCoefficient failed: {err}")
         pass
+
+
+    try:
+        # Specific heat capacity
+        PostViz.computeSpecificHeat()
+    except Exception as err:
+        log.error(f"computeSpecificHeat failed: {err}")
+        pass
+
 
     try:
         # Debye temperature

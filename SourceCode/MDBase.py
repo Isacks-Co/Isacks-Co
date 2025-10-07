@@ -11,6 +11,13 @@ from SourceCode.logger import logger_setup
 from SourceCode.LJRegistry import LJParams
 
 
+EV_PER_A3_TO_GPA = 160.21766208
+EV_PER_A3_TO_PA = 160.21766208e9  # Pa per (eV/Å^3)
+AMU_TO_KG= 1.66053906892e-27
+EV_TO_JOULE = 1.6021766208e-19
+AVOGRADO = 6.02214076e23
+A_TO_M = 1e-10
+
 log = logger_setup()
 class MDBase:
     """
@@ -24,7 +31,8 @@ class MDBase:
                  integrator_str: str = "Verlet", output_file: str = "data",
                  temperature_k: float = 293, friction: float = 0.01, potential_str: str = "EMT",
                  att_list: list = ["energy"],
-                 pressure: float = 10e+6, compressibility: float = 10e-11,  equil_steps: int = 2000):
+                 pressure: float = 10e+6, compressibility: float = 10e-11,  equil_steps: int = 2000,
+                 integrator_eq_str = None, integrator_prod_str = None):
         """
         In:
             timestep_fs : timestesp (femto) FLOAT
@@ -42,22 +50,31 @@ class MDBase:
         self.interval = int(interval) if interval else 10
         self.output_file = output_file
         self.temperature_k = float(temperature_k)
-        self.friction = float(friction) / fs
+        self.friction = float(friction)
         self.pressure = float(pressure)
         self.compressibility = compressibility
         self.potential = self.getPotential(potential_str)
-        self.integrator = self.getIntegrator(integrator_str)
+        # Resolve which integrators to use for equilibration and production
+        eq_str = integrator_eq_str if integrator_eq_str is not None else integrator_str
+        prod_str = integrator_prod_str if integrator_prod_str is not None else integrator_str
+        self.integrator_eq = self.getIntegrator(eq_str)
+        self.integrator_prod = self.getIntegrator(prod_str)
+        # Backward compatibility: expose production integrator under the old name
+        self.integrator = self.integrator_prod
         self.attachments = self.getAttachment(att_list)
         self.equilibrium_steps = equil_steps
         self.temp_history = []
         self.hits = 0
-        self.ensemble = integrator_str
         self.use_LJ = False
+        # Track ensembles for logging and failSafe behavior
+        self.ensemble_eq = eq_str
+        self.ensemble_prod = prod_str
+        self.ensemble = eq_str
 
         log.debug(
-        "MDBase init: dt(fs)=%s steps=%s interval=%s T=%sK friction=%s pot=%s integrator=%s out=%s",
+        "MDBase init: dt(fs)=%s steps=%s interval=%s T=%sK friction=%s pot=%s eq_integrator=%s prod_integrator=%s out=%s",
         timestep_fs, number_of_steps, self.interval, self.temperature_k, self.friction,
-        potential_str, integrator_str, self.output_file
+        potential_str, eq_str, prod_str, self.output_file
         )
 
 
@@ -85,6 +102,10 @@ class MDBase:
     def pascalToAu(self, pressure_Pa):
         pressure_au = pressure_Pa * 6.2415e-12
         return pressure_au
+
+    def compressibilityAu(self, compressibility):
+        compressibility_au = compressibility / 6.2415e-12
+        return compressibility_au
 
     def setupLJCalculator(self, atoms):
         symbols = atoms.get_chemical_symbols()
@@ -185,7 +206,7 @@ class MDBase:
                            "momenta": self.printMomentum,
                            "center_of_mass": self.printCenterOfMass,
                            "lattice":self.printLatticeConstants }
-        
+
         for a in attachments:
             if a not in pos_attachments.keys():
                 raise ValueError(f"Invalid attachment: {a}")
@@ -194,23 +215,17 @@ class MDBase:
         return [pos_attachments[a] for a in attachments]
 
     def equilibriumRun(self, atoms):
-                     
-        #NVT until equilibrium is reached
-        from asap3.md.langevin import Langevin
-        dyn_eq = Langevin(atoms,
-                          timestep=self.timestep,
-                          temperature_K=self.temperature_k,
-                          friction=self.friction)
-        
 
-        #traj = Trajectory(filename=f"{self.output_file}.traj", mode="w", atoms=atoms)
-        #dyn_eq.attach(traj.write, interval=self.interval)
-        log.info(f"Starting equilibrium run with NVT Ensemble to reach desired temperature of {self.temperature_k} K")
+        # Use the equilibration integrator
+        self.ensemble = self.ensemble_eq
+        dyn_eq = self.integrator_eq(atoms=atoms)
 
-        dyn_eq.run(int(self.equilibrium_steps))
+        dyn_eq.attach(lambda: self.failSafe(atoms), interval=self.interval)
+        log.info(f"Starting equilibrium run with {self.ensemble_eq} Ensemble to reach desired temperature of {self.temperature_k} K")
+
+        dyn_eq.run(self.equilibrium_steps)
         current_T = atoms.get_temperature()
-        log.info(f"Systems temperature is {round(current_T,2)} K after {self.equilibrium_steps} steps")
-        
+        log.info(f"Systems temperature is {round(current_T, 2)} K after {self.equilibrium_steps} steps")
 
 
     def runMD(self, atoms):
@@ -228,15 +243,39 @@ class MDBase:
                                      force_temp=True)  # Initialize velocity according to temperature_k
 
         self.equilibriumRun(atoms=atoms)
+        log.info("Switching to production ensemble: %s", self.ensemble_prod)
+        self.ensemble = self.ensemble_prod
         log.info("MD run starts with: %i steps", self.steps)
 
-        dyn = self.integrator(atoms=atoms)
+        dyn = self.integrator_prod(atoms=atoms)
 
         #material_name = str(atoms.symbols)
         #print("MATERIALNAMN: ", material_name)
 
         # save traj
         traj = Trajectory(filename=f"{self.output_file}.traj", mode="w", atoms=atoms)
+
+        # Custom calculation function
+        def save_custom_data():
+            """Store custom calculations in atoms.info"""
+            atoms.info['potential_energy eV'] = atoms.get_potential_energy()
+            atoms.info['kinetic_energy eV'] = atoms.get_kinetic_energy()
+            atoms.info['total_energy eV'] = atoms.get_total_energy()
+            atoms.info['temperature'] = atoms.get_temperature()
+            atoms.info['volume A3'] = atoms.get_volume()
+            atoms.info['forces eV/A'] = atoms.get_forces()
+            atoms.info['positions'] = atoms.get_positions()
+            atoms.info['stress eV/A3'] = atoms.get_stress(voigt=True)
+            atoms.info['number_of_atoms'] = atoms.get_global_number_of_atoms()
+            atoms.info['cell'] = atoms.get_cell()
+            atoms.info['cell_volume A3'] = atoms.get_cell().volume
+            atoms.info['masses u'] = atoms.get_masses()
+            atoms.info['density u/A3'] = sum(atoms.info['masses u']) / atoms.get_volume()
+
+
+            # Add any other custom calculations here
+
+        dyn.attach(save_custom_data, interval=self.interval)
 
         for a in self.attachments:
             dyn.attach(functools.partial(a, atoms=atoms),
@@ -248,12 +287,47 @@ class MDBase:
                           header=True, peratom=True, mode='a')  # Create a logger for writing data
         dyn.attach(logger, interval=self.interval)  # Attach logger
         dyn.attach(lambda: self.failSafe(atoms), interval=self.interval)
+
+        # Apply a short sequence of slight, controlled strains and run a few steps at each.
+        # This creates trajectory frames with non-zero strain for robust post-processing of elastic constants.
+        def _apply_F_and_run(F, steps):
+            A = atoms.cell.array.T
+            A_new = (F @ A).T
+            atoms.set_cell(A_new, scale_atoms=True)
+            log.info(f"Applied strain F=\n{F}\nCell now: {atoms.cell.cellpar()}")
+            dyn.run(int(steps))
+
+        # Small strain amplitude
+        eta = 5e-3  # 0.5%
+        # Number of MD steps to run at each strained state
+        hold_steps = max(self.interval, 50)
+
+        I = np.eye(3)
+        # Symmetric small-strain deformation gradients (F ≈ I + eps for small strains)
+        F_list = []
+        # ± isotropic
+        F_list.append(I * (1.0 + eta))
+        F_list.append(I * (1.0 - eta))
+        # Orthorhombic (volume-conserving to first order): diag(1+eta, 1-eta, 1)
+        F_list.append(np.diag([1.0 + eta, 1.0 - eta, 1.0]))
+        F_list.append(np.diag([1.0 - eta, 1.0 + eta, 1.0]))
+        # Symmetric shears: xy, xz, yz (F = I + eps, eps_ij = eps_ji = eta)
+        eps_xy = I.copy(); eps_xy[0,1] = eps_xy[1,0] = eta; F_list.append(eps_xy)
+        eps_xz = I.copy(); eps_xz[0,2] = eps_xz[2,0] = eta; F_list.append(eps_xz)
+        eps_yz = I.copy(); eps_yz[1,2] = eps_yz[2,1] = eta; F_list.append(eps_yz)
+
+        log.info(f"Starting pre-production strain sequence with {len(F_list)} strains; {hold_steps} steps each")
+        for F in F_list:
+            _apply_F_and_run(F, hold_steps)
+
+        # Continue with the main MD run
         dyn.run(self.steps)  # RUN
+        traj.close()  # Explicitly close the trajectory
 
     def printEnergy(self, atoms):
         epot = atoms.get_potential_energy() / len(atoms)
         ekin = atoms.get_kinetic_energy() / len(atoms)
-        etot = (epot + ekin) 
+        etot = (epot + ekin)
         T = float(atoms.get_temperature())
 
         print(f"E_pot/atom={epot:.5f}  E_kin/atom={ekin:.5f}  E_tot/atom={etot:.5f}  T={T:.1f} K")

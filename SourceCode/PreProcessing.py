@@ -18,7 +18,8 @@ class PreProcessing:
         self.expected_keys = {"-T": "Temperature", "-E": "Ensemble", "-P" : "Pressure",
                                "-POT" : "Potential", "-TS" : "Timestep", "-N" : "Number_of_steps",
                                "-F" : "Friction", "-C" : "Compressibility", "-I" : "Interval", "-O" : "Output_file",
-                               "_A" : "Attachments", "-ES" : "EquilSteps", "-S":"Supercells"}
+                               "_A" : "Attachments", "-ES" : "EquilSteps", "-S":"Supercells",
+                               "-EE": "EquilEnsemble", "-EP": "ProductionEnsemble"}
 
 
 
@@ -78,6 +79,51 @@ class PreProcessing:
         NVE_settings = ["Temperature", "Potential", "Timestep", "Number_of_steps", "Interval", "Output_file"]
         NVT_settings = ["Temperature", "Potential", "Timestep", "Number_of_steps", "Interval", "Output_file", "Friction"]
         NPT_settings = ["Temperature", "Potential", "Timestep", "Number_of_steps", "Interval", "Output_file", "Pressure", "Compressibility"]
+
+        # If user specified separate ensembles for equilibration/production, use them
+        eq_ens = self.settings.get("EquilEnsemble")
+        prod_ens = self.settings.get("ProductionEnsemble")
+        if eq_ens or prod_ens:
+            # Fallbacks to single Ensemble value if one is missing
+            base_ens = self.settings.get("Ensemble", None)
+            if eq_ens is None:
+                eq_ens = base_ens
+            if prod_ens is None:
+                prod_ens = base_ens
+            if eq_ens is None or prod_ens is None:
+                raise ValueError("EquilEnsemble/ProductionEnsemble provided but one is missing and no 'Ensemble' fallback is set")
+
+            # Validate required settings
+            required = ["Temperature", "Potential", "Timestep", "Number_of_steps", "Interval", "Output_file", "EquilSteps"]
+            for setting in required:
+                if setting not in self.settings:
+                    raise ValueError(f"Missing the setting: {setting}")
+            if (eq_ens == "NVT" or prod_ens == "NVT") and ("Friction" not in self.settings):
+                raise ValueError("Missing the setting: Friction (required for NVT)")
+            if (eq_ens == "NPT" or prod_ens == "NPT"):
+                for setting in ["Pressure", "Compressibility"]:
+                    if setting not in self.settings:
+                        raise ValueError(f"Missing the setting: {setting} (required for NPT)")
+
+            log.info("Creating MD object with EquilEnsemble=%s, ProductionEnsemble=%s", eq_ens, prod_ens)
+            return MDBase(
+                timestep_fs=self.settings["Timestep"],
+                number_of_steps=self.settings["Number_of_steps"],
+                interval=self.settings["Interval"],
+                integrator_str=prod_ens,  # production as base
+                integrator_eq_str=eq_ens,
+                integrator_prod_str=prod_ens,
+                output_file=self.settings["Output_file"],
+                temperature_k=self.settings["Temperature"],
+                friction=self.settings.get("Friction", 0.01),
+                potential_str=self.settings["Potential"],
+                pressure=self.settings.get("Pressure", 0.0),
+                compressibility=self.settings.get("Compressibility", 0.0),
+                equil_steps=self.settings["EquilSteps"],
+                att_list=self.settings.get("Attachments", ["energy"]) 
+            )
+
+        # Backward-compatible path using a single Ensemble key
         log.info("Creating MD object for ensemble: %s", self.settings["Ensemble"])
         match self.settings["Ensemble"]:
             case "NVE":
