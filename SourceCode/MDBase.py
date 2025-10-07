@@ -8,7 +8,9 @@ from ase.md.velocitydistribution import MaxwellBoltzmannDistribution
 from ase.units import fs
 from ase.visualize import view
 from SourceCode.logger import logger_setup
-from SourceCode.lj_registry import lj_params
+from SourceCode.LJRegistry import LJParams
+
+
 log = logger_setup()
 class MDBase:
     """
@@ -84,7 +86,7 @@ class MDBase:
         pressure_au = pressure_Pa * 6.2415e-12
         return pressure_au
 
-    def setup_lj_calculator(self, atoms):
+    def setupLJCalculator(self, atoms):
         symbols = atoms.get_chemical_symbols()
         uniq = sorted(set(symbols))
         if len(uniq) != 1:
@@ -93,7 +95,7 @@ class MDBase:
             )
 
         material_key = uniq[0].lower()
-        params = lj_params(material=material_key)
+        params = LJParams(material=material_key)
         atomic_number = [(atoms.get_atomic_numbers()[0])]
         eps = params["epsilon_eV"]
         sig = params["sigma_A"]
@@ -150,7 +152,7 @@ class MDBase:
 
         elif potential_lower in ["lj", "lennardjones", "lennard_jones"]:
             log.info("Potential: Lennard Jones")
-            return self.setup_lj_calculator
+            return self.setupLJCalculator
         else:
             log.error("Invalid potential function: %s", potential)
             raise ValueError(f"Invalid potential function: {potential}")
