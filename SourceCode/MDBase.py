@@ -84,7 +84,7 @@ class MDBase:
         pressure_au = pressure_Pa * 6.2415e-12
         return pressure_au
 
-    def setup_lj_calculator(self, atoms):
+    def setupLJCalculator(self, atoms):
         symbols = atoms.get_chemical_symbols()
         uniq = sorted(set(symbols))
         if len(uniq) != 1:
@@ -150,7 +150,7 @@ class MDBase:
 
         elif potential_lower in ["lj", "lennardjones", "lennard_jones"]:
             log.info("Potential: Lennard Jones")
-            return self.setup_lj_calculator
+            return self.setupLJCalculator
         else:
             log.error("Invalid potential function: %s", potential)
             raise ValueError(f"Invalid potential function: {potential}")
