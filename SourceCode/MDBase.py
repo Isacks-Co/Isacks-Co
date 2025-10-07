@@ -8,7 +8,7 @@ from ase.md.velocitydistribution import MaxwellBoltzmannDistribution
 from ase.units import fs
 from ase.visualize import view
 from SourceCode.logger import logger_setup
-from SourceCode.lj_registry import lj_params
+from SourceCode.LJRegistry import LJParams
 log = logger_setup()
 class MDBase:
     """
@@ -93,7 +93,7 @@ class MDBase:
             )
 
         material_key = uniq[0].lower()
-        params = lj_params(material=material_key)
+        params = LJParams(material=material_key)
         atomic_number = [(atoms.get_atomic_numbers()[0])]
         eps = params["epsilon_eV"]
         sig = params["sigma_A"]

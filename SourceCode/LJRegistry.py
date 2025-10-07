@@ -8,7 +8,7 @@ LJ_DB = {
     "ni": {"epsilon_eV": 0.1729, "sigma": 1.5808},
 }
 
-def lj_params(material: str = None, *, epsilon_eV=None, sigma_A=None, rc_A=None, ro_A=None):
+def LJParams(material: str = None, *, epsilon_eV=None, sigma_A=None, rc_A=None, ro_A=None):
 
     if material:
         base = LJ_DB.get(material.lower())
