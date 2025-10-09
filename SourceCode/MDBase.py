@@ -8,7 +8,8 @@ from ase.md.velocitydistribution import MaxwellBoltzmannDistribution
 from ase.units import fs
 from ase.visualize import view
 from SourceCode.logger import logger_setup
-from SourceCode.LJRegistry import LJParams
+from SourceCode.LJRegistry import LJParams, calcMaxRc
+
 
 EV_PER_A3_TO_GPA = 160.21766208
 EV_PER_A3_TO_PA = 160.21766208e9  # Pa per (eV/Å^3)
@@ -111,8 +112,17 @@ class MDBase:
         atomic_number = [(atoms.get_atomic_numbers()[0])]
         eps = params["epsilon_eV"]
         sig = params["sigma_A"]
+        ro = params["ro_A"]
         rc = params["rc_A"]
+        rc_max = calcMaxRc(atoms)
 
+        if rc > rc_max:
+            log.warning("The rCut is larger than the cell size, will use cell size to derive new value for rCut")
+            rc = rc_max
+            ro = 0.9*float(rc)
+
+
+        print("using this rc ", rc)
         try:
             from asap3 import LennardJones as asap_LJ
             calc_asap = asap_LJ(
@@ -133,10 +143,10 @@ class MDBase:
         except Exception as e:
             from ase.calculators.lj import LennardJones as ase_LJ
             calc_ase = ase_LJ(
-                epsilon=eps,
-                sigma=sig,
-                rc=rc,
-                ro=params["ro_A"]
+            epsilon=eps,
+            sigma=sig,
+            rc=rc,
+            ro=ro
             )
             log.warning(
                 f"Falling back to ASE LJ | Reason: {e}"
@@ -201,7 +211,6 @@ class MDBase:
     def equilibriumRun(self, atoms):
 
         dyn_eq = self.integrator(atoms=atoms)
-        real_ensemble = getattr(self, "ensemble", None)
         self.equil_mode = True
 
         dyn_eq.attach(lambda: self.checkConvergence(atoms), interval=max(1, int(1 / self.timestep)))
@@ -229,10 +238,9 @@ class MDBase:
             log.warning(f"Equilibrium aborted due to instability: {err}")
 
         finally:
-            if real_ensemble is not None:
-                # self.ensemble = real_ensemble
-                self.equil_mode = False
-                self.temp_history = []
+            # self.ensemble = real_ensemble
+            self.equil_mode = False
+            self.temp_history = []
 
     def runMD(self, atoms):
         """

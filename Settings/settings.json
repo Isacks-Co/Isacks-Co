@@ -1,19 +1,21 @@
 {
   "Ensemble": "NVE",
 
-  "Temperature": 2000,
-  "Timestep": 1,
-  "Number_of_steps": 2000,
+  "Temperature": 0,
+  "Timestep": 0.5,
+  "Number_of_steps": 20000,
   "Interval": 50,
-  "Potential": "EMT",
+  "Potential": "LJ",
   "Attachments": ["energy"],
 
-  "Friction": 1,
-  "Pressure": 0,
-  "Compressibility": 1e-7,
+  "Friction": 0.1,
+  "Pressure": 100000,
+  "Compressibility": 1e-11,
 
-  "EquilSteps": 5000,
-  "Supercells": [3,3,3],
+  "EquilSteps": 1000,
+  "Supercells": [7,7,7],
   "Output_file" : "Outputs/output"
+
+
 
 }
