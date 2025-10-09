@@ -34,7 +34,7 @@ def LJParams(material: str = None, *, epsilon_eV=None, sigma_A=None, rc_A=None, 
 
 
 def calcMaxRc(atoms, margin=1e-3):
-    import numpy as np
+
 
     a, b, c, alpha, betta, gamma = atoms.cell.cellpar()
     pbc = atoms.get_pbc()
