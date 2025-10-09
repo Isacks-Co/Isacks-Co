@@ -8,7 +8,7 @@ from ase.md.velocitydistribution import MaxwellBoltzmannDistribution
 from ase.units import fs
 from ase.visualize import view
 from SourceCode.logger import logger_setup
-from SourceCode.LJRegistry import LJParams, _calcMaxRc
+from SourceCode.LJRegistry import LJParams, calcMaxRc
 
 
 EV_PER_A3_TO_GPA = 160.21766208
@@ -114,7 +114,7 @@ class MDBase:
         sig = params["sigma_A"]
         ro = params["ro_A"]
         rc = params["rc_A"]
-        rc_max = _calcMaxRc(atoms)
+        rc_max = calcMaxRc(atoms)
 
         if rc > rc_max:
             log.warning("The rCut is larger than the cell size, will use cell size to derive new value for rCut")
@@ -238,10 +238,9 @@ class MDBase:
             log.warning(f"Equilibrium aborted due to instability: {err}")
 
         finally:
-            if real_ensemble is not None:
-                # self.ensemble = real_ensemble
-                self.equil_mode = False
-                self.temp_history = []
+            # self.ensemble = real_ensemble
+            self.equil_mode = False
+            self.temp_history = []
 
     def runMD(self, atoms):
         """
