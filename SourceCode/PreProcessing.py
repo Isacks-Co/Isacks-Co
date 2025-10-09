@@ -1,13 +1,16 @@
+from .simulationInput import NPTSettings,NVESettings,NVTSettings
+from .inputParser import InputParser
+from .MDBase import MDBase
+
 import json
 import sys
+import logging
 
-from MDBase import MDBase
 from ase.io import read
 from ase.lattice.cubic import FaceCenteredCubic
 import numpy as np
-import logging
-from simulationInput import NPTSettings,NVESettings,NVTSettings
-from inputParser import InputParser
+
+
 log = logging.getLogger(__name__)
 
 class PreProcessing:
@@ -33,7 +36,7 @@ class PreProcessing:
 
     def readSettings(self, input_settings):
         """Reads settings from json file, checks all expected settings present. Overwrite settings file if a terminal flag is set."""
-        log.info("Reading settings file: %s", self.argparser.args["input_structure"])
+        log.info("Reading settings file: %s", self.argparser.args["input_structure"]) ####TODO  SHOULD BE "SETTINGS" not inpu structure
         try:
             with open(input_settings, "r") as file:
                 temp_settings = json.load(file)
