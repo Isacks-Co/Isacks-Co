@@ -28,11 +28,18 @@ if __name__ == "__main__":
         log.error(f"Simulation failed: {err}") #should probably add the err, here instead
         exit(1)
 
+
+    #Q = QuantityCalculator()
+    #Q.computeBulkModulus()
+    
+    
+    
+    
+    
     try:
         Postviz = PostProcessing(settings)
     except Exception as err:
         log.error(f"Postprocessing failed: {err}")
         exit(1)
-
 
     log.info("Simulation done")

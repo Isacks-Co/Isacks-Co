@@ -1,5 +1,5 @@
 import logging
-import time
+
 
 class CustomFormatter(logging.Formatter):
     COLORS =  {

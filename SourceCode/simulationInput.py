@@ -1,9 +1,9 @@
-from ase import Atoms
-
 class SimulationSettings:
     """
     Abstract class for simulation settings.
     Shouldn't be used by itself
+
+
     args:
         float timestep: size of the timesteps in fs
         int num_step: Number of steps in the simulation
@@ -12,7 +12,7 @@ class SimulationSettings:
         str output_file: Path to write output --> output_file.traj
         
     """
-    def __init__(self, timestep: float, num_steps: int, potential: str, output_file: str , supercells: list, interval: int = 5 ):
+    def __init__(self, timestep: float, num_steps: int, potential: str, output_file: str , supercells: list, interval: int):
         self.timestep = timestep
         self.num_steps = num_steps
         self.sample_interval = interval

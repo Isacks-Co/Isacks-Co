@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 from ase.io.trajectory import Trajectory
 from simulationInput import SimulationSettings
 from ase.neighborlist import NeighborList, natural_cutoffs
@@ -10,27 +11,80 @@ class QuantityCalculator:
 
     def __init__(self,settings: SimulationSettings, traj : Trajectory):
         self.traj = traj
+=======
+from .simulationInput import SimulationSettings
+
+import numpy as np
+from ase.units import kB
+from ase.io.trajectory import Trajectory
+
+class QuantityCalculator:
+
+    def __init__(self,settings: SimulationSettings):
+        self.traj = Trajectory(f"{settings.output_file}.traj")
+>>>>>>> 4f1c190 (Refactored some stuff)
         self.settings = settings
 
 
     def getQuantities(self):
-        #  Compute all general quantities
+        # Compute all general quantities
+        # Cohesive Energy
+        # Internal pressure
+        # MSD
+        # Lindemann criteria
+        # Self diffusion coefficient
+        # Specific Heat
+        # Debye Temperature
 
         if self.settings.ensemble == "NVE":
 
             #Compute all relevant quantities and write them to a file 
             pass
             
-        if self.settings.ensemble == "NVE":
+        if self.settings.ensemble == "NVT":
+            
 
             #Compute all relevant quantities and write them to a file 
             pass
             
-        if self.settings.ensemble == "NVE":
-
-            #Compute all relevant quantities and write them to a file 
+        if self.settings.ensemble == "NPT":
+             
+            # Lattice Constant
+            # Bulk modulus
+            # Compute all relevant quantities and write them to a file 
             pass
         
+
+
+
+    def computeSpecificHeatNVT(self): #Cv per atom in a.u
+        
+        energy = np.array([atom_frame.get_total_energy() for atom_frame in self.traj])
+        temperature = np.mean([atom_frame.get_temperature() for atom_frame in self.traj]) # Should we do this or just read from settings?
+        N = len(self.read_traj_file[0])
+        e_mean = np.mean(energy)
+        e_2_mean = np.mean(energy**2)
+        prefactor = 1/(kB*temperature**2)
+        specific_heat =  prefactor * (e_2_mean-e_mean**2)/N
+        return specific_heat
+    
+    def computeSpecificHeatNVE(self): #Cv per atom in a.u
+        e_kin = np.array([atom_frame.get_kinetic_energy() for atom_frame in self.traj])
+        T = np.mean([atom_frame.get_temperature() for atom_frame in self.traj])
+        e_kin_mean = np.mean(e_kin)
+        e_kin_2_mean = np.mean(e_kin**2)
+
+        specific_heat =  (3*kB/2)*1/(1-(2/(3*(kB*T)**2)*(e_kin_2_mean - e_kin_mean**2)))
+        return specific_heat
+    
+    def computeBulkModulus(self):
+        volumes = np.array([atom_frame.get_volume() for atom_frame in self.traj[2000:]])
+        V_mean = np.mean(volumes)
+        V_2_mean = np.mean(volumes**2)
+        T = np.mean([atom_frame.get_temperature() for atom_frame in self.traj[2000:]])
+        B = kB*T*V_mean/(V_2_mean-V_mean**2)
+        print("BULK: ", B)
+        return B
 
     def writeQuantities(self,labels,quantities):
         """
@@ -56,7 +110,7 @@ class QuantityCalculator:
 
 
 
-    #### CALCULATE ALL QUANTITIES
+
 
     def computeMSD(self, frame, reference=0):
         

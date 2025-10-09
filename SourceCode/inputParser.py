@@ -1,9 +1,8 @@
+from .logger import loggerSetup
+
 import argparse
 import sys
 import ast
-
-import argparse
-from logger import loggerSetup
 import logging
 
 class SingleMetavarHelpFormatter(argparse.HelpFormatter):

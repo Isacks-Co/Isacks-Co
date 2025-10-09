@@ -1,4 +1,8 @@
+from .simulationInput import SimulationSettings
+from .unitConversions import pascalToAu,pascalInvToAu
 import functools
+import logging
+
 import numpy as np
 from ase.io.trajectory import Trajectory
 from ase.md import MDLogger
@@ -43,7 +47,7 @@ class MDBase:
 
         elif settings.ensemble == "NPT":
             self.temperature_k = settings.temperature
-            self.pressure = settings.pressure * GPa * 1e-9 # Pa to Au
+            self.pressure = settings.pressure * GPa * 1e-9 # Pa to Au #TODO use functions
             self.compressibility = settings.compressibility/(GPa*1e-9) # Pa^-1 to Au
         
         #Integrator and potential
