@@ -8,10 +8,6 @@ from ase.visualize import view
 import logging
 from SourceCode.simulationInput import SimulationSettings
 from SourceCode.LJRegistry import LJParams, calcMaxRc
-
-
-
-from logger import logger_setup
 from simulationInput import SimulationSettings
 
 log = logging.getLogger(__name__)

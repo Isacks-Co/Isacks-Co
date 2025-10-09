@@ -3,7 +3,6 @@ import re
 from math import sqrt
 from pathlib import Path
 import numpy as np
-from SourceCode.logger import logger_setup
 from ase import Atoms
 from ase.calculators.emt import EMT
 from ase.eos import EquationOfState
@@ -14,12 +13,12 @@ from ase.neighborlist import NeighborList, natural_cutoffs, build_neighbor_list,
 
 from ase.visualize import view
 from scipy.constants import pi, hbar, k as kB
-
+import logging
 
 EV_PER_A3_TO_GPA = 160.21766208
 ATOMIC_MASS_IN_KG = 1.66053906892e-27
 
-logger = logger_setup()
+logger = logging.getLogger(__name__)
 
 class PostProcessing:
     """

@@ -132,23 +132,10 @@ class NPTSettings(SimulationSettings):
         )
 
 
-class SimulationInput:
-    def __init__(self, atoms, settings: SimulationSettings):
-        self.atoms = atoms
-        self.settings = settings
-
-    def __str__(self):
-        return (
-            f"Atomic structure: {self.atoms} \n"
-            f"Settings:\n"
-            f"{self.settings}"
-        )
-
 
 
 if __name__ == "__main__":
     settings = NPTSettings(timestep=5,num_steps=250,potential="EMT",temperature=200,pressure=20,interval=2,compressibility=1)
-    simInput = SimulationInput("a",settings)
-    print(simInput)
+   
 
 
