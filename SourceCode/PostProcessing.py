@@ -24,13 +24,13 @@ AVOGRADO = 6.02214076e23
 A_TO_M = 1e-10
 
 # Atomic unit constants
-BOHR_ANG = Bohr                 # 1 a0 in Å
-BOHR_M = BOHR_ANG * A_TO_M      # 1 a0 in m
-HARTREE_eV = Hartree            # 1 Eh in eV
+BOHR_ANG = Bohr  # 1 a0 in Å
+BOHR_M = BOHR_ANG * A_TO_M  # 1 a0 in m
+HARTREE_eV = Hartree  # 1 Eh in eV
 HARTREE_J = HARTREE_eV * EV_TO_JOULE  # 1 Eh in J
 AU_TIME_S = physical_constants['atomic unit of time'][0]  # s
 AU_VEL_MS = BOHR_M / AU_TIME_S  # m/s
-AU_PRESSURE_PA = HARTREE_J / (BOHR_M**3)  # Pa
+AU_PRESSURE_PA = HARTREE_J / (BOHR_M ** 3)  # Pa
 AMU_TO_ME = physical_constants['atomic mass constant energy equivalent in MeV'][0]  # placeholder, replace below
 # Better: ratio amu to electron mass
 AMU_TO_ME = physical_constants['atomic mass constant'][0] / physical_constants['electron mass'][0]
@@ -43,25 +43,27 @@ bohr_to_m = lambda x: np.asarray(x, dtype=float) * BOHR_M
 ev_to_hartree = lambda x: np.asarray(x, dtype=float) / HARTREE_eV
 hartree_to_j = lambda x: np.asarray(x, dtype=float) * HARTREE_J
 # Volume
-A3_to_bohr3 = lambda x: np.asarray(x, dtype=float) / (BOHR_ANG**3)
+A3_to_bohr3 = lambda x: np.asarray(x, dtype=float) / (BOHR_ANG ** 3)
 # Force
 eV_per_A_to_Eh_per_bohr = lambda x: (np.asarray(x, dtype=float) / HARTREE_eV) * (1.0 / BOHR_ANG)
 # Pressure
-eV_per_A3_to_auP = lambda x: (np.asarray(x, dtype=float) / HARTREE_eV) * (BOHR_ANG**3)
+eV_per_A3_to_auP = lambda x: (np.asarray(x, dtype=float) / HARTREE_eV) * (BOHR_ANG ** 3)
 auP_to_Pa = lambda x: np.asarray(x, dtype=float) * AU_PRESSURE_PA
 
 logger = logger_setup()
+
 
 class PostProcessing:
     """
         Uses the log files generates from the Molecular Dynamics class to vizualize and analyze the data
         input trajectory file as trajectory_file 
     """
+
     def __init__(self, settings_path: str, trajectory_file: str):
         try:
             self.traj = Trajectory(trajectory_file)
             self.settings = json.loads(Path(settings_path).read_text())
-            self.elastic_properties = self._cubic_constants_from_traj(ref=self.traj[0])
+            self.elastic_properties = self._cubicConstantsFromTrajectory(ref=self.traj[0])
         except FileNotFoundError:
             raise FileNotFoundError(f"Trajectory file {trajectory_file} not found")
 
@@ -87,13 +89,11 @@ class PostProcessing:
 
         pot_list = []
         kin_list = []
-        N = int(self.traj[0].info['number_of_atoms'])
+        N = len(self.traj[0])
         for snapshot in self.traj:
             try:
-                pot = float(snapshot.info['potential_energy eV']) / N
-                kin = float(snapshot.info['kinetic_energy eV']) / N
-                pot_list.append(pot)
-                kin_list.append(kin)
+                pot_list.append(float(snapshot.get_potential_energy()) / N)
+                kin_list.append(float(snapshot.get_kinetic_energy()) / N)
             except Exception:
                 logger.error("Could not acquire energy per atom for the cohesive energy")
                 raise RuntimeError("Could not acquire energy per atom for the cohesive energy")
@@ -128,7 +128,7 @@ class PostProcessing:
         Returns the lattice constant in meters (SI).
         """
         # per-atom volume in Å^3
-        V_A3_per_atom = self.traj[0].info['volume A3'] / self.traj[0].info['number_of_atoms']
+        V_A3_per_atom = self.traj[0].get_volume() / len(self.traj[0])
         V_bohr3 = A3_to_bohr3(V_A3_per_atom)
 
         struct = self.determineCrystalStructure()
@@ -154,7 +154,7 @@ class PostProcessing:
         elastic_properties = self.elastic_properties
         logger.info(f"Elasticity properties (SI): {elastic_properties}")
         K_Pa = elastic_properties.get('K_Pa', float('nan'))
-        logger.info(f"Bulk modulus: {K_Pa} Pa ({K_Pa*1e-9 if np.isfinite(K_Pa) else float('nan')} GPa)")
+        logger.info(f"Bulk modulus: {K_Pa} Pa ({K_Pa * 1e-9 if np.isfinite(K_Pa) else float('nan')} GPa)")
         return float(K_Pa)
 
     def computeInternalPressure(self):
@@ -166,11 +166,11 @@ class PostProcessing:
         """
         internal_pressures_Pa = []
         for atoms in self.traj:
-            e_kin_eV = atoms.info['kinetic_energy eV']
-            N = atoms.info['number_of_atoms']
-            V_A3 = atoms.info['volume A3']
-            forces_eVA = atoms.info['forces eV/A']
-            positions_A = atoms.info['positions']
+            e_kin_eV = atoms.get_kinetic_energy()
+            N = len(atoms)
+            V_A3 = atoms.get_volume()
+            forces_eVA = atoms.get_forces()
+            positions_A = atoms.get_positions()
 
             # Convert to atomic units
             Ekin_Eh = ev_to_hartree(e_kin_eV)
@@ -209,7 +209,6 @@ class PostProcessing:
         else:
             return msd_bohr2
 
-
     def computeLindemannCriterion(self):
         """
         Returns True if Lindemann criterion is met, False otherwise.
@@ -218,13 +217,15 @@ class PostProcessing:
         cutoffs = natural_cutoffs(self.traj[0])
         neighbor_list = NeighborList(cutoffs, self_interaction=False, bothways=True)
         neighbor_list.update(self.traj[0])
-        min_dist = np.min([nearest_neighbor_distance_for_atom(j, self.traj[0], neighbor_list) for j in range(self.traj[0].get_global_number_of_atoms())])
+        min_dist = np.min([nearestNeighborDistanceForAtom(j, self.traj[0], neighbor_list) for j in
+                           range(self.traj[0].get_global_number_of_atoms())])
         min_dist = float(min_dist)
         logger.info(f"First min dist-------------- {min_dist}")
 
         for atoms in self.traj:
             neighbor_list.update(atoms)
-            nn_per_atom = np.min([nearest_neighbor_distance_for_atom(i, atoms, neighbor_list) for i in range(atoms.get_global_number_of_atoms())])
+            nn_per_atom = np.min([nearestNeighborDistanceForAtom(i, atoms, neighbor_list) for i in
+                                  range(atoms.get_global_number_of_atoms())])
             nn_per_atom = float(nn_per_atom)
             if min_dist is None:
                 min_dist = nn_per_atom
@@ -246,7 +247,7 @@ class PostProcessing:
 
     def computeSelfDiffusionCoefficient(self):  # Needs constant temperature, for current implementation
         timestep_list = []
-        temp_list = [round(self.traj[i].info["temperature"], -1) for i in range(len(self.traj))]
+        temp_list = [round(self.traj[i].get_temperature(), -1) for i in range(len(self.traj))]
         if self.settings["Temperature"] in temp_list:
             for i in range(len(self.traj)):
                 if temp_list[i] == self.settings["Temperature"]:
@@ -270,23 +271,24 @@ class PostProcessing:
         slope_bohr2_per_au = (msd1_bohr2 - msd0_bohr2) / dt_au
         D_bohr2_per_au = slope_bohr2_per_au / 6.0
         # Convert to SI m^2/s
-        D_m2_per_s = D_bohr2_per_au * (BOHR_M**2) / AU_TIME_S
+        D_m2_per_s = D_bohr2_per_au * (BOHR_M ** 2) / AU_TIME_S
         logger.info(f"Self-Diffusion Coefficient: {D_m2_per_s} m^2/s")
         return float(D_m2_per_s)
 
     def computeSpecificHeat(self):  # Requires NVT, might implement for NVE as well
 
         # total energy per frame in eV; convert to Hartree for a.u. computation
-        energy_eV = np.array([atom_frame.get_potential_energy() + atom_frame.get_kinetic_energy() for atom_frame in self.traj])
+        energy_eV = np.array(
+            [atom_frame.get_potential_energy() + atom_frame.get_kinetic_energy() for atom_frame in self.traj])
         energy_Eh = ev_to_hartree(energy_eV)
         temperature = float(np.mean([atom_frame.get_temperature() for atom_frame in self.traj]))  # K
 
-        e_mean = float(np.mean(energy_Eh))    # [Eh]
-        e_2_mean = float(np.mean(energy_Eh ** 2))     # [Eh^2]
+        e_mean = float(np.mean(energy_Eh))  # [Eh]
+        e_2_mean = float(np.mean(energy_Eh ** 2))  # [Eh^2]
         # Boltzmann constant in Hartree/K
         kB_Eh_per_K = kB / HARTREE_eV
-        prefactor = 1.0 / (kB_Eh_per_K * temperature**2)   # [1 / (K Eh)]
-        Cv_system_Eh_per_K = prefactor * (e_2_mean - e_mean**2)     # [Eh/K]
+        prefactor = 1.0 / (kB_Eh_per_K * temperature ** 2)  # [1 / (K Eh)]
+        Cv_system_Eh_per_K = prefactor * (e_2_mean - e_mean ** 2)  # [Eh/K]
         Cv_system_J_per_K = float(hartree_to_j(Cv_system_Eh_per_K))
 
         # Total mass in kg
@@ -305,11 +307,11 @@ class PostProcessing:
 
         if self.settings["Temperature"] < 1:
             # Low-temperature Debye from heat capacity; use a.u. for kB
-            C_v = self.computeSpecificHeat()    # [J kg-1 K-1]
+            C_v = self.computeSpecificHeat()  # [J kg-1 K-1]
             temperature = float(np.mean([atom_frame.get_temperature() for atom_frame in self.traj]))
             N = self.traj[0].get_global_number_of_atoms()
             # Here we keep the classical constant form but ensure SI at the end
-            debye = (234 * N * kB * EV_TO_JOULE * temperature**3 / C_v) ** (1/3)
+            debye = (234 * N * kB * EV_TO_JOULE * temperature ** 3 / C_v) ** (1 / 3)
             logger.info(f"Debye temperature: {debye} K")
             return float(debye)
         else:
@@ -317,6 +319,11 @@ class PostProcessing:
             out = self.elastic_properties  # SI Pa
             G_Pa = out['G_Pa']
             K_Pa = out['K_Pa'] if np.isfinite(out['K_Pa']) else (3.0 * out['C11_Pa'] - 2.0 * out['C44_Pa']) / 3.0
+
+            if K_Pa < 0 or G_Pa < 0:
+                error_log = "Negative pressure during calulation of Debye temperature"
+                logger.error(error_log)
+                raise ValueError(error_log)
 
             if not (np.isfinite(G_Pa) and np.isfinite(K_Pa)):
                 logger.info("Elastic constants not reliable from traj; Debye temperature cannot be computed.")
@@ -327,7 +334,7 @@ class PostProcessing:
             K_au = K_Pa / AU_PRESSURE_PA
 
             # Density in atomic units (electron masses per Bohr^3)
-            V_A3 = np.mean([fr.info['volume A3'] for fr in self.traj])
+            V_A3 = np.mean([fr.get_volume() for fr in self.traj])
             if V_A3 is None:
                 V_A3 = float(self.traj[0].get_volume())
             V_bohr3 = A3_to_bohr3(V_A3)
@@ -350,8 +357,7 @@ class PostProcessing:
             logger.info(f"Debye temperature: {Theta_D} K")
             return float(Theta_D)
 
-
-    def _cubic_constants_from_traj(self, ref=None, tol_abs=1e-8, tol_rel=1e-3):
+    def _cubicConstantsFromTrajectory(self, ref=None, tol_abs=1e-8, tol_rel=1e-3):
         """
         Estimate C11, C12, C44, K, G using only cell geometry and info['stress'] saved in traj.
         Internally uses atomic units (stress in Eh/a0^3), and returns SI Pascals.
@@ -367,12 +373,12 @@ class PostProcessing:
         x_yz, y_yz = [], []
 
         for fr in self.traj:
-            sig_eVA3 = _stress_eVA3_from_info(fr)
+            sig_eVA3 = _stressEVA3FromInfo(fr)
             if sig_eVA3 is None:
                 continue
             # convert stress to atomic units (Eh/a0^3)
             sig_au = eV_per_A3_to_auP(sig_eVA3)
-            eps = _small_strain_from_cells(ref, fr)
+            eps = _smallStrainFromCells(ref, fr)
 
             e_xx, e_yy, e_zz = eps[0, 0], eps[1, 1], eps[2, 2]
             e_xy, e_xz, e_yz = eps[0, 1], eps[0, 2], eps[1, 2]
@@ -399,7 +405,7 @@ class PostProcessing:
             x_yz.append(g_yz)
             y_yz.append(s_yz)
 
-        def slope_filtered(x, y):
+        def slopeFiltered(x, y):
             x = np.asarray(x, dtype=float)
             y = np.asarray(y, dtype=float)
             if x.size < 3:
@@ -413,13 +419,13 @@ class PostProcessing:
             m = np.dot(x2, y2) / np.dot(x2, x2)
             return float(m)
 
-        D_au = slope_filtered(x_D, y_D)
-        S_3_au = slope_filtered(x_S, y_S)
+        D_au = slopeFiltered(x_D, y_D)
+        S_3_au = slopeFiltered(x_S, y_S)
         S_3_au = S_3_au * 3.0 if np.isfinite(S_3_au) else float('nan')
 
-        C44_xy_au = slope_filtered(x_xy, y_xy)
-        C44_xz_au = slope_filtered(x_xz, y_xz)
-        C44_yz_au = slope_filtered(x_yz, y_yz)
+        C44_xy_au = slopeFiltered(x_xy, y_xy)
+        C44_xz_au = slopeFiltered(x_xz, y_xz)
+        C44_yz_au = slopeFiltered(x_yz, y_yz)
 
         C44s_au = [v for v in [C44_xy_au, C44_xz_au, C44_yz_au] if np.isfinite(v)]
         C44_au = float(np.mean(C44s_au)) if C44s_au else float('nan')
@@ -463,23 +469,53 @@ class PostProcessing:
         ang_bc = round(ang_bc, 0)
         ang_ac = round(ang_ac, 0)
         ang_ab = round(ang_ab, 0)
-        if (a == b and a == c and b == c) and (ang_bc == 90 and ang_ac == 90 and ang_ab == 90): # Assumes primitive cell in POSCAR
+        if (a == b and a == c and b == c) and (
+                ang_bc == 90 and ang_ac == 90 and ang_ab == 90):  # Assumes primitive cell in POSCAR
             return "bcc"
-        elif (a == b and a == c and b == c) and (ang_bc == 60 and ang_ac == 60 and ang_ab == 60):   # Assumes primitive cell in POSCAR
+        elif (a == b and a == c and b == c) and (
+                ang_bc == 60 and ang_ac == 60 and ang_ab == 60):  # Assumes primitive cell in POSCAR
             return "fcc"
 
-    def NearestNeightborsMean(self, trajectory_index: int = 0):
-        """Calculate the mean distance of nearest neighbor in the strcuture"""
-        atoms = self.traj[trajectory_index]
-        for i in range(atoms.get_global_number_of_atoms()):
-            for j in range(i, atoms.get_global_number_of_atoms()):
-                cutoff = natural_cutoffs(atoms)
-                neighbor_list = NeighborList(cutoff, self_interaction=False, bothways=True)
-                neighbor_list.update(atoms)
+    def nearestNeightborsMean(self):
+        """Calculate the mean distance of nearest neighbor in the structure for the last ten states of the simulation
+        Loop structure: Last ten states -> Each atom -> neighbors to current atom
+        """
+        INF = 1e9
+        NN_list = []
+        for state in range(-10, -1):
+            # Load neighbor list for the current state
+            atoms = self.traj[state]
+            cutoff = natural_cutoffs(atoms)
+            neighbor_list = NeighborList(cutoff, bothways=True)
+            neighbor_list.update(atoms)
+
+            for current_atom in range(atoms.get_global_number_of_atoms()):
+                # Loop over all atoms in and find their nearest neighbor
+                indices, offsets = neighbor_list.get_neighbors(current_atom)
+                nearest_distance = INF
+
+                # First object seems to be the atom itself, don't loop over it
+                for neighbor_index, offset in zip(indices[1:], offsets[1:]):
+                    # Create a vector between current_atom and the neighbors in the list, save the shortest distance
+                    NN_vector = atoms.positions[neighbor_index] + offset @ atoms.get_cell() - atoms.positions[
+                        current_atom]
+                    distance = np.sqrt(NN_vector.dot(NN_vector))
+
+                    if distance < nearest_distance:
+                        nearest_distance = distance
+
+                if nearest_distance == INF:
+                    error_msg = f"Could not calculate NN distance, didn't find any NN for atom {current_atom}"
+                    logger.error(error_msg)
+                    return
+
+                NN_list.append(nearest_distance)
+        NN_mean_distance = np.mean(NN_list)
+        logger.info(f"Mean value of nearest neighbor : {NN_mean_distance}")
+        return NN_mean_distance
 
 
-
-def nearest_neighbor_distance_for_atom(i, atoms, nl):
+def nearestNeighborDistanceForAtom(i, atoms, nl):
     indices, offsets = nl.get_neighbors(i)
     if len(indices) == 0:
         return float("nan")
@@ -494,7 +530,7 @@ def nearest_neighbor_distance_for_atom(i, atoms, nl):
     return float(np.min(positive)) if positive.size else float("nan")
 
 
-def ParseLogFile(log_path: str = "Outputs/output.log"):
+def parseLogFile(log_path: str = "Outputs/output.log"):
     """
     Read data.log and return numeric columns.
     Keys: "Time[ps]", "Etot/N[eV]", "Epot/N[eV]", "Ekin/N[eV]", "T[K]".
@@ -512,7 +548,8 @@ def ParseLogFile(log_path: str = "Outputs/output.log"):
         if len(parts) < 5:
             continue
         try:
-            t, etot, epot, ekin, T = (float(parts[0]), float(parts[1]), float(parts[2]), float(parts[3]), float(parts[4]))
+            t, etot, epot, ekin, T = (float(parts[0]), float(parts[1]), float(parts[2]), float(parts[3]),
+                                      float(parts[4]))
         except ValueError:
             continue
         # Store
@@ -559,23 +596,22 @@ def plot(msd_list, dt=1.0, title="Mean Squared Displacement", save_as=None):
         plt.show()
 
 
-
-def _small_strain_from_cells(ref, cur):
+def _smallStrainFromCells(ref, cur):
     C_ref = ref.cell.array
     C_cur = cur.cell.array
     A_ref = C_ref.T
-    #logger.info(f"A_ref: {A_ref} \n")
+    # logger.info(f"A_ref: {A_ref} \n")
     A_cur = C_cur.T
-    #logger.info(f"A_cur: {A_cur} \n")
-    #logger.info(f"INV : {np.linalg.inv(A_ref)} \n")
+    # logger.info(f"A_cur: {A_cur} \n")
+    # logger.info(f"INV : {np.linalg.inv(A_ref)} \n")
     F = A_cur @ np.linalg.inv(A_ref)
-    #logger.info(f"F: {F} \n")
+    # logger.info(f"F: {F} \n")
     eps = 0.5 * (F + F.T) - np.eye(3)
     return eps
 
 
-def _stress_eVA3_from_info(cur):
-    sig_v = cur.info['stress eV/A3']
+def _stressEVA3FromInfo(cur):
+    sig_v = cur.info["stress eV/A3"]
     if sig_v is None:
         return None
-    return np.asarray(sig_v, dtype=float) #eV/A3
+    return np.asarray(sig_v, dtype=float)  # eV/A3

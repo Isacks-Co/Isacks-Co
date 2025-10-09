@@ -10,15 +10,16 @@ from ase.visualize import view
 from SourceCode.logger import logger_setup
 from SourceCode.LJRegistry import LJParams
 
-
 EV_PER_A3_TO_GPA = 160.21766208
 EV_PER_A3_TO_PA = 160.21766208e9  # Pa per (eV/Å^3)
-AMU_TO_KG= 1.66053906892e-27
+AMU_TO_KG = 1.66053906892e-27
 EV_TO_JOULE = 1.6021766208e-19
 AVOGRADO = 6.02214076e23
 A_TO_M = 1e-10
 
 log = logger_setup()
+
+
 class MDBase:
     """
         basic MD class
@@ -31,8 +32,7 @@ class MDBase:
                  integrator_str: str = "Verlet", output_file: str = "data",
                  temperature_k: float = 293, friction: float = 0.01, potential_str: str = "EMT",
                  att_list: list = ["energy"],
-                 pressure: float = 10e+6, compressibility: float = 10e-11,  equil_steps: int = 2000,
-                 integrator_eq_str = None, integrator_prod_str = None):
+                 pressure: float = 10e+6, compressibility: float = 10e-11, equil_steps: int = 2000):
         """
         In:
             timestep_fs : timestesp (femto) FLOAT
@@ -50,54 +50,45 @@ class MDBase:
         self.interval = int(interval) if interval else 10
         self.output_file = output_file
         self.temperature_k = float(temperature_k)
-        self.friction = float(friction)
+        self.friction = float(friction) / fs
         self.pressure = float(pressure)
         self.compressibility = compressibility
         self.potential = self.getPotential(potential_str)
-        # Resolve which integrators to use for equilibration and production
-        eq_str = integrator_eq_str if integrator_eq_str is not None else integrator_str
-        prod_str = integrator_prod_str if integrator_prod_str is not None else integrator_str
-        self.integrator_eq = self.getIntegrator(eq_str)
-        self.integrator_prod = self.getIntegrator(prod_str)
-        # Backward compatibility: expose production integrator under the old name
-        self.integrator = self.integrator_prod
+        self.integrator = self.getIntegrator(integrator_str)
         self.attachments = self.getAttachment(att_list)
         self.equilibrium_steps = equil_steps
         self.temp_history = []
         self.hits = 0
-        self.use_LJ = False
-        # Track ensembles for logging and failSafe behavior
-        self.ensemble_eq = eq_str
-        self.ensemble_prod = prod_str
-        self.ensemble = eq_str
+        self.ensemble = integrator_str
 
         log.debug(
-        "MDBase init: dt(fs)=%s steps=%s interval=%s T=%sK friction=%s pot=%s eq_integrator=%s prod_integrator=%s out=%s",
-        timestep_fs, number_of_steps, self.interval, self.temperature_k, self.friction,
-        potential_str, eq_str, prod_str, self.output_file
+            "MDBase init: dt(fs)=%s steps=%s interval=%s T=%sK friction=%s pot=%s integrator=%s out=%s",
+            timestep_fs, number_of_steps, self.interval, self.temperature_k, self.friction,
+            potential_str, integrator_str, self.output_file
         )
 
+    @classmethod
+    def initNVE(cls, temperature: float, pot_str: str, timestep: float,
+                steps: int, interval: int, output_file: str, equilibrium_steps: int):
+
+        return cls(temperature_k=temperature, integrator_str="NVE", potential_str=pot_str,
+                   timestep_fs=timestep, number_of_steps=steps, interval=interval, equil_steps=equilibrium_steps,
+                   output_file=output_file)
 
     @classmethod
-    def initNVE(cls, temperature: float,  pot_str:str, timestep:float,
-                steps:int, interval:int,output_file: str, equilibrium_steps:int):
-
-        return cls(temperature_k = temperature, integrator_str = "NVE", potential_str = pot_str ,
-                timestep_fs = timestep, number_of_steps = steps, interval = interval, equil_steps = equilibrium_steps, output_file = output_file)
-
-    @classmethod
-    def initNVT(cls, temperature: float, friction: float,  pot_str:str, timestep:float,
-                steps:int, interval:int, equilibrium_steps:int, output_file:str):
-        return cls(temperature_k = temperature, friction = friction,  integrator_str = "NVT", potential_str = pot_str,
-                    timestep_fs = timestep, number_of_steps = steps, interval = interval, equil_steps = equilibrium_steps, output_file=output_file )
+    def initNVT(cls, temperature: float, friction: float, pot_str: str, timestep: float,
+                steps: int, interval: int, equilibrium_steps: int, output_file: str):
+        return cls(temperature_k=temperature, friction=friction, integrator_str="NVT", potential_str=pot_str,
+                   timestep_fs=timestep, number_of_steps=steps, interval=interval, equil_steps=equilibrium_steps,
+                   output_file=output_file)
 
     @classmethod
     def initNPT(cls, temperature: float, timestep: float,
-                steps: int, interval: int, pressure_Pa: float, compressibility: float, pot_str: str, equilibrium_steps: int, output_file: str):
+                steps: int, interval: int, pressure_Pa: float, compressibility: float, pot_str: str,
+                equilibrium_steps: int, output_file: str):
         return cls(temperature_k=temperature, pressure=pressure_Pa, compressibility=compressibility,
                    integrator_str="NPT", potential_str=pot_str, timestep_fs=timestep,
-                   number_of_steps=steps, interval=interval,equil_steps=equilibrium_steps, output_file=output_file)
-
+                   number_of_steps=steps, interval=interval, equil_steps=equilibrium_steps, output_file=output_file)
 
     def pascalToAu(self, pressure_Pa):
         pressure_au = pressure_Pa * 6.2415e-12
@@ -122,7 +113,6 @@ class MDBase:
         sig = params["sigma_A"]
         rc = params["rc_A"]
 
-
         try:
             from asap3 import LennardJones as asap_LJ
             calc_asap = asap_LJ(
@@ -136,27 +126,22 @@ class MDBase:
             atoms.calc = calc_asap
             _ = atoms.get_potential_energy()
             log.info("Using asap3 LJ | element=%s (Z=%s) | ε=%.4g eV | σ=%.4g Å | rc=%.4g Å ",
-                     material_key, atomic_number[0], eps, sig, rc )
+                     material_key, atomic_number[0], eps, sig, rc)
             return calc_asap
 
 
         except Exception as e:
             from ase.calculators.lj import LennardJones as ase_LJ
             calc_ase = ase_LJ(
-            epsilon=eps,
-            sigma=sig,
-            rc=rc,
-            ro=params["ro_A"]
+                epsilon=eps,
+                sigma=sig,
+                rc=rc,
+                ro=params["ro_A"]
             )
             log.warning(
                 f"Falling back to ASE LJ | Reason: {e}"
             )
             return calc_ase
-
-
-
-
-
 
     def getPotential(self, potential: str):
         """
@@ -188,7 +173,8 @@ class MDBase:
         elif integrator_lower in ["langevin", "nvt"]:
             from asap3.md.langevin import Langevin  # för NVT
             log.info("Integrator: Langevin")
-            return functools.partial(Langevin, timestep=self.timestep, temperature_K=self.temperature_k, friction=self.friction)
+            return functools.partial(Langevin, timestep=self.timestep, temperature_K=self.temperature_k,
+                                     friction=self.friction)
 
         elif integrator_lower in ["berendsen", "npt"]:
             from asap3.md.nptberendsen import NPTBerendsen
@@ -197,36 +183,56 @@ class MDBase:
                                      pressure_au=self.pressure, compressibility_au=self.compressibility)
 
         else:
-            log.error("Invalid Integrator function: %s", integrator) ##
+            log.error("Invalid Integrator function: %s", integrator)  ##
             raise ValueError(f"Invalid integrator: {integrator}")
-
 
     def getAttachment(self, attachments):
         pos_attachments = {'energy': self.printEnergy,
                            "momenta": self.printMomentum,
                            "center_of_mass": self.printCenterOfMass,
-                           "lattice":self.printLatticeConstants }
+                           "lattice": self.printLatticeConstants}
 
         for a in attachments:
             if a not in pos_attachments.keys():
                 raise ValueError(f"Invalid attachment: {a}")
 
-
         return [pos_attachments[a] for a in attachments]
 
     def equilibriumRun(self, atoms):
 
-        # Use the equilibration integrator
-        self.ensemble = self.ensemble_eq
-        dyn_eq = self.integrator_eq(atoms=atoms)
+        dyn_eq = self.integrator(atoms=atoms)
+        real_ensemble = getattr(self, "ensemble", None)
+        self.equil_mode = True
 
-        dyn_eq.attach(lambda: self.failSafe(atoms), interval=self.interval)
-        log.info(f"Starting equilibrium run with {self.ensemble_eq} Ensemble to reach desired temperature of {self.temperature_k} K")
+        dyn_eq.attach(lambda: self.checkConvergence(atoms), interval=max(1, int(1 / self.timestep)))
+        log.info(
+            f"Starting equilibrium run with {self.ensemble} Ensemble to reach desired temperature of {self.temperature_k} K")
 
-        dyn_eq.run(self.equilibrium_steps)
-        current_T = atoms.get_temperature()
-        log.info(f"Systems temperature is {round(current_T, 2)} K after {self.equilibrium_steps} steps")
+        try:
+            dyn_eq.run(int(self.equilibrium_steps))
 
+            current_T = atoms.get_temperature()
+            log.info(f"Systems temperature is {round(current_T, 2)} K after {self.equilibrium_steps} steps")
+
+        except RuntimeError as e:
+            # Python 3.7+ translaterar StopIteration->RuntimeError inuti generatorer (PEP 479)
+            if "generator raised StopIteration" in str(e):
+                log.info(
+                    f"Equilibrium reached early (observer signaled StopIteration) at T = {round(atoms.get_temperature(), 2)}.")
+            else:
+                raise RunTimeError(e)
+
+        except StopIteration as ok:
+            log.info(f"Equilibrium reached early: {ok}")
+
+        except RuntimeWarning as err:
+            log.warning(f"Equilibrium aborted due to instability: {err}")
+
+        finally:
+            if real_ensemble is not None:
+                # self.ensemble = real_ensemble
+                self.equil_mode = False
+                self.temp_history = []
 
     def runMD(self, atoms):
         """
@@ -238,19 +244,13 @@ class MDBase:
         Will always save a trajectory and log file.        
         """
         atoms.calc = self.potential(atoms)
-       
+
         MaxwellBoltzmannDistribution(atoms, temperature_K=self.temperature_k,
                                      force_temp=True)  # Initialize velocity according to temperature_k
 
         self.equilibriumRun(atoms=atoms)
-        log.info("Switching to production ensemble: %s", self.ensemble_prod)
-        self.ensemble = self.ensemble_prod
         log.info("MD run starts with: %i steps", self.steps)
-
-        dyn = self.integrator_prod(atoms=atoms)
-
-        #material_name = str(atoms.symbols)
-        #print("MATERIALNAMN: ", material_name)
+        dyn = self.integrator(atoms=atoms)
 
         # save traj
         traj = Trajectory(filename=f"{self.output_file}.traj", mode="w", atoms=atoms)
@@ -258,20 +258,7 @@ class MDBase:
         # Custom calculation function
         def save_custom_data():
             """Store custom calculations in atoms.info"""
-            atoms.info['potential_energy eV'] = atoms.get_potential_energy()
-            atoms.info['kinetic_energy eV'] = atoms.get_kinetic_energy()
-            atoms.info['total_energy eV'] = atoms.get_total_energy()
-            atoms.info['temperature'] = atoms.get_temperature()
-            atoms.info['volume A3'] = atoms.get_volume()
-            atoms.info['forces eV/A'] = atoms.get_forces()
-            atoms.info['positions'] = atoms.get_positions()
             atoms.info['stress eV/A3'] = atoms.get_stress(voigt=True)
-            atoms.info['number_of_atoms'] = atoms.get_global_number_of_atoms()
-            atoms.info['cell'] = atoms.get_cell()
-            atoms.info['cell_volume A3'] = atoms.get_cell().volume
-            atoms.info['masses u'] = atoms.get_masses()
-            atoms.info['density u/A3'] = sum(atoms.info['masses u']) / atoms.get_volume()
-
 
             # Add any other custom calculations here
 
@@ -286,7 +273,8 @@ class MDBase:
         logger = MDLogger(dyn, atoms=atoms, logfile=f"{self.output_file}.log",
                           header=True, peratom=True, mode='a')  # Create a logger for writing data
         dyn.attach(logger, interval=self.interval)  # Attach logger
-        dyn.attach(lambda: self.failSafe(atoms), interval=self.interval)
+        dyn.attach(lambda: self.checkDivergence(atoms),
+                   interval=self.interval)  # TODO Possibly include checkConvergence here?
 
         # Apply a short sequence of slight, controlled strains and run a few steps at each.
         # This creates trajectory frames with non-zero strain for robust post-processing of elastic constants.
@@ -312,9 +300,15 @@ class MDBase:
         F_list.append(np.diag([1.0 + eta, 1.0 - eta, 1.0]))
         F_list.append(np.diag([1.0 - eta, 1.0 + eta, 1.0]))
         # Symmetric shears: xy, xz, yz (F = I + eps, eps_ij = eps_ji = eta)
-        eps_xy = I.copy(); eps_xy[0,1] = eps_xy[1,0] = eta; F_list.append(eps_xy)
-        eps_xz = I.copy(); eps_xz[0,2] = eps_xz[2,0] = eta; F_list.append(eps_xz)
-        eps_yz = I.copy(); eps_yz[1,2] = eps_yz[2,1] = eta; F_list.append(eps_yz)
+        eps_xy = I.copy();
+        eps_xy[0, 1] = eps_xy[1, 0] = eta;
+        F_list.append(eps_xy)
+        eps_xz = I.copy();
+        eps_xz[0, 2] = eps_xz[2, 0] = eta;
+        F_list.append(eps_xz)
+        eps_yz = I.copy();
+        eps_yz[1, 2] = eps_yz[2, 1] = eta;
+        F_list.append(eps_yz)
 
         log.info(f"Starting pre-production strain sequence with {len(F_list)} strains; {hold_steps} steps each")
         for F in F_list:
@@ -348,28 +342,82 @@ class MDBase:
         traj = Trajectory("data.traj")
         view(traj)
 
-    def failSafe(self, atoms):
+    def checkConvergence(self, atoms):
+        window = 20
+        temperature_tol = self.temperature_k * 0.05
+
+        if (self.ensemble != "NVE"):
+            self.temp_history.append(atoms.get_temperature())
+        else:
+            self.temp_history.append((atoms.get_potential_energy() + atoms.get_kinetic_energy()) / len(atoms))
+
+        if len(self.temp_history) > 1:
+            recent = self.temp_history[-window:]
+
+            # Specifically for the equil run, to stop iterating when at the target temperature for ~5 iterations or more
+            if self.ensemble != "NVE":
+                lastN = recent[-7:]
+                if (self.equil_mode and len(recent) >= 7):
+                    nb_in_tolerance = sum(abs(x - self.temperature_k) <= temperature_tol for x in lastN)
+                    if nb_in_tolerance >= 5:
+                        raise StopIteration(
+                            f"Target T reached: stopping at T = {atoms.get_temperature():.2f} K  "
+                        )
+
+    def checkDivergence(self, atoms):
         """
-        Checks if temperature diverges continously in one direction,
+        Checks if temperature or energy diverges continously in one direction,
         returns an error if that's the case, uses a 'window' number of last runs to calculate mean average
         hits determines how many flucuations before exiting
         """
         window = 20
+        tol_temp_percentage = 0.25
+        tol_energy_percentage = 0.02
+        # Either check temperature if ensemble is NPT or NVT or total energy if ensemble is NVE.
         if (self.ensemble != "NVE"):
             self.temp_history.append(atoms.get_temperature())
         else:
-            self.temp_history.append((atoms.get_potential_energy()+atoms.get_kinetic_energy())/len(atoms))
+            self.temp_history.append((atoms.get_potential_energy() + atoms.get_kinetic_energy()) / len(atoms))
+
         if len(self.temp_history) > 1:
-            mean = np.mean(self.temp_history[-window:])
-            std  = np.std(self.temp_history[-window:])
-            # TODO Changed for problematic effects, needs to be looked at
-            # if abs(self.temp_history[0] - mean) > 2 * std:
-            if std > self.temp_history[0]:
-                if (self.hits == 2):
-                    if (self.ensemble != "NVE"):
-                        raise RuntimeWarning("Run canceled because simulation is not stable. Temperature change is greater than 2 standard deviations.")
-                    else:
-                        raise RuntimeWarning("Run canceled because simulation is not stable. Total energy change is greater than 2 standard deviations.")
-                else:
-                    self.hits += 1
-                                
+            recent = self.temp_history[-window:]
+
+            if self.ensemble != "NVE":
+                temperature_tol = self.temperature_k * tol_temp_percentage
+                if len(recent) >= 10:
+                    lastN = recent[-10:]
+                    nb_outside_tolerance = sum(abs(x - self.temperature_k) >= temperature_tol for x in lastN)
+                    # Check for oscillation behaviour in temperature
+                    if all([nb_outside_tolerance > 3, nb_outside_tolerance < 6]):
+                        # Print warning in log, continues the run
+                        log.warning("Warning temperature oscillates, might want to check the parameters.")
+                    elif nb_outside_tolerance >= 6:
+                        # End the run and raise warning.
+                        raise RuntimeWarning(
+                            f"Run canceled because simulation is not stable. The temperature oscillations"
+                            f" are greater than {tol_temp_percentage * 100}% of desired temperature.")
+
+                    if self.ensemble == "NPT":
+                        # TODO Do we wanna check volume?
+                        pass
+
+
+            else:
+                # TODO Might want to check other Divergence for energy
+                dt_eff_ps = self.interval * self.timestep / (1000 * fs)
+                window_ps = 2.0  #
+                num_points = max(10, int(round(window_ps / dt_eff_ps)))
+
+                if len(self.temp_history) >= num_points:
+                    lastN = np.asarray(self.temp_history[-num_points:], dtype=float)
+                    mean_energy = float(np.mean(lastN))
+                    energy_tol = max(tol_energy_percentage * abs(mean_energy), 1e-4)
+                    nb_outside = int(np.sum(np.abs(lastN - mean_energy) >= energy_tol))
+                    thresh_hold = max(3, int(np.ceil(0.3 * num_points)))
+
+                    if nb_outside >= thresh_hold:
+                        raise RuntimeWarning(
+                            f"NVE: unstable total energy/atom deviates more than "
+                            f"{tol_energy_percentage * 100:.0f}% of the window mean "
+                            f"(threshold = {energy_tol:.6e} eV/atom)"
+                        )
