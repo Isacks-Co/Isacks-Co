@@ -58,9 +58,8 @@ class MDBase:
         self.integrator = self.getIntegrator(integrator_str)
         self.attachments = self.getAttachment(att_list)
         self.equilibrium_steps = equil_steps
-        self.temp_history = []
-        self.hits = 0
         self.ensemble = integrator_str
+        self.quantity_list = []
 
         log.debug(
             "MDBase init: dt(fs)=%s steps=%s interval=%s T=%sK friction=%s pot=%s integrator=%s out=%s",
@@ -238,9 +237,8 @@ class MDBase:
             log.warning(f"Equilibrium aborted due to instability: {err}")
 
         finally:
-            # self.ensemble = real_ensemble
             self.equil_mode = False
-            self.temp_history = []
+            self.quantity_list = []
 
     def runMD(self, atoms):
         """
@@ -290,7 +288,7 @@ class MDBase:
             A = atoms.cell.array.T
             A_new = (F @ A).T
             atoms.set_cell(A_new, scale_atoms=True)
-            log.info(f"Applied strain F=\n{F}\nCell now: {atoms.cell.cellpar()}")
+            #log.info(f"Applied strain F=\n{F}\nCell now: {atoms.cell.cellpar()}")
             dyn.run(int(steps))
 
         # Small strain amplitude
@@ -318,7 +316,7 @@ class MDBase:
         eps_yz[1, 2] = eps_yz[2, 1] = eta;
         F_list.append(eps_yz)
 
-        log.info(f"Starting pre-production strain sequence with {len(F_list)} strains; {hold_steps} steps each")
+        #log.info(f"Starting pre-production strain sequence with {len(F_list)} strains; {hold_steps} steps each")
         for F in F_list:
             _apply_F_and_run(F, hold_steps)
 
@@ -351,26 +349,28 @@ class MDBase:
         view(traj)
 
     def checkConvergence(self, atoms):
-        window = 20
-        temperature_tol = self.temperature_k * 0.05
+        self._updateQuantityList(atoms)
+        if len(self.quantity_list) > 150 and not self.checkInstability(self.quantity_list):
+            if self.equil_mode:
+                match self.ensemble:
+                    case "NVE":
+                            raise StopIteration(f"Converged: E = {(atoms.get_potential_energy() + atoms.get_kinetic_energy()) / len(atoms):.2f} ev/atom")
+                    case "NVT":
+                            raise StopIteration(f"Converged: T = {atoms.get_temperature():.2f} K")
+                    case "NPT":
+                            raise StopIteration(f"Converged: T = {atoms.get_temperature():.2f} K")
 
-        if (self.ensemble != "NVE"):
-            self.temp_history.append(atoms.get_temperature())
-        else:
-            self.temp_history.append((atoms.get_potential_energy() + atoms.get_kinetic_energy()) / len(atoms))
-
-        if len(self.temp_history) > 1:
-            recent = self.temp_history[-window:]
-
-            # Specifically for the equil run, to stop iterating when at the target temperature for ~5 iterations or more
-            if self.ensemble != "NVE":
-                lastN = recent[-7:]
-                if (self.equil_mode and len(recent) >= 7):
-                    nb_in_tolerance = sum(abs(x - self.temperature_k) <= temperature_tol for x in lastN)
-                    if nb_in_tolerance >= 5:
-                        raise StopIteration(
-                            f"Target T reached: stopping at T = {atoms.get_temperature():.2f} K  "
-                        )
+        # if len(quantity_list) > 1:
+        #     recent = quantity_list[-window:]
+        #     # Specifically for the equil run, to stop iterating when at the target temperature for ~5 iterations or more
+        #     if self.ensemble != "NVE":
+        #         lastN = recent[-7:]
+        #         if (self.equil_mode and len(recent) >= 7):
+        #             nb_in_tolerance = sum(abs(x - self.temperature_k) <= temperature_tol for x in lastN)
+        #             if nb_in_tolerance >= 5:
+        #                 raise StopIteration(
+        #                     f"Target T reached: stopping at T = {atoms.get_temperature():.2f} K  "
+        #                 )
 
     def checkDivergence(self, atoms):
         """
@@ -378,54 +378,68 @@ class MDBase:
         returns an error if that's the case, uses a 'window' number of last runs to calculate mean average
         hits determines how many flucuations before exiting
         """
-        window = 20
-        tol_temp_percentage = 0.25
-        tol_energy_percentage = 0.02
-        # Either check temperature if ensemble is NPT or NVT or total energy if ensemble is NVE.
-        if (self.ensemble != "NVE"):
-            self.temp_history.append(atoms.get_temperature())
+        # Uses helper function updateQuantityList.
+        self._updateQuantityList(atoms)
+        if (self.checkInstability(self.quantity_list)):
+            # End the run and raise warning.
+            raise RuntimeError(f"{self.ensemble}: Run cancelled.")
+        
+    def checkInstability(self, data_buffer):
+        """
+        Uses an input list to calculate stability, returns false if stable and true if unstable.
+
+        Inputs: List with atomic temperature, energy or volume
+        Output: Bool
+        """
+        window = 10
+        if self.equil_mode:
+            tol_temp = self.temperature_k * 0.05
         else:
-            self.temp_history.append((atoms.get_potential_energy() + atoms.get_kinetic_energy()) / len(atoms))
-
-        if len(self.temp_history) > 1:
-            recent = self.temp_history[-window:]
-
-            if self.ensemble != "NVE":
-                temperature_tol = self.temperature_k * tol_temp_percentage
-                if len(recent) >= 10:
-                    lastN = recent[-10:]
-                    nb_outside_tolerance = sum(abs(x - self.temperature_k) >= temperature_tol for x in lastN)
-                    # Check for oscillation behaviour in temperature
-                    if all([nb_outside_tolerance > 3, nb_outside_tolerance < 6]):
-                        # Print warning in log, continues the run
-                        log.warning("Warning temperature oscillates, might want to check the parameters.")
-                    elif nb_outside_tolerance >= 6:
-                        # End the run and raise warning.
-                        raise RuntimeWarning(
-                            f"Run canceled because simulation is not stable. The temperature oscillations"
-                            f" are greater than {tol_temp_percentage * 100}% of desired temperature.")
-
-                    if self.ensemble == "NPT":
-                        # TODO Do we wanna check volume?
-                        pass
-
-
-            else:
-                # TODO Might want to check other Divergence for energy
+            tol_temp = self.temperature_k * 0.10
+        tol_energy_percentage = 0.05
+        nb_outside_tolerance = 0
+        threshold = 100000000 # needs to be large number
+        if len(data_buffer) <= 1:
+            return False
+        match self.ensemble:
+            case "NVT" | "NPT":
+                lastN = data_buffer[-window:]
+                nb_outside_tolerance = sum(abs(x - self.temperature_k) >= tol_temp for x in lastN)
+            case "NVE":
                 dt_eff_ps = self.interval * self.timestep / (1000 * fs)
-                window_ps = 2.0  #
-                num_points = max(10, int(round(window_ps / dt_eff_ps)))
-
-                if len(self.temp_history) >= num_points:
-                    lastN = np.asarray(self.temp_history[-num_points:], dtype=float)
-                    mean_energy = float(np.mean(lastN))
-                    energy_tol = max(tol_energy_percentage * abs(mean_energy), 1e-4)
-                    nb_outside = int(np.sum(np.abs(lastN - mean_energy) >= energy_tol))
-                    thresh_hold = max(3, int(np.ceil(0.3 * num_points)))
-
-                    if nb_outside >= thresh_hold:
-                        raise RuntimeWarning(
-                            f"NVE: unstable total energy/atom deviates more than "
-                            f"{tol_energy_percentage * 100:.0f}% of the window mean "
-                            f"(threshold = {energy_tol:.6e} eV/atom)"
-                        )
+                num_points = max(3, int(round(3.0 / dt_eff_ps))) # These two integers can be altered
+                if len(data_buffer) < num_points:
+                    return False
+                lastN = np.asarray(data_buffer[-num_points:], dtype=float)
+                mean_energy = float(np.mean(lastN))
+                energy_tol = max(tol_energy_percentage * abs(mean_energy), 1e-4)
+                nb_outside_tolerance = int(np.sum(np.abs(lastN - mean_energy) >= energy_tol))
+                threshold = max(3, int(np.ceil(0.3 * num_points))) # 3 points must be outside of tolerance to trigger
+                # Compares the number of points that are outside the threshold and returns True if they are
+        if not self.equil_mode:
+            if (nb_outside_tolerance >= threshold):
+                log.warning(
+                    f"Energy oscillates heavily — {nb_outside_tolerance}/{num_points} points outside tolerance"
+                )
+                return False
+            if 12 < nb_outside_tolerance < 15:
+                # Print warning in log, continues the run
+                log.warning("Warning temperature oscillates.")
+            if (nb_outside_tolerance >= 15):
+                log.warning("Temperature oscillates heavily, cancelling run.")
+                return True
+        else:
+            return (not nb_outside_tolerance > 10)
+        return False
+    
+    def _updateQuantityList(self, atoms):
+        """
+        Help function that appends quantities into quantity_list.
+        """
+        if not hasattr(self, "quantity_list"):
+            self.quantity_list = []
+        match self.ensemble:
+            case "NVE":
+                self.quantity_list.append((atoms.get_potential_energy() + atoms.get_kinetic_energy()) / len(atoms))
+            case "NVT" | "NPT":
+                self.quantity_list.append(atoms.get_temperature())
