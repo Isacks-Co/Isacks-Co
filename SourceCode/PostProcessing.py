@@ -486,7 +486,7 @@ class PostProcessing:
             # Load neighbor list for the current state
             atoms = self.traj[state]
             cutoff = natural_cutoffs(atoms)
-            neighbor_list = NeighborList(cutoff)
+            neighbor_list = NeighborList(cutoff, bothways=True)
             neighbor_list.update(atoms)
 
             for current_atom in range(atoms.get_global_number_of_atoms()):
@@ -494,16 +494,18 @@ class PostProcessing:
                 indices, offsets = neighbor_list.get_neighbors(current_atom)
                 nearest_distance = INF
 
+                # First object seems to be the atom itself, don't loop over it
                 for neighbor_index, offset in zip(indices[1:], offsets[1:]):
                     # Create a vector between current_atom and the neighbors in the list, save the shortest distance
                     NN_vector = atoms.positions[neighbor_index] + offset @ atoms.get_cell() - atoms.positions[
                         current_atom]
                     distance = np.sqrt(NN_vector.dot(NN_vector))
+
                     if distance < nearest_distance:
                         nearest_distance = distance
 
                 if nearest_distance == INF:
-                    error_msg = "Could not calculate NN distance, didn't find any NN"
+                    error_msg = f"Could not calculate NN distance, didn't find any NN for atom {current_atom}"
                     logger.error(error_msg)
                     return
 
