@@ -281,7 +281,7 @@ class MDBase:
         dyn.attach(logger, interval=self.interval)  # Attach logger
         dyn.attach(lambda: self.checkDivergence(atoms),
                    interval=self.interval)  # TODO Possibly include checkConvergence here?
-
+        #"""
         # Apply a short sequence of slight, controlled strains and run a few steps at each.
         # This creates trajectory frames with non-zero strain for robust post-processing of elastic constants.
         def _apply_F_and_run(F, steps):
@@ -319,7 +319,7 @@ class MDBase:
         #log.info(f"Starting pre-production strain sequence with {len(F_list)} strains; {hold_steps} steps each")
         for F in F_list:
             _apply_F_and_run(F, hold_steps)
-
+        #"""
         # Continue with the main MD run
         dyn.run(self.steps)  # RUN
         traj.close()  # Explicitly close the trajectory
