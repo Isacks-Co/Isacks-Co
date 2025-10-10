@@ -2,7 +2,7 @@ from simulationInput import SimulationSettings
 import functools
 
 import numpy as np
-import functools
+from ase import Atoms
 from ase.io.trajectory import Trajectory
 from ase.md.velocitydistribution import MaxwellBoltzmannDistribution,Stationary, ZeroRotation
 from ase.units import fs, GPa
@@ -13,7 +13,8 @@ from potentialSetUp import Potential
 log = logging.getLogger(__name__)
 
 
-class MDBase: #TODO Look at unit conversions
+
+class MDBase:
     """
     basic MD class
     When initialized it represents a MD-simulation with prefilled settings that can be used for multiple runs with
@@ -22,8 +23,8 @@ class MDBase: #TODO Look at unit conversions
 
     def __init__(self, settings: SimulationSettings):
         """
-        Create a MD runner from the settings specified in the 
-        SimulationSettings object. 
+        Create a MD runner from the settings specified in the
+        SimulationSettings object.
         In:
             SimulationSettings object of type NVE,NVT or NPT
         """
@@ -121,9 +122,9 @@ class MDBase: #TODO Look at unit conversions
         #finally:
         #    self.quantity_list = []
 
-    
 
-    def runMD(self, atoms): #TODO Needs better comments
+
+    def runMD(self, atoms):
         """
         In: 
             Atoms: ase Atoms object representing the crystal structure
@@ -142,15 +143,13 @@ class MDBase: #TODO Look at unit conversions
 
         log.info("MD run starts with: %i steps", self.steps)
         dyn = self.integrator(atoms=atoms)
-        #dyn.attach(lambda: self._checkDivergence(atoms), interval=max(1, int(1 / self.timestep) ))
 
         traj = Trajectory(filename=f"{self.output_file}.traj", mode="w", atoms=atoms) ## currently have .. before
 
         dyn.attach(lambda: self.save_data(atoms,traj),
                    interval=self.interval)
 
-        #dyn.attach(lambda: self._checkDivergence(atoms),
-                 #  interval=self.interval)
+            # Add any other custom calculations here
 
         # Continue with the main MD run
         dyn.run(self.steps)  # RUN
@@ -170,6 +169,20 @@ class MDBase: #TODO Look at unit conversions
         traj.write()
 
     def _runStretchSequence(self, atoms):
+        logger = MDLogger(dyn, atoms=atoms, logfile=f"{self.output_file}.log",
+                          header=True, peratom=True, mode='a')  # Create a logger for writing data
+        dyn.attach(logger, interval=self.interval)  # Attach logger
+        dyn.attach(lambda: self.checkDivergence(atoms),
+                   interval=self.interval)  # TODO Possibly include checkConvergence here?
+        #"""
+        # Apply a short sequence of slight, controlled strains and run a few steps at each.
+        # This creates trajectory frames with non-zero strain for robust post-processing of elastic constants.
+        def _apply_F_and_run(F, steps):
+            A = atoms.cell.array.T
+            A_new = (F @ A).T
+            atoms.set_cell(A_new, scale_atoms=True)
+            #log.info(f"Applied strain F=\n{F}\nCell now: {atoms.cell.cellpar()}")
+            dyn.run(int(steps))
 
         # Small strain amplitude
         stretch_constant = 2e-2  # 1%
@@ -202,6 +215,13 @@ class MDBase: #TODO Look at unit conversions
             stretch_yz[1, 2] = stretch_yz[2, 1] = current_stretch
             stretch_matrix_list[3*stretch_steps + count] = stretch_yz
             type_list[3*stretch_steps + count] = "shears_yz"
+        #log.info(f"Starting pre-production strain sequence with {len(F_list)} strains; {hold_steps} steps each")
+        for F in F_list:
+            _apply_F_and_run(F, hold_steps)
+        #"""
+        # Continue with the main MD run
+        dyn.run(self.steps)  # RUN
+        traj.close()  # Explicitly close the trajectory
 
             log.info(f"Placing on {count} , {stretch_steps + count} , {2*stretch_steps + count} , {3*stretch_steps + count} ")
 

@@ -149,8 +149,9 @@ class PostProcessing:
             internal_pressures_Pa.append(P_Pa)
 
         avg_Pa = float(np.mean(internal_pressures_Pa)) if internal_pressures_Pa else float('nan')
-        logger.info(f"Average internal pressure = {avg_Pa} Pa")
-        return avg_Pa
+        avg_GPa = avg_Pa * 1e-9 if np.isfinite(avg_Pa) else float('nan')
+        logger.info(f"Average internal pressure = {avg_GPa} Pa")
+        return avg_GPa
 
     def computeMSD(self, time=-10, reference=0, return_SI=True):
         # TODO Shouldn't this be some mean value of many of the late snapshots in trajectory
