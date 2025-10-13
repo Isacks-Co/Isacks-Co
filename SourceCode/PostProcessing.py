@@ -22,38 +22,12 @@ EV_PER_A3_TO_GPA = 160.21766208
 EV_PER_A3_TO_PA = 160.21766208e9  # Pa per (eV/Å^3)
 AMU_TO_KG = 1.66053906660e-27
 EV_TO_JOULE = 1.602176634e-19
+JOULE_TO_EV = 1.0 / EV_TO_JOULE
 AVOGRADO = 6.02214076e23
 A_TO_M = 1e-10
-
-# Atomic unit constants
-BOHR_ANG = Bohr  # 1 a0 in Å
-BOHR_M = BOHR_ANG * A_TO_M  # 1 a0 in m
-HARTREE_eV = Hartree  # 1 Eh in eV
-HARTREE_J = HARTREE_eV * EV_TO_JOULE  # 1 Eh in J
-AU_TIME_S = physical_constants['atomic unit of time'][0]  # s
-AU_VEL_MS = BOHR_M / AU_TIME_S  # m/s
-AU_PRESSURE_PA = HARTREE_J / (BOHR_M ** 3)  # Pa
-AMU_TO_ME = physical_constants['atomic mass constant energy equivalent in MeV'][0]  # placeholder, replace below
-# Better: ratio amu to electron mass
-AMU_TO_ME = physical_constants['atomic mass constant'][0] / physical_constants['electron mass'][0]
-
-# Helper conversions to/from atomic units
-# Length
-ang_to_bohr = lambda x: np.asarray(x, dtype=float) / BOHR_ANG
-bohr_to_m = lambda x: np.asarray(x, dtype=float) * BOHR_M
-# Energy
-ev_to_hartree = lambda x: np.asarray(x, dtype=float) / HARTREE_eV
-hartree_to_j = lambda x: np.asarray(x, dtype=float) * HARTREE_J
-# Volume
-A3_to_bohr3 = lambda x: np.asarray(x, dtype=float) / (BOHR_ANG ** 3)
-# Force
-eV_per_A_to_Eh_per_bohr = lambda x: (np.asarray(x, dtype=float) / HARTREE_eV) * (1.0 / BOHR_ANG)
-# Pressure
-eV_per_A3_to_auP = lambda x: (np.asarray(x, dtype=float) / HARTREE_eV) * (BOHR_ANG ** 3)
-auP_to_Pa = lambda x: np.asarray(x, dtype=float) * AU_PRESSURE_PA
+hbar = physical_constants['Planck constant over 2 pi in eV s'][0]
 
 logger = logger_setup()
-
 
 class PostProcessing:
     """
@@ -102,22 +76,20 @@ class PostProcessing:
         """
         # per-atom volume in Å^3
         V_A3_per_atom = self.traj[0].get_volume() / len(self.traj[0])
-        V_bohr3 = A3_to_bohr3(V_A3_per_atom)
 
         struct = self.determineCrystalStructure()
         logger.info(f"Structure: {struct}")
 
         if struct == "fcc":
-            a_bohr = (4.0 * V_bohr3) ** (1.0 / 3.0)
+            a = (4.0 * V_A3_per_atom) ** (1.0 / 3.0)
         elif struct == "bcc":
-            a_bohr = (2.0 * V_bohr3) ** (1.0 / 3.0)
+            a = (2.0 * V_A3_per_atom) ** (1.0 / 3.0)
         else:
             # fallback: estimate from volume assuming simple cubic
-            a_bohr = (1.0 * V_bohr3) ** (1.0 / 3.0)
+            a = (1.0 * V_A3_per_atom) ** (1.0 / 3.0)
 
-        a_m = float(bohr_to_m(a_bohr))
-        logger.info(f"Lattice constant: {a_m} m (SI)")
-        return a_m
+        logger.info(f"Lattice constant: {a} Å")
+        return a
 
     def computeBulkModulus(self):
         """
@@ -137,7 +109,7 @@ class PostProcessing:
         where energies are in Hartree and lengths in Bohr; V in Bohr^3, P in Eh/a0^3.
         Return the time-average in SI Pascals.
         """
-        internal_pressures_Pa = []
+        internal_pressures_eVA3 = []
         for atoms in self.traj:
             e_kin_eV = atoms.get_kinetic_energy()
             N = len(atoms)
@@ -145,21 +117,16 @@ class PostProcessing:
             forces_eVA = atoms.get_forces()
             positions_A = atoms.get_positions()
 
-            # Convert to atomic units
-            Ekin_Eh = ev_to_hartree(e_kin_eV)
-            V_bohr3 = A3_to_bohr3(V_A3)
-            F_Eh_per_bohr = eV_per_A_to_Eh_per_bohr(forces_eVA)
-            R_bohr = ang_to_bohr(positions_A)
-            sum_rf_Eh = float(np.sum(F_Eh_per_bohr * R_bohr))
 
-            P_au = (1.0 / (3.0 * V_bohr3)) * (2.0 * N * Ekin_Eh + sum_rf_Eh)
-            P_Pa = float(auP_to_Pa(P_au))
-            internal_pressures_Pa.append(P_Pa)
 
-        avg_Pa = float(np.mean(internal_pressures_Pa)) if internal_pressures_Pa else float('nan')
-        avg_GPa = avg_Pa * 1e-9 if np.isfinite(avg_Pa) else float('nan')
-        logger.info(f"Average internal pressure = {avg_GPa} Pa")
-        return avg_GPa
+            sum_rf_Eh = float(np.sum(forces_eVA * positions_A))
+
+            P_eVA3 = (1.0 / (3.0 * V_A3)) * (2.0 * N * e_kin_eV + sum_rf_Eh)
+            internal_pressures_eVA3.append(P_eVA3)
+
+        avg_P = float(np.mean(internal_pressures_eVA3)) if internal_pressures_eVA3 else float('nan')
+        logger.info(f"Average internal pressure = {avg_P} eV/Å3")
+        return avg_P
 
     def computeMSD(self, time=-10, reference=0, return_SI=True):
         # TODO Shouldn't this be some mean value of many of the late snapshots in trajectory
@@ -171,17 +138,15 @@ class PostProcessing:
         r_0 = traj[reference].get_positions()  # Å
 
         r_n = traj[time].get_positions()  # Å
-        # convert to atomic units (Bohr), do calculation in a.u.
-        r0_bohr = ang_to_bohr(r_0)
-        rn_bohr = ang_to_bohr(r_n)
-        msd_bohr2 = float(np.sum((rn_bohr - r0_bohr) ** 2) / N)
-        logger.info(f"MSD (a.u.): {msd_bohr2} a0^2")
+
+        msd = float(np.sum((r_n - r_0) ** 2) / N)
+        logger.info(f"MSD : {msd} Å^2")
         if return_SI:
-            msd_m2 = msd_bohr2 * (BOHR_M ** 2)
+            msd_m2 = msd * (A_TO_M ** 2)
             logger.info(f"MSD (SI): {msd_m2} m^2")
             return msd_m2
         else:
-            return msd_bohr2
+            return msd
 
     def computeLindemannCriterion(self):
         """
@@ -234,42 +199,39 @@ class PostProcessing:
 
         logger.info(f"{timestep_list[0][0]} -------- {timestep_list[-1][0]}")
 
-        # Compute MSD in atomic units (Bohr^2)
-        msd0_bohr2 = self.computeMSD(time=timestep_list[0][1], return_SI=False)
-        msd1_bohr2 = self.computeMSD(time=timestep_list[-1][1], return_SI=False)
-        # Time difference in atomic units
+        # Compute MSD in atomic units
+        msd0 = self.computeMSD(time=timestep_list[0][1], return_SI=False)
+        msd1 = self.computeMSD(time=timestep_list[-1][1], return_SI=False)
+        # Time difference
         t0_ps, t1_ps = timestep_list[0][0], timestep_list[-1][0]
-        dt_s = (t1_ps - t0_ps) * 1e-12
-        dt_au = dt_s / AU_TIME_S
+        dt_fs = (t1_ps - t0_ps) * 1000
 
-        slope_bohr2_per_au = (msd1_bohr2 - msd0_bohr2) / dt_au
-        D_bohr2_per_au = slope_bohr2_per_au / 6.0
+        slope = (msd1 - msd0) / dt_fs
+        D = slope / 6.0
+        logger.info(f"Self-Diffusion Coefficient: {D} A^2/fs")
         # Convert to SI m^2/s
-        D_m2_per_s = D_bohr2_per_au * (BOHR_M ** 2) / AU_TIME_S
+        D_m2_per_s = D * (A_TO_M ** 2) * 1e-15
         logger.info(f"Self-Diffusion Coefficient: {D_m2_per_s} m^2/s")
-        return float(D_m2_per_s)
+        return float(D)
 
     def computeSpecificHeat(self):  # Requires NVT, might implement for NVE as well
 
-        # total energy per frame in eV; convert to Hartree for a.u. computation
+        # total energy per frame in eV
         energy_eV = np.array(
             [atom_frame.get_potential_energy() + atom_frame.get_kinetic_energy() for atom_frame in self.traj])
-        energy_Eh = ev_to_hartree(energy_eV)
         temperature = float(np.mean([atom_frame.get_temperature() for atom_frame in self.traj]))  # K
 
-        e_mean = float(np.mean(energy_Eh))  # [Eh]
-        e_2_mean = float(np.mean(energy_Eh ** 2))  # [Eh^2]
-        # Boltzmann constant in Hartree/K
-        kB_Eh_per_K = kB / HARTREE_eV
-        prefactor = 1.0 / (kB_Eh_per_K * temperature ** 2)  # [1 / (K Eh)]
-        Cv_system_Eh_per_K = prefactor * (e_2_mean - e_mean ** 2)  # [Eh/K]
-        Cv_system_J_per_K = float(hartree_to_j(Cv_system_Eh_per_K))
+        e_mean = float(np.mean(energy_eV))
+        e_2_mean = float(np.mean(energy_eV ** 2))
+        prefactor = 1.0 / (kB * temperature ** 2)
+        Cv_system = prefactor * (e_2_mean - e_mean ** 2)
 
         # Total mass in kg
         total_mass_amu = float(sum(self.traj[0].get_masses()))  # ASE masses in amu
-        mass_kg = total_mass_amu * AMU_TO_KG
 
-        Cv_specific_J_per_kgK = Cv_system_J_per_K / mass_kg
+        Cv_specific_eV_per_AmuK = Cv_system / total_mass_amu
+
+        Cv_specific_J_per_kgK = Cv_specific_eV_per_AmuK * EV_TO_JOULE/ AMU_TO_KG
         logger.info(f"Specific heat capacity: {Cv_specific_J_per_kgK} J/(kg·K)")
         return float(Cv_specific_J_per_kgK)
 
@@ -291,43 +253,35 @@ class PostProcessing:
         else:
             # Θ_D = (ħ/kB) (6π^2 n)^(1/3) vm
             out = self.elastic_properties  # SI Pa
-            G_Pa = out['G_Pa']
-            K_Pa = out['K_Pa'] if np.isfinite(out['K_Pa']) else (3.0 * out['C11_Pa'] - 2.0 * out['C44_Pa']) / 3.0
+            G = out['G']
+            G_Pa = G * EV_PER_A3_TO_PA
+            K = out['K']
+            K_Pa = K * EV_PER_A3_TO_PA
 
-            if K_Pa < 0 or G_Pa < 0:
+            if K < 0 or G < 0:
                 error_log = "Negative pressure during calulation of Debye temperature"
                 logger.error(error_log)
                 raise ValueError(error_log)
 
-            if not (np.isfinite(G_Pa) and np.isfinite(K_Pa)):
+            if not (np.isfinite(G) and np.isfinite(K)):
                 logger.info("Elastic constants not reliable from traj; Debye temperature cannot be computed.")
                 return float('nan')
 
-            # Convert elastic constants to atomic units of pressure
-            G_au = G_Pa / AU_PRESSURE_PA
-            K_au = K_Pa / AU_PRESSURE_PA
 
-            # Density in atomic units (electron masses per Bohr^3)
             V_A3 = np.mean([fr.get_volume() for fr in self.traj])
             if V_A3 is None:
                 V_A3 = float(self.traj[0].get_volume())
-            V_bohr3 = A3_to_bohr3(V_A3)
             mass_u = float(sum(self.traj[0].get_masses()))
-            mass_me = mass_u * AMU_TO_ME
-            rho_au = mass_me / V_bohr3  # m_e / a0^3
+            rho = (mass_u / V_A3) * AMU_TO_KG * 1e30
 
-            # Sound velocities in atomic units (a0 / au_time)
-            vT_au = math.sqrt(G_au / rho_au)
-            vL_au = math.sqrt((K_au + 4.0 * G_au / 3.0) / rho_au)
-            vm_au = ((1.0 / 3.0) * (1.0 / (vL_au ** 3) + 2.0 / (vT_au ** 3))) ** (-1.0 / 3.0)
+            vT = math.sqrt(G_Pa / rho)
+            vL = math.sqrt((K_Pa + 4.0 * G_Pa / 3.0) / rho)
+            vm = ((1.0 / 3.0) * (1.0 / (vL ** 3) + 2.0 / (vT ** 3))) ** (-1.0 / 3.0)
 
-            # Atom number density in a.u. (per Bohr^3)
             N = self.traj[0].get_global_number_of_atoms()
-            n_au = N / V_bohr3
+            n = (N / V_A3) * 1e30
 
-            # In atomic units, ħ = 1; kB in Hartree/K
-            kB_Eh_per_K = kB / HARTREE_eV
-            Theta_D = (1.0 / kB_Eh_per_K) * vm_au * (6.0 * pi ** 2 * n_au) ** (1.0 / 3.0)
+            Theta_D = (hbar / kB) * vm * (6.0 * np.pi ** 2 * n) ** (1.0 / 3.0)
             logger.info(f"Debye temperature: {Theta_D} K")
             return float(Theta_D)
 
@@ -350,16 +304,14 @@ class PostProcessing:
             sig_eVA3 = _stressEVA3FromInfo(fr)
             if sig_eVA3 is None:
                 continue
-            # convert stress to atomic units (Eh/a0^3)
-            sig_au = eV_per_A3_to_auP(sig_eVA3)
             eps = _smallStrainFromCells(ref, fr)
 
             e_xx, e_yy, e_zz = eps[0, 0], eps[1, 1], eps[2, 2]
             e_xy, e_xz, e_yz = eps[0, 1], eps[0, 2], eps[1, 2]
             g_xy, g_xz, g_yz = 2 * e_xy, 2 * e_xz, 2 * e_yz
 
-            s_xx, s_yy, s_zz = sig_au[0], sig_au[1], sig_au[2]
-            s_yz, s_xz, s_xy = sig_au[3], sig_au[4], sig_au[5]
+            s_xx, s_yy, s_zz = sig_eVA3[0], sig_eVA3[1], sig_eVA3[2]
+            s_yz, s_xz, s_xy = sig_eVA3[3], sig_eVA3[4], sig_eVA3[5]
 
             # D pairs
             x_D.extend([e_xx - e_yy, e_yy - e_zz, e_zz - e_xx])
@@ -393,48 +345,50 @@ class PostProcessing:
             m = np.dot(x2, y2) / np.dot(x2, x2)
             return float(m)
 
-        D_au = slopeFiltered(x_D, y_D)
-        S_3_au = slopeFiltered(x_S, y_S)
-        S_3_au = S_3_au * 3.0 if np.isfinite(S_3_au) else float('nan')
+        D = slopeFiltered(x_D, y_D)
+        S_3 = slopeFiltered(x_S, y_S)
+        S_3 = S_3 * 3.0 if np.isfinite(S_3) else float('nan')
 
-        C44_xy_au = slopeFiltered(x_xy, y_xy)
-        C44_xz_au = slopeFiltered(x_xz, y_xz)
-        C44_yz_au = slopeFiltered(x_yz, y_yz)
+        C44_xy = slopeFiltered(x_xy, y_xy)
+        C44_xz = slopeFiltered(x_xz, y_xz)
+        C44_yz = slopeFiltered(x_yz, y_yz)
 
-        C44s_au = [v for v in [C44_xy_au, C44_xz_au, C44_yz_au] if np.isfinite(v)]
-        C44_au = float(np.mean(C44s_au)) if C44s_au else float('nan')
+        C44s = [v for v in [C44_xy, C44_xz, C44_yz] if np.isfinite(v)]
+        C44 = float(np.mean(C44s)) if C44s else float('nan')
 
-        if np.isfinite(S_3_au) and np.isfinite(D_au):
-            C11_au = (S_3_au + 2.0 * D_au) / 3.0
-            C12_au = (S_3_au - D_au) / 3.0
-            K_au = S_3_au / 3.0
+        if np.isfinite(S_3) and np.isfinite(D):
+            C11 = (S_3 + 2.0 * D) / 3.0
+            C12 = (S_3 - D) / 3.0
+            K = S_3 / 3.0
         else:
-            C11_au = C12_au = K_au = float('nan')
+            C11 = C12 = K = float('nan')
 
         # VRH shear modulus
-        if np.isfinite(D_au) and np.isfinite(C44_au):
-            G_V_au = (D_au + 3.0 * C44_au) / 5.0
-            denom = 4.0 * C44_au + 3.0 * D_au
+        if np.isfinite(D) and np.isfinite(C44):
+            G_V = (D + 3.0 * C44) / 5.0
+            denom = 4.0 * C44 + 3.0 * D
             if denom != 0:
-                G_R_au = 5.0 * D_au * C44_au / denom
-                G_au = 0.5 * (G_V_au + G_R_au) if np.isfinite(G_R_au) else G_V_au
+                G_R = 5.0 * D * C44 / denom
+                G = 0.5 * (G_V + G_R) if np.isfinite(G_R) else G_V
             else:
-                G_au = G_V_au
+                G = G_V
         else:
-            G_au = C44_au
+            G = C44
 
+        """
         # Convert to SI Pa
-        C11_Pa = float(auP_to_Pa(C11_au)) if np.isfinite(C11_au) else float('nan')
-        C12_Pa = float(auP_to_Pa(C12_au)) if np.isfinite(C12_au) else float('nan')
-        C44_Pa = float(auP_to_Pa(C44_au)) if np.isfinite(C44_au) else float('nan')
-        K_Pa = float(auP_to_Pa(K_au)) if np.isfinite(K_au) else float('nan')
-        G_Pa = float(auP_to_Pa(G_au)) if np.isfinite(G_au) else float('nan')
+        C11_Pa = float(C11) if np.isfinite(C11) else float('nan')
+        C12_Pa = float(C12) if np.isfinite(C12) else float('nan')
+        C44_Pa = float(C44) if np.isfinite(C44) else float('nan')
+        K_Pa = float(K) if np.isfinite(K) else float('nan')
+        G_Pa = float(G) if np.isfinite(G) else float('nan')
+        """
 
         return {
-            'C11_Pa': C11_Pa, 'C12_Pa': C12_Pa, 'C44_Pa': C44_Pa, 'K_Pa': K_Pa, 'G_Pa': G_Pa,
-            'C44_xy_Pa': float(auP_to_Pa(C44_xy_au)) if np.isfinite(C44_xy_au) else float('nan'),
-            'C44_xz_Pa': float(auP_to_Pa(C44_xz_au)) if np.isfinite(C44_xz_au) else float('nan'),
-            'C44_yz_Pa': float(auP_to_Pa(C44_yz_au)) if np.isfinite(C44_yz_au) else float('nan')
+            'C11': C11, 'C12': C12, 'C44': C44, 'K': K, 'G': G,
+            'C44_xy': float(C44_xy) if np.isfinite(C44_xy) else float('nan'),
+            'C44_xz': float(C44_xz) if np.isfinite(C44_xz) else float('nan'),
+            'C44_yz': float(C44_yz) if np.isfinite(C44_yz) else float('nan')
         }
 
     def determineCrystalStructure(self):
@@ -574,12 +528,12 @@ def _smallStrainFromCells(ref, cur):
     C_ref = ref.cell.array
     C_cur = cur.cell.array
     A_ref = C_ref.T
-    # logger.info(f"A_ref: {A_ref} \n")
+    #logger.info(f"A_ref: {A_ref} \n")
     A_cur = C_cur.T
-    # logger.info(f"A_cur: {A_cur} \n")
-    # logger.info(f"INV : {np.linalg.inv(A_ref)} \n")
+    #logger.info(f"A_cur: {A_cur} \n")
+    #logger.info(f"INV : {np.linalg.inv(A_ref)} \n")
     F = A_cur @ np.linalg.inv(A_ref)
-    # logger.info(f"F: {F} \n")
+    #logger.info(f"F: {F} \n")
     eps = 0.5 * (F + F.T) - np.eye(3)
     return eps
 
