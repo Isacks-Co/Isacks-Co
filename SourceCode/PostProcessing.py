@@ -14,6 +14,8 @@ from ase.neighborlist import NeighborList, natural_cutoffs, build_neighbor_list
 from ase.units import Bohr, kB, Hartree
 from ase.visualize import view
 from scipy.constants import pi, k, physical_constants
+from ase.calculators.emt import EMT
+
 
 # Common conversions
 EV_PER_A3_TO_GPA = 160.21766208
@@ -72,55 +74,26 @@ class PostProcessing:
 
     def computeCohesiveEnergy(self, discard_fraction: float = 0.2, return_unit: str = "J_per_atom") -> float:
         """
-        Estimate cohesive energy per atom using only simulation data (no external calculator).
-        Principle (harmonic solid): U(T) = U0 + K(T) ⇒ U0 = U(T) − K(T).
-        If the potential zero is at infinite separation (true for common MD potentials),
-        E_coh = −U0/N = K/N − U/N.
-
-        Internals use atomic units (Hartree); returns SI Joules per atom by default.
-
-        Parameters
-        ----------
-        discard_fraction : float
-            Fraction of initial frames to discard as transient (default 0.2).
-        return_unit : str
-            "J_per_atom" (default) or "eV_per_atom".
+        Calculate the cohesive energy per atom.
         """
 
-        pot_list = []
-        kin_list = []
-        N = len(self.traj[0])
-        for snapshot in self.traj:
-            try:
-                pot_list.append(float(snapshot.get_potential_energy()) / N)
-                kin_list.append(float(snapshot.get_kinetic_energy()) / N)
-            except Exception:
-                logger.error("Could not acquire energy per atom for the cohesive energy")
-                raise RuntimeError("Could not acquire energy per atom for the cohesive energy")
-        Epot_per_atom_eV = np.asarray(pot_list, dtype=float)
-        Ekin_per_atom_eV = np.asarray(kin_list, dtype=float)
+        calc = EMT()
+        for j in range(len(self.traj[0])):
+            atom = Atoms(self.traj[0].get_chemical_symbols()[j], positions=[[0, 0, 0]], cell=[10, 10, 10], pbc=False)
+            atom.calc = calc
+            e_atom = atom.get_potential_energy()
+            logger.info(f"Isolated atom energy: {e_atom} eV")
+        e_coh_list = []
+        for i in range(len(self.traj)):
+            e_bulk = self.traj[i].get_potential_energy()
+            logger.info(f"Bulk energy: {e_bulk} eV")
+            number = self.traj[i].get_global_number_of_atoms()
+            e_coh_list.append(e_atom - e_bulk/number)
 
-        # Discard an initial fraction to avoid transients
-        start = int(round(discard_fraction * Epot_per_atom_eV.size)) if Epot_per_atom_eV.size > 5 else 0
-        EpotN_eV = Epot_per_atom_eV[start:]
-        EkinN_eV = Ekin_per_atom_eV[start:]
+        e_coh_mean = np.mean(e_coh_list)
+        logger.info(f"Cohesive energy: {e_coh_mean} eV")
+        return e_coh_mean
 
-        # Convert to atomic units and compute per-frame cohesive energy estimates
-        EpotN_Eh = ev_to_hartree(EpotN_eV)
-        EkinN_Eh = ev_to_hartree(EkinN_eV)
-        Ecoh_Eh_per_atom_series = EkinN_Eh - EpotN_Eh  # = -U0/N in Eh
-
-        # Average and convert at return
-        Ecoh_Eh_per_atom = float(np.mean(Ecoh_Eh_per_atom_series))
-        Ecoh_eV_per_atom = float(Ecoh_Eh_per_atom * HARTREE_eV)
-        Ecoh_J_per_atom = float(hartree_to_j(Ecoh_Eh_per_atom))
-
-        logger.info(f"Cohesive energy (from simulation): {Ecoh_eV_per_atom} eV/atom ≈ {Ecoh_J_per_atom} J/atom")
-
-        if return_unit == "eV_per_atom":
-            return Ecoh_eV_per_atom
-        else:
-            return Ecoh_J_per_atom
 
     def computeLatticeConstant(self) -> float:
         """
