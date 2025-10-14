@@ -375,15 +375,6 @@ class PostProcessing:
         else:
             G = C44
 
-        """
-        # Convert to SI Pa
-        C11_Pa = float(C11) if np.isfinite(C11) else float('nan')
-        C12_Pa = float(C12) if np.isfinite(C12) else float('nan')
-        C44_Pa = float(C44) if np.isfinite(C44) else float('nan')
-        K_Pa = float(K) if np.isfinite(K) else float('nan')
-        G_Pa = float(G) if np.isfinite(G) else float('nan')
-        """
-
         return {
             'C11': C11, 'C12': C12, 'C44': C44, 'K': K, 'G': G,
             'C44_xy': float(C44_xy) if np.isfinite(C44_xy) else float('nan'),
