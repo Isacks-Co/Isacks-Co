@@ -56,11 +56,9 @@ class PostProcessing:
             atom = Atoms(self.traj[0].get_chemical_symbols()[j], positions=[[0, 0, 0]], cell=[10, 10, 10], pbc=False)
             atom.calc = calc
             e_atom = atom.get_potential_energy()
-            logger.info(f"Isolated atom energy: {e_atom} eV")
         e_coh_list = []
         for i in range(len(self.traj)):
             e_bulk = self.traj[i].get_potential_energy()
-            logger.info(f"Bulk energy: {e_bulk} eV")
             number = self.traj[i].get_global_number_of_atoms()
             e_coh_list.append(e_atom - e_bulk/number)
 
@@ -97,10 +95,8 @@ class PostProcessing:
         Returns bulk modulus in Pascals (SI). Only works if purposeful distortion is introduced in the simulation.
         """
         elastic_properties = self.elastic_properties
-        logger.info(f"Elasticity properties (SI): {elastic_properties}")
-        K_Pa = elastic_properties.get('K_Pa', float('nan'))
-        logger.info(f"Bulk modulus: {K_Pa} Pa ({K_Pa * 1e-9 if np.isfinite(K_Pa) else float('nan')} GPa)")
-        return float(K_Pa)
+        K = elastic_properties['K']
+        return float(K)
 
     def computeInternalPressure(self):
         """
@@ -197,8 +193,6 @@ class PostProcessing:
                 timestep = i * self.settings["Timestep"] * self.settings["Interval"]
                 timestep_list.append([timestep, i])
 
-        logger.info(f"{timestep_list[0][0]} -------- {timestep_list[-1][0]}")
-
         # Compute MSD in atomic units
         msd0 = self.computeMSD(time=timestep_list[0][1], return_SI=False)
         msd1 = self.computeMSD(time=timestep_list[-1][1], return_SI=False)
@@ -256,6 +250,7 @@ class PostProcessing:
             G = out['G']
             G_Pa = G * EV_PER_A3_TO_PA
             K = out['K']
+            logger.info(f"Bulk modulus = {K * EV_PER_A3_TO_GPA} GPa")
             K_Pa = K * EV_PER_A3_TO_PA
 
             if K < 0 or G < 0:
