@@ -7,6 +7,7 @@ from ase.io.trajectory import Trajectory
 from ase.md.velocitydistribution import MaxwellBoltzmannDistribution,Stationary, ZeroRotation
 from ase.units import fs, GPa
 import logging
+from LJRegistry import LJParams, calcMaxRc
 from simulationInput import SimulationSettings
 from potentialSetUp import Potential
 
