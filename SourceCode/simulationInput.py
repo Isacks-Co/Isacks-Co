@@ -136,6 +136,6 @@ class NPTSettings(SimulationSettings):
 
 if __name__ == "__main__":
     settings = NPTSettings(timestep=5,num_steps=250,potential="EMT",temperature=200,pressure=20,interval=2,compressibility=1)
-   
+
 
 
