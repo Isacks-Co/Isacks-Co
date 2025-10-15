@@ -12,7 +12,7 @@
   "Compressibility": 1e-7,
 
   "Supercells": [3,3,3],
-  "Output_file" : "Outputs/output"
+  "Output_file" : "../Outputs/output"
 
 
 

@@ -19,6 +19,15 @@ class SimulationSettings:
         self.potential = potential
         self.output_file = output_file
         self.supercells = supercells
+    def __str__(self):
+        return (
+            f"Timestep: {self.timestep} fs \n"
+            f"Number of steps: {self.num_steps} \n"
+            f"Sample interval: {self.sample_interval}  \n"
+            f"Number potential: {self.potential} \n"
+            f"Output path: {self.output_file} \n"
+            f"Supercells: {self.supercells}\n"
+        )
         
 
 class NVESettings(SimulationSettings):
@@ -47,11 +56,11 @@ class NVESettings(SimulationSettings):
         return "NVE"
 
     def __str__(self):
+        parent_string = super().__str__()
         return (
             f"Ensemble: {self.ensemble} \n"
-            f"Potential : {self.potential} \n"
-            f"Timestep: {self.timestep} fs  \n"
-            f"Number of steps: {self.num_steps} \n"
+            f"Initial temperature: {self.initial_temperature} K \n"
+            f"{parent_string}\n"
         )
 
 
@@ -83,12 +92,12 @@ class NVTSettings(SimulationSettings):
         return "NVT"
 
     def __str__(self):
+        parent_string = super().__str__()
         return (
             f"Ensemble: {self.ensemble} \n"
-            f"Potential : {self.potential} \n"
             f"Temperature: {self.temperature} K\n"
-            f"Timestep: {self.timestep} fs \n"
-            f"Number of steps : {self.num_steps} \n"
+            f"Friction: {self.friction}\n"
+            f"{parent_string} \n"
         )
 
 
@@ -122,13 +131,14 @@ class NPTSettings(SimulationSettings):
         return "NPT"
 
     def __str__(self):
+        parent_string = super().__str__()
         return (
             f"Ensemble: {self.ensemble} \n"
-            f"Potential : {self.potential} \n"
+            f"Compressibility : {self.compressibility} \n"
             f"Temperature: {self.temperature} K\n"
             f"Pressure: {self.pressure} Pa \n"
-            f"Timestep: {self.timestep} fs \n"
-            f"Number of steps : {self.num_steps} \n"
+            f"{parent_string} \n"
+
         )
 
 

@@ -28,7 +28,6 @@ class PreProcessing:
         #Physical check of the input
         self.sanityCheckAtomicStructure()
         self.sanityCheckSettings()
-        self.printInput()
         
 
     def readSettings(self, input_settings):
@@ -40,7 +39,7 @@ class PreProcessing:
         except FileNotFoundError:
             log.error("Settings file not found: %s", input_settings)
             raise FileNotFoundError(f"File {input_settings} not found, please check it exists")
-        for key, value in temp_settings.items():
+        for key in temp_settings.keys():
             if not key in self.argparser.args.keys():
                 log.error("Got unexpected setting input: %s", key)
                 raise ValueError(f"Got unexpected setting input: {key}")
@@ -66,19 +65,14 @@ class PreProcessing:
         except FileNotFoundError:
             log.error("Structure file not found: %s", input_structure)
             raise FileNotFoundError(f"File {input_structure} not found, please check it exists")
-        except Exception as err:
-            error_msg = f"Atomic structure file format could not be read {err}"
+        except Exception:
+            error_msg = f"Atomic structure file format could not be read"
             log.error(error_msg)
             raise RuntimeError(error_msg)
 
-    def printInput(self):
-        """Print out all settings to the terminal for validation"""
-        for key, value in self.settings.items():
-            log.info(f"{key} : {value}")
-        log.info(f"Number of atoms: {len(self.atoms)}")
 
     def createSettings(self):
-        log.info("Creating Settings object for ensemble: %s", self.settings["Ensemble"])
+        log.debug("Creating Settings object for ensemble: %s", self.settings["Ensemble"])
         match self.settings["Ensemble"]:
             case "NVE":
                 
@@ -112,8 +106,9 @@ class PreProcessing:
         """
         if self.settings["Potential"] == "EMT":
             elements = self.atoms.get_atomic_numbers()
+            log.info(f"Elements: {elements}")
             if not np.all(np.isin(elements,[13, 28, 29, 46, 47, 78, 79])): # Check if the elements are supported for EMT potential
-                raise ValueError(f"Invalid potential: EMT potential only availible for Al, Cu, Ag, Au, Ni, Pd, Pt.")
+                raise ValueError(f"Invalid potential: EMT potential only available for Al, Cu, Ag, Au, Ni, Pd, Pt.")
         if self.settings["Temperature"] > 3000:
             raise ValueError(f"Invalid temperature: Exceeds 3000K")
         elif self.settings["Temperature"] < 0:
