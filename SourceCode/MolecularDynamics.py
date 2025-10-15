@@ -1,26 +1,26 @@
 import sys
-from SourceCode.PreProcessing import PreProcessing
-from SourceCode.MDBase import MDBase
-from SourceCode.PostProcessing import PostProcessing
-from SourceCode.logger import logger_setup
+from PreProcessing import PreProcessing
+from MDBase import MDBase
+from PostProcessing import PostProcessing
+import logging
 
 
 if __name__ == "__main__":
-    log = logger_setup()
 
 
     # Clear previous simulation outputs to ensure a clean run
 
     try:
-        log.info("Reading settings and setting atomic structures ")
+        
         PP = PreProcessing(sys.argv)
         settings = PP.createSettings()
+        log = logging.getLogger(__name__)
         log.info("Setting ensemble: %s and passing relevant parameters", PP.settings['Ensemble'])
-
+        
     except Exception as err:
         log.error(f"Preprocessing failed: {err}") #should probably add the err, here instead
         exit(1)
-
+    
     try:
         MD = MDBase(settings)
         MD.runMD(PP.atoms)
@@ -31,8 +31,8 @@ if __name__ == "__main__":
     try:
         trajectory_file = PP.settings["Output_file"] + ".traj"
         data_log_file = PP.settings["Output_file"] + ".log"
-        PostViz = PostProcessing(settings, poscar, trajectory_file, data_log_file) # (TODO) Hardcoded but settings.json will contain file name
-        PostViz.vizualize()
+       # PostViz = PostProcessing(settings, poscar, trajectory_file, data_log_file) # (TODO) Hardcoded but settings.json will contain file name
+        #PostViz.vizualize()
     except Exception as err:
         log.error(f"Postprocessing failed: {err}")
         exit(1)
