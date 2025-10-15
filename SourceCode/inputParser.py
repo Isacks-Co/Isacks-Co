@@ -7,6 +7,7 @@ from logger import loggerSetup
 import logging
 
 class SingleMetavarHelpFormatter(argparse.HelpFormatter):
+    """Formatter to only get one metavar"""
     def _format_action_invocation(self, action):
         if not action.option_strings:
             return super()._format_action_invocation(action)
@@ -33,7 +34,6 @@ class InputParser():
         self.args = vars(self.argparser.parse_args(args[1:]))
         
         loggerSetup(self.args["debug"])
-        log = logging.getLogger(__name__)
 
         
 
@@ -65,9 +65,8 @@ class InputParser():
                 return value
             else:
                   raise argparse.ArgumentTypeError("Input must be a list")
-        except Exception as e:
-            raise argparse.ArgumentTypeError(f"Invalid list: {e}")
-    
+        except Exception:
+            raise argparse.ArgumentTypeError(f"Invalid list: {arg}")
 if __name__ == "__main__":
     parser = InputParser()
     args = parser.argparser.parse_args()
