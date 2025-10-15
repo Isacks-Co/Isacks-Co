@@ -1,7 +1,6 @@
 import json
 import sys
 
-from MDBase import MDBase
 from ase.io import read
 from ase.lattice.cubic import FaceCenteredCubic
 import numpy as np
