@@ -159,7 +159,7 @@ class MDBase:
 
 
     def equilibriumRun(self, atoms):
-        equilibrium_steps = 20000
+        equilibrium_steps = 50000
         dyn_eq = self.integrator(atoms=atoms)
 
          #dyn_eq.attach(lambda: self.checkConvergence(atoms), interval=max(1, int(1 / self.timestep)))
@@ -167,7 +167,8 @@ class MDBase:
           #  f"Starting equilibrium run with {self.ensemble} Ensemble to reach desired temperature of {self.temperature_k} K")
 
         try:
-            dyn_eq.run(int(equilibrium_steps))
+            dyn_eq.run(equilibrium_steps)
+
             current_T = atoms.get_temperature()
             log.info(f"Systems temperature is {round(current_T, 2)} K after {equilibrium_steps} steps")
 
@@ -206,7 +207,7 @@ class MDBase:
         log.info("MD run starts with: %i steps", self.steps)
         dyn = self.integrator(atoms=atoms)
 
-        traj = Trajectory(filename=f"../{self.output_file}.traj", mode="w", atoms=atoms) ## currently have .. before
+        traj = Trajectory(filename=f"{self.output_file}.traj", mode="w", atoms=atoms) ## currently have .. before
 
         # Custom calculation function
         def save_custom_data():
