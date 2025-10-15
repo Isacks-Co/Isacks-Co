@@ -6,8 +6,7 @@ from ase.md.velocitydistribution import MaxwellBoltzmannDistribution
 from ase.units import fs, GPa
 from ase.visualize import view
 import logging
-from SourceCode.simulationInput import SimulationSettings
-from SourceCode.LJRegistry import LJParams, calcMaxRc
+from LJRegistry import LJParams, calcMaxRc
 from simulationInput import SimulationSettings
 
 log = logging.getLogger(__name__)
@@ -50,11 +49,6 @@ class MDBase:
         #Integrator and potential
         self.integrator = self.getIntegrator(self.ensemble)
         self.potential = self.getPotential(settings.potential)
-
-
-
-
-
 
 
 
@@ -162,41 +156,28 @@ class MDBase:
             log.error("Invalid Integrator function: %s", integrator)  ##
             raise ValueError(f"Invalid integrator: {integrator}")
 
-    def getAttachment(self, attachments):
-        pos_attachments = {'energy': self.printEnergy,
-                           "momenta": self.printMomentum,
-                           "center_of_mass": self.printCenterOfMass,
-                           "lattice": self.printLatticeConstants}
 
-        for a in attachments:
-            if a not in pos_attachments.keys():
-                raise ValueError(f"Invalid attachment: {a}")
-
-
-        return [pos_attachments[a] for a in attachments]
 
     def equilibriumRun(self, atoms):
-
+        equilibrium_steps = 20000
         dyn_eq = self.integrator(atoms=atoms)
-        self.equil_mode = True
 
-        dyn_eq.attach(lambda: self.checkConvergence(atoms), interval=max(1, int(1 / self.timestep)))
-        log.info(
-            f"Starting equilibrium run with {self.ensemble} Ensemble to reach desired temperature of {self.temperature_k} K")
+         #dyn_eq.attach(lambda: self.checkConvergence(atoms), interval=max(1, int(1 / self.timestep)))
+        #log.info(
+          #  f"Starting equilibrium run with {self.ensemble} Ensemble to reach desired temperature of {self.temperature_k} K")
 
         try:
-            dyn_eq.run(int(self.equilibrium_steps))
-
+            dyn_eq.run(int(equilibrium_steps))
             current_T = atoms.get_temperature()
-            log.info(f"Systems temperature is {round(current_T, 2)} K after {self.equilibrium_steps} steps")
+            log.info(f"Systems temperature is {round(current_T, 2)} K after {equilibrium_steps} steps")
 
         except RuntimeError as e:
-            # Python 3.7+ translaterar StopIteration->RuntimeError inuti generatorer (PEP 479)
+            # pep 437 problem
             if "generator raised StopIteration" in str(e):
                 log.info(
                     f"Equilibrium reached early (observer signaled StopIteration) at T = {round(atoms.get_temperature(), 2)}.")
             else:
-                raise RunTimeError(e)
+                raise RuntimeError(e)
 
         except StopIteration as ok:
             log.info(f"Equilibrium reached early: {ok}")
@@ -205,7 +186,6 @@ class MDBase:
             log.warning(f"Equilibrium aborted due to instability: {err}")
 
         finally:
-            self.equil_mode = False
             self.quantity_list = []
 
     def runMD(self, atoms):
@@ -226,7 +206,7 @@ class MDBase:
         log.info("MD run starts with: %i steps", self.steps)
         dyn = self.integrator(atoms=atoms)
 
-        traj = Trajectory(filename=f"{self.output_file}.traj", mode="w", atoms=atoms)
+        traj = Trajectory(filename=f"../{self.output_file}.traj", mode="w", atoms=atoms) ## currently have .. before
 
         # Custom calculation function
         def save_custom_data():
@@ -237,18 +217,12 @@ class MDBase:
 
         dyn.attach(save_custom_data, interval=self.interval)
 
-        for a in self.attachments:
-            dyn.attach(functools.partial(a, atoms=atoms),
-                       interval=self.interval)  # Attach the different functions for printing
+        #for a in self.attachments:
+         #   dyn.attach(functools.partial(a, atoms=atoms),
+         #              interval=self.interval)  # Attach the different functions for printing
 
         dyn.attach(traj.write, interval=self.interval)
 
-
-
-
-        logger = MDLogger(dyn, atoms=atoms, logfile=f"{self.output_file}.log",
-                          header=True, peratom=True, mode='a')  # Create a logger for writing data
-        dyn.attach(logger, interval=self.interval)  # Attach logger
         dyn.attach(lambda: self.checkDivergence(atoms),
                    interval=self.interval)  # TODO Possibly include checkConvergence here?
         #"""
@@ -294,53 +268,19 @@ class MDBase:
         dyn.run(self.steps)  # RUN
         traj.close()  # Explicitly close the trajectory
 
-    def printEnergy(self, atoms):
-        epot = atoms.get_potential_energy() / len(atoms)
-        ekin = atoms.get_kinetic_energy() / len(atoms)
-        etot = (epot + ekin)
-        T = float(atoms.get_temperature())
 
-        print(f"E_pot/atom={epot:.5f}  E_kin/atom={ekin:.5f}  E_tot/atom={etot:.5f}  T={T:.1f} K")
-
-    def printMomentum(self, atoms):
-        momenta = atoms.get_momenta()
-        T = float(atoms.get_temperature())
-        print(f"momenta: {momenta}  T={T:.1f} K")
-
-    def printCenterOfMass(self, atoms):
-        momenta = atoms.get_center_of_mass()
-        print(f"Center of mass: {momenta}")
-
-    def printLatticeConstants(self, atoms):
-        print("Lattice: ", atoms.cell.cellpar())
-
-    def visualizeTraj(self):
-        traj = Trajectory("data.traj")
-        view(traj)
 
     def checkConvergence(self, atoms):
         self._updateQuantityList(atoms)
         if len(self.quantity_list) > 150 and not self.checkInstability(self.quantity_list):
-            if self.equil_mode:
-                match self.ensemble:
-                    case "NVE":
-                            raise StopIteration(f"Converged: E = {(atoms.get_potential_energy() + atoms.get_kinetic_energy()) / len(atoms):.2f} ev/atom")
-                    case "NVT":
-                            raise StopIteration(f"Converged: T = {atoms.get_temperature():.2f} K")
-                    case "NPT":
-                            raise StopIteration(f"Converged: T = {atoms.get_temperature():.2f} K")
+            match self.ensemble:
+                case "NVE":
+                        raise StopIteration(f"Converged: E = {(atoms.get_potential_energy() + atoms.get_kinetic_energy()) / len(atoms):.2f} ev/atom")
+                case "NVT":
+                        raise StopIteration(f"Converged: T = {atoms.get_temperature():.2f} K")
+                case "NPT":
+                        raise StopIteration(f"Converged: T = {atoms.get_temperature():.2f} K")
 
-        # if len(quantity_list) > 1:
-        #     recent = quantity_list[-window:]
-        #     # Specifically for the equil run, to stop iterating when at the target temperature for ~5 iterations or more
-        #     if self.ensemble != "NVE":
-        #         lastN = recent[-7:]
-        #         if (self.equil_mode and len(recent) >= 7):
-        #             nb_in_tolerance = sum(abs(x - self.temperature_k) <= temperature_tol for x in lastN)
-        #             if nb_in_tolerance >= 5:
-        #                 raise StopIteration(
-        #                     f"Target T reached: stopping at T = {atoms.get_temperature():.2f} K  "
-        #                 )
 
     def checkDivergence(self, atoms):
         """
@@ -362,15 +302,14 @@ class MDBase:
         Output: Bool
         """
         window = 10
-        if self.equil_mode:
-            tol_temp = self.temperature_k * 0.05
-        else:
-            tol_temp = self.temperature_k * 0.10
         tol_energy_percentage = 0.05
+        tol_temp = self.temperature_k * 0.10
         nb_outside_tolerance = 0
         threshold = 100000000 # needs to be large number
+
         if len(data_buffer) <= 1:
             return False
+
         match self.ensemble:
             case "NVT" | "NPT":
                 lastN = data_buffer[-window:]
@@ -386,21 +325,21 @@ class MDBase:
                 nb_outside_tolerance = int(np.sum(np.abs(lastN - mean_energy) >= energy_tol))
                 threshold = max(3, int(np.ceil(0.3 * num_points))) # 3 points must be outside of tolerance to trigger
                 # Compares the number of points that are outside the threshold and returns True if they are
-        if not self.equil_mode:
-            if (nb_outside_tolerance >= threshold):
-                log.warning(
-                    f"Energy oscillates heavily — {nb_outside_tolerance}/{num_points} points outside tolerance"
-                )
-                return False
-            if 12 < nb_outside_tolerance < 15:
-                # Print warning in log, continues the run
-                log.warning("Warning temperature oscillates.")
-            if (nb_outside_tolerance >= 15):
-                log.warning("Temperature oscillates heavily, cancelling run.")
-                return True
-        else:
-            return (not nb_outside_tolerance > 10)
-        return False
+
+        if (nb_outside_tolerance >= threshold):
+            log.warning(
+                f"Energy oscillates heavily — {nb_outside_tolerance}/{num_points} points outside tolerance"
+            )
+            return False
+        if 12 < nb_outside_tolerance < 15:
+            # Print warning in log, continues the run
+            log.warning("Warning temperature oscillates.")
+        if (nb_outside_tolerance >= 15):
+            log.warning("Temperature oscillates heavily, cancelling run.")
+            return True
+        #else:
+        #    return (not nb_outside_tolerance > 10)
+        #return False
 
     def _updateQuantityList(self, atoms):
         """
