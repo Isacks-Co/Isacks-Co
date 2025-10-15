@@ -107,8 +107,9 @@ class PreProcessing:
         """
         if self.settings["Potential"] == "EMT":
             elements = self.atoms.get_atomic_numbers()
+            log.info(f"Elements: {elements}")
             if not np.all(np.isin(elements,[13, 28, 29, 46, 47, 78, 79])): # Check if the elements are supported for EMT potential
-                raise ValueError(f"Invalid potential: EMT potential only availible for Al, Cu, Ag, Au, Ni, Pd, Pt.")
+                raise ValueError(f"Invalid potential: EMT potential only available for Al, Cu, Ag, Au, Ni, Pd, Pt.")
         if self.settings["Temperature"] > 3000:
             raise ValueError(f"Invalid temperature: Exceeds 3000K")
         elif self.settings["Temperature"] < 0:
