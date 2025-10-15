@@ -58,12 +58,10 @@ class QuantityCalculator:
 
     #### CALCULATE ALL QUANTITIES
 
-    def computeMSD(self, time=-10, reference=0):
-        # TODO Shouldn't this be some mean value of many of the late snapshots in trajectory
+    def computeMSD(self, frame, reference=0):
         
-
         r_0 = self.traj[reference].get_positions()  # Å
-        r_n = self.traj[time].get_positions()  # Å
+        r_n = self.traj[frame].get_positions()  # Å
         
         msd = np.mean((r_0 - r_n) ** 2)
         logger.debug(f"MSD: {msd} Å^2")

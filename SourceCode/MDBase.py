@@ -165,7 +165,9 @@ class MDBase:
          #dyn_eq.attach(lambda: self.checkConvergence(atoms), interval=max(1, int(1 / self.timestep)))
         #log.info(
           #  f"Starting equilibrium run with {self.ensemble} Ensemble to reach desired temperature of {self.temperature_k} K")
-
+        equil_traj = Trajectory(filename=f"../Outputs/equil_output_file.traj", mode="w", atoms=atoms) ## currently have .. before
+        dyn_eq.attach(lambda : self.compute_energies(atoms), interval = 20)
+        dyn_eq.attach(equil_traj.write, interval=20)
         try:
             dyn_eq.run(equilibrium_steps)
 
@@ -269,6 +271,11 @@ class MDBase:
         dyn.run(self.steps)  # RUN
         traj.close()  # Explicitly close the trajectory
 
+    def compute_energies(self, atoms):
+        atoms.get_potential_energy()
+        atoms.get_kinetic_energy()
+        atoms.get_total_energy()
+        atoms.get_forces()
 
 
     def checkConvergence(self, atoms):
