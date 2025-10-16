@@ -126,7 +126,9 @@ class MDBase:
 
 
 
-    def runMD(self, atoms):
+
+
+    def runMD(self, atoms): #TODO Needs better comments
         """
         In: 
             Atoms: ase Atoms object representing the crystal structure
