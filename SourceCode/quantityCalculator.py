@@ -1,119 +1,177 @@
-<<<<<<< HEAD
-from ase.io.trajectory import Trajectory
 from simulationInput import SimulationSettings
+from unitConversions import AuToGPascal,specificHeatAuToSI,selfDiffusionCoeffAuToSI
+
+from ase.io.trajectory import Trajectory
+from ase import Atoms
 from ase.neighborlist import NeighborList, natural_cutoffs
+from ase.calculators.emt import EMT
+from ase.units import kB
+
 import numpy as np
 import logging
 
 logger = logging.getLogger(__name__)
 
 class QuantityCalculator:
-
+    """
+    Object for handling computation of quantities. 
+    In:
+    settings: A SimulationSettings object containing information regarding the relevan MD run
+                such as ensemble, temperature ....
+    traj: Trajectory object with the data from each frame in the MD run. Each frame has data such as temperatures, energies and forces. 
+    
+    """
     def __init__(self,settings: SimulationSettings, traj : Trajectory):
         self.traj = traj
-=======
-from .simulationInput import SimulationSettings
-
-import numpy as np
-from ase.units import kB
-from ase.io.trajectory import Trajectory
-
-class QuantityCalculator:
-
-    def __init__(self,settings: SimulationSettings):
-        self.traj = Trajectory(f"{settings.output_file}.traj")
->>>>>>> 4f1c190 (Refactored some stuff)
         self.settings = settings
-
+        self.structure_name = self.traj[0].info["comment"]
 
     def getQuantities(self):
+        """
+        Compute all relevant quantities for the given ensemble 
+        and write them to a txt file
+        """
         # Compute all general quantities
-        # Cohesive Energy
-        # Internal pressure
-        # MSD
-        # Lindemann criteria
-        # Self diffusion coefficient
-        # Specific Heat
-        # Debye Temperature
-
-        if self.settings.ensemble == "NVE":
-
-            #Compute all relevant quantities and write them to a file 
-            pass
-            
-        if self.settings.ensemble == "NVT":
-            
-
-            #Compute all relevant quantities and write them to a file 
-            pass
-            
-        if self.settings.ensemble == "NPT":
-             
-            # Lattice Constant
-            # Bulk modulus
-            # Compute all relevant quantities and write them to a file 
-            pass
         
-
-
-
-    def computeSpecificHeatNVT(self): #Cv per atom in a.u
+        #MSD = self.computeMSD() # Å  Should we output average over late frames ?
+        self_diffusion_coeff = selfDiffusionCoeffAuToSI(self.computeSelfDiffusionCoefficient())# m^2/s
+        coh_energy = self.computeCohesiveEnergy() # ev
+        internal_pressure = AuToGPascal(self.computeInternalPressure()) #GPa
+        lindemann_crit = self.computeLindemannIndex() # Unitless
         
+        labels = ["D","E_coh","P_i","L_crit"]
+        quantities = [self_diffusion_coeff,coh_energy,internal_pressure,lindemann_crit] # TODO Maybe nicer way to handle this ?
+        match self.settings.ensemble:
+            case "NVE":
+                Cv = specificHeatAuToSI(self.computeSpecificHeatNVE()) # J/K per atom
+                labels.append("Cv")
+                quantities.append(Cv)
+
+            case "NVT": 
+                print("NVT")
+                Cv = specificHeatAuToSI(self.computeSpecificHeatNVT()) # J/K per atom
+                labels.append("Cv")
+                quantities.append(Cv)
+    
+            case "NPT":
+                pass
+        
+        self.writeQuantities(labels,quantities) # Write to txt file
+
+
+    def writeQuantities(self,labels,quantities):
+        """
+        Write labels and quantities to txt file. 
+        Ex:
+
+        HEADER 
+        
+        label1  label2  .....
+        q1      q2      .....
+    
+        """
+        col_width = 20 # Should work fine with current number of decimals
+        with open(f"{self.settings.output_file}.txt", "w") as f:
+            #HEADER
+            f.write(f"{self.structure_name}\n")
+            f.write(f"Ensemble: {self.settings.ensemble}\n")
+            #TODO Add more data to the header
+            f.write(f"\n")
+
+            #DATA
+            f.write("".join(f"{label:<{col_width}}" for label in labels) + "\n")
+            f.write("".join(f"{value:<{col_width}.3f}" for value in quantities) + "\n")
+
+    def computeCohesiveEnergy(self):
+        """
+        Calculate the cohesive energy per atom. 
+        This is done by computing the difference in energy between the separate atoms and the bulk structure 
+        The return value is the mean of this over all snapshots
+        Unit: ev/atom
+        """
+        
+        calc = EMT() #TODO NEED TO BE SAME AS ACTUAL MD RUN
+        number = self.traj[0].get_global_number_of_atoms()
+        e_atoms = 0
+        for j in range(len(self.traj[0])):
+            atom = Atoms(self.traj[0].get_chemical_symbols()[j], positions=[[0, 0, 0]], cell=[10, 10, 10], pbc=False)
+            atom.calc = calc
+            e_atoms += atom.get_potential_energy()
+        e_coh_list = []
+        for frame in self.traj:
+            e_bulk = frame.get_potential_energy()
+            e_coh_list.append((e_atoms - e_bulk)/number)
+
+        e_coh_mean = np.mean(e_coh_list)
+        logger.debug(f"Cohesive energy: {e_coh_mean} eV")
+        return e_coh_mean
+    
+    def computeSpecificHeatNVT(self):
+        """
+        Compute specific heat capacity as a time average of the total energy fluctuations 
+        over all frames.
+        Unit: ev/(amu*K) (amu = atomic mass unit)
+        """
         energy = np.array([atom_frame.get_total_energy() for atom_frame in self.traj])
-        temperature = np.mean([atom_frame.get_temperature() for atom_frame in self.traj]) # Should we do this or just read from settings?
-        N = len(self.read_traj_file[0])
+        temperature = np.mean([atom_frame.get_temperature() for atom_frame in self.traj])
+       
         e_mean = np.mean(energy)
         e_2_mean = np.mean(energy**2)
         prefactor = 1/(kB*temperature**2)
-        specific_heat =  prefactor * (e_2_mean-e_mean**2)/N
+        total_mass_amu = float(sum(self.traj[0].get_masses()))
+        specific_heat =  prefactor * (e_2_mean-e_mean**2)/total_mass_amu # Specific heat in ev/amu*K
+        logger.debug(f"Cv: {specific_heat} eV/(amu*K)")
         return specific_heat
     
-    def computeSpecificHeatNVE(self): #Cv per atom in a.u
+    def computeSpecificHeatNVE(self):
+        """
+        Compute specific heat capacity as a time average of the kinetic energy fluctuations 
+        over all frames. 
+        Unit: ev/(amu*K) (amu = atomic mass units)
+        """
         e_kin = np.array([atom_frame.get_kinetic_energy() for atom_frame in self.traj])
         T = np.mean([atom_frame.get_temperature() for atom_frame in self.traj])
         e_kin_mean = np.mean(e_kin)
         e_kin_2_mean = np.mean(e_kin**2)
-
-        specific_heat =  (3*kB/2)*1/(1-(2/(3*(kB*T)**2)*(e_kin_2_mean - e_kin_mean**2)))
+        total_mass_amu = float(sum(self.traj[0].get_masses()))
+        specific_heat =  (3*kB/2)*1/(1-(2/(3*(kB*T)**2)*(e_kin_2_mean - e_kin_mean**2)))/total_mass_amu # Should verify
+        logger.debug(f"Cv: {specific_heat} eV/(amu*K)")
         return specific_heat
     
-    def computeBulkModulus(self):
-        volumes = np.array([atom_frame.get_volume() for atom_frame in self.traj[2000:]])
-        V_mean = np.mean(volumes)
-        V_2_mean = np.mean(volumes**2)
-        T = np.mean([atom_frame.get_temperature() for atom_frame in self.traj[2000:]])
-        B = kB*T*V_mean/(V_2_mean-V_mean**2)
-        print("BULK: ", B)
-        return B
+    def computeLatticeConstant(self):# Need to test
+        lattice_frames = [atoms.get_cell().cellpar() for atoms in self.traj]
+        lattice_mean = np.mean(lattice_frames,axis = 0)
+        lattice_mean[:3] /= np.array(self.settings.supercells)
+        return lattice_mean
 
-    def writeQuantities(self,labels,quantities):
+    def computeInternalPressure(self):
         """
-        Write labels and quantities to txt file. Currently doesnt support timeseries
-        Ex:
-
-        label1  label2 ....
-        q1      q2    ......
-        
+        Compute internal pressure using atomic units internally.
+        Instantaneous: P = (1/3V) [ 2 N E_kin + sum_i r_i · f_i ]
+        Returns a mean over the instantaneous frames in the trajectory
+        Unit: ev/Å^3
         """
-        col_width = 12
-        with open(f"{self.settings.output_file}.txt", "w") as f:
-            f.write(f"Ensemble: {self.settings.ensemble}\n")
-            #TODO Add more data to the header
-            
-            f.write("".join(f"{label:<{col_width}}" for label in labels) + "\n")
-            
-            f.write("".join(f"{value:<{col_width}.3f}" for value in quantities) + "\n")
+        internal_pressures_eVA3 = []
+        N = len(self.traj[0])
+        for atoms in self.traj:
+            e_kin_eV = atoms.get_kinetic_energy()
+            V_A3 = atoms.get_volume()
+            forces_eVA = atoms.get_forces()
+            positions_A = atoms.get_positions()
+            sum_rf_Eh = np.sum(forces_eVA * positions_A)
+            P_eVA3 = (1.0 / (3.0 * V_A3)) * (2.0 * e_kin_eV + sum_rf_Eh)
+            internal_pressures_eVA3.append(P_eVA3)
 
-
-        
-
-
-
-
-
-
+        avg_P = np.mean(internal_pressures_eVA3) if internal_pressures_eVA3 else float('nan')
+        logger.debug(f"Average internal pressure: {avg_P} eV/Å^3")
+        return avg_P
+    
     def computeMSD(self, frame, reference=0):
-        
+        """
+        Compute MSD for a specific frame relatice the first frame in the trajectory. 
+        Should not use data from the first 10 points since to close to reference
+        Unit: Å^2
+        """
         r_0 = self.traj[reference].get_positions()  # Å
         r_n = self.traj[frame].get_positions()  # Å
         
@@ -121,16 +179,21 @@ class QuantityCalculator:
         logger.debug(f"MSD: {msd} Å^2")
         return msd
     
-    def computeSelfDiffusionCoefficient(self):  # Needs constant temperature, for current implementation
+    def computeSelfDiffusionCoefficient(self):  # Needs constant temperature, for current implementation. 
+        """
+        Compute self diffusion coefficient from the slope of MSD over a large timeperiod
+        Unit: Å^2/fs
+        """
+
         # Find the actual elapsed time
         timestep_list = []
         for i in range(len(self.traj)):
             timestep = i * self.settings.timestep * self.settings.sample_interval
             timestep_list.append([timestep, i])
 
-        if len(timestep_list) > 100:
-            msd0 = self.computeMSD(time=timestep_list[50][1])
-            msd_final = self.computeMSD(time=timestep_list[-1][1])
+        if len(timestep_list) > 100: # Since early values of MSD are inaccurate
+            msd0 = self.computeMSD(frame=timestep_list[50][1])
+            msd_final = self.computeMSD(frame=timestep_list[-1][1])
             t_0 = timestep_list[50][0]
             t_end = timestep_list[-1][0]
             D = (msd_final-msd0)/(t_end - t_0)
@@ -139,8 +202,7 @@ class QuantityCalculator:
             logger.error("Too small sample size to calculate self-diffusion coefficient")
             D = None
 
-        
-        return D * 10**-5 / 6
+        return D / 6 # Å^2/fs
 
 
     def nearestNeighborsMean(self, start: int, end: int = None):
@@ -187,7 +249,6 @@ class QuantityCalculator:
         logger.debug(f"Mean value of nearest neighbor : {NN_mean_distance}")
         return NN_mean_distance
 
-
     def computeLindemannIndex(self, start:int = -25, end:int = 0):
         """Returns the global Lindemann index for the given interval
         (int) start : index for the start of the interval that should be checked
@@ -195,7 +256,7 @@ class QuantityCalculator:
         """
         lindemann_array = []
         for state in range(start, end):
-            lindemann_array.append(np.sqrt(self.computeMSD(time = state)) / self.nearestNeighborsMean(state))
+            lindemann_array.append(np.sqrt(self.computeMSD(frame = state)) / self.nearestNeighborsMean(state))
         lindemann = np.mean(lindemann_array)
 
         logger.debug(f"Global Lindemann index for the intervals [{start}, {end}] : {lindemann}")

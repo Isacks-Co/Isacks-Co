@@ -15,8 +15,7 @@ from ase.visualize import view
 from scipy.constants import pi, hbar, k as kB
 import logging
 
-EV_PER_A3_TO_GPA = 160.21766208
-ATOMIC_MASS_IN_KG = 1.66053906892e-27
+
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +32,7 @@ class PostProcessing:
         except FileNotFoundError:
             raise FileNotFoundError(f"Trajectory file {trajectory_file} not found")
 
-    def vizualize(self):
+    def vizualize(self): # REMOVE
         view(self.traj)
 
     def computeCohesiveEnergy(self, discard_fraction: float = 0.2, return_unit: str = "J_per_atom") -> float:

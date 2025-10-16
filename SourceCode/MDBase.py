@@ -1,20 +1,19 @@
-from .simulationInput import SimulationSettings
-from .unitConversions import pascalToAu,pascalInvToAu
+from simulationInput import SimulationSettings
 import functools
 import logging
 
 import numpy as np
 from ase.io.trajectory import Trajectory
-from ase.md import MDLogger
-from ase.md.velocitydistribution import MaxwellBoltzmannDistribution
+from ase.md.velocitydistribution import MaxwellBoltzmannDistribution,Stationary, ZeroRotation
 from ase.units import fs, GPa
-from ase.visualize import view
 import logging
-from LJRegistry import LJParams, calcMaxRc
-from simulationInput import SimulationSettings
+
+from LJRegistry import LJParams, calcMaxRc # TODO Could these be squished into one function call?
 
 log = logging.getLogger(__name__)
-class MDBase:
+
+
+class MDBase: #TODO Look at unit conversions
     """
     basic MD class
     When initialized it represents a MD-simulation with prefilled settings that can be used for multiple runs with
@@ -56,7 +55,7 @@ class MDBase:
 
 
 
-    def setupLJCalculator(self, atoms):
+    def setupLJCalculator(self, atoms): # Can probably be moved. Maybe make a potential class??
         symbols = atoms.get_chemical_symbols()
         uniq = sorted(set(symbols))
         if len(uniq) != 1:
@@ -66,7 +65,7 @@ class MDBase:
 
         material_key = uniq[0].lower()
         params = LJParams(material=material_key)
-        atomic_number = [(atoms.get_atomic_numbers()[0])]
+        atomic_number = [(atoms.get_atomic_numbers()[0])] # TODO Add compatibility for multiple atom types
         eps = params["epsilon_eV"]
         sig = params["sigma_A"]
         ro = params["ro_A"]
@@ -163,15 +162,15 @@ class MDBase:
 
 
     def equilibriumRun(self, atoms):
-        equilibrium_steps = 50000
+        equilibrium_steps = 10000
         dyn_eq = self.integrator(atoms=atoms)
 
          #dyn_eq.attach(lambda: self.checkConvergence(atoms), interval=max(1, int(1 / self.timestep)))
         #log.info(
           #  f"Starting equilibrium run with {self.ensemble} Ensemble to reach desired temperature of {self.temperature_k} K")
-        equil_traj = Trajectory(filename=f"../Outputs/equil_output_file.traj", mode="w", atoms=atoms) ## currently have .. before
-        dyn_eq.attach(lambda : self.compute_energies(atoms), interval = 20)
-        dyn_eq.attach(equil_traj.write, interval=20)
+        #equil_traj = Trajectory(filename=f"../Outputs/equil_output_file.traj", mode="w", atoms=atoms) ## currently have .. before
+        #dyn_eq.attach(lambda : self.compute_energies(atoms), interval = 20)
+        #dyn_eq.attach(equil_traj.write, interval=20)
         try:
             dyn_eq.run(equilibrium_steps)
 
@@ -182,7 +181,7 @@ class MDBase:
             # pep 437 problem
             if "generator raised StopIteration" in str(e):
                 log.info(
-                    f"Equilibrium reached early (observer signaled StopIteration) at T = {round(atoms.get_temperature(), 2)}.")
+                    f"Equilibrium reached early (observer signaled StopIteration) at T = {round(atoms.get_temperature(), 2)}.") # ??
             else:
                 raise RuntimeError(e)
 
@@ -195,7 +194,9 @@ class MDBase:
         finally:
             self.quantity_list = []
 
-    def runMD(self, atoms):
+    
+
+    def runMD(self, atoms): #TODO Needs better comments
         """
         In: 
             Atoms: ase Atoms object representing the crystal structure
@@ -204,19 +205,21 @@ class MDBase:
         Depending on attachments will possibly print some data.
         Will always save a trajectory and log file.        
         """
-        atoms.calc = self.potential(atoms)
+        atoms.calc = self.potential(atoms) # Still dont like this
 
         MaxwellBoltzmannDistribution(atoms, temperature_K=self.temperature_k,
                                      force_temp=True)  # Initialize velocity according to temperature_k
-
-        self.equilibriumRun(atoms=atoms)
+        Stationary(atoms) # Make sure center of mass has no linear momentum
+        ZeroRotation(atoms) # Make sure center of mass has no angular momentum, might not be needed
+        self.equilibriumRun(atoms=atoms) # TODO BREAKS TO EARLY
+        
         log.info("MD run starts with: %i steps", self.steps)
         dyn = self.integrator(atoms=atoms)
 
         traj = Trajectory(filename=f"{self.output_file}.traj", mode="w", atoms=atoms) ## currently have .. before
 
         # Custom calculation function
-        def save_custom_data():
+        def save_custom_data(): # Should be moved
             """Store custom calculations in atoms.info"""
             atoms.info['stress eV/A3'] = atoms.get_stress(voigt=True)
 
@@ -227,60 +230,27 @@ class MDBase:
         #for a in self.attachments:
          #   dyn.attach(functools.partial(a, atoms=atoms),
          #              interval=self.interval)  # Attach the different functions for printing
-
-        dyn.attach(traj.write, interval=self.interval)
+        dyn.attach(lambda: self.save_data(atoms,traj),
+                   interval=self.interval)
+        #dyn.attach(traj.write, interval=self.interval)
 
         dyn.attach(lambda: self.checkDivergence(atoms),
-                   interval=self.interval)  # TODO Possibly include checkConvergence here?
-
-        # Apply a short sequence of slight, controlled strains and run a few steps at each.
-        # This creates trajectory frames with non-zero strain for robust post-processing of elastic constants.
-        def _apply_F_and_run(F, steps):
-            A = atoms.cell.array.T
-            A_new = (F @ A).T
-            atoms.set_cell(A_new, scale_atoms=True)
-            #log.info(f"Applied strain F=\n{F}\nCell now: {atoms.cell.cellpar()}")
-            dyn.run(int(steps))
-
-        # Small strain amplitude
-        eta = 5e-3  # 0.5%
-        # Number of MD steps to run at each strained state
-        hold_steps = max(self.interval, 50)
-
-        I = np.eye(3)
-        # Symmetric small-strain deformation gradients (F ≈ I + eps for small strains)
-        F_list = []
-        # ± isotropic
-        F_list.append(I * (1.0 + eta))
-        F_list.append(I * (1.0 - eta))
-        # Orthorhombic (volume-conserving to first order): diag(1+eta, 1-eta, 1)
-        F_list.append(np.diag([1.0 + eta, 1.0 - eta, 1.0]))
-        F_list.append(np.diag([1.0 - eta, 1.0 + eta, 1.0]))
-        # Symmetric shears: xy, xz, yz (F = I + eps, eps_ij = eps_ji = eta)
-        eps_xy = I.copy();
-        eps_xy[0, 1] = eps_xy[1, 0] = eta;
-        F_list.append(eps_xy)
-        eps_xz = I.copy();
-        eps_xz[0, 2] = eps_xz[2, 0] = eta;
-        F_list.append(eps_xz)
-        eps_yz = I.copy();
-        eps_yz[1, 2] = eps_yz[2, 1] = eta;
-        F_list.append(eps_yz)
-
-        #log.info(f"Starting pre-production strain sequence with {len(F_list)} strains; {hold_steps} steps each")
-        for F in F_list:
-            _apply_F_and_run(F, hold_steps)
+                   interval=self.interval) 
+        
+        
 
         # Continue with the main MD run
         dyn.run(self.steps)  # RUN
         traj.close()  # Explicitly close the trajectory
 
-    def compute_energies(self, atoms):
+    def save_data(self, atoms,traj):
         atoms.get_potential_energy()
         atoms.get_kinetic_energy()
         atoms.get_total_energy()
         atoms.get_forces()
-
+        atoms.get_volume()
+        atoms.get_positions()
+        traj.write()
 
     def checkConvergence(self, atoms):
         self._updateQuantityList(atoms)
@@ -292,7 +262,6 @@ class MDBase:
                         raise StopIteration(f"Converged: T = {atoms.get_temperature():.2f} K")
                 case "NPT":
                         raise StopIteration(f"Converged: T = {atoms.get_temperature():.2f} K")
-
 
     def checkDivergence(self, atoms):
         """
@@ -333,7 +302,7 @@ class MDBase:
                     return False
                 lastN = np.asarray(data_buffer[-num_points:], dtype=float)
                 mean_energy = float(np.mean(lastN))
-                energy_tol = max(tol_energy_percentage * abs(mean_energy), 1e-4)
+                energy_tol = max(tol_energy_percentage * abs(mean_energy), 1e-4) # TODO Problematic since smaller enregy implies smaller margin for error
                 nb_outside_tolerance = int(np.sum(np.abs(lastN - mean_energy) >= energy_tol))
                 threshold = max(3, int(np.ceil(0.3 * num_points))) # 3 points must be outside of tolerance to trigger
                 # Compares the number of points that are outside the threshold and returns True if they are
@@ -358,7 +327,7 @@ class MDBase:
         Help function that appends quantities into quantity_list.
         """
         if not hasattr(self, "quantity_list"):
-            self.quantity_list = []
+            self.quantity_list = [] #TODO Should not be class variable
         match self.ensemble:
             case "NVE":
                 self.quantity_list.append((atoms.get_potential_energy() + atoms.get_kinetic_energy()) / len(atoms))

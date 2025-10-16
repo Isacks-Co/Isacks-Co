@@ -24,10 +24,11 @@ if __name__ == "__main__":
     try:
         MD = MDBase(settings)
         MD.runMD(PP.atoms)
+        log.info("MD done")
     except Exception as err:
         log.error(f"Simulation failed: {err}") #should probably add the err, here instead
         exit(1)
-
+    
 
     #Q = QuantityCalculator()
     #Q.computeBulkModulus()
@@ -38,8 +39,8 @@ if __name__ == "__main__":
     
     try:
         Postviz = PostProcessing(settings)
+        
     except Exception as err:
-        log.error(f"Postprocessing failed: {err}")
+        log.error(f"Calculating quantities failed: {err}") #should probably add the err, here instead
         exit(1)
-
     log.info("Simulation done")

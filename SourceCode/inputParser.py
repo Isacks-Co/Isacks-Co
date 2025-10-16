@@ -1,4 +1,4 @@
-from .logger import loggerSetup
+from logger import loggerSetup
 
 import argparse
 import sys
@@ -19,9 +19,6 @@ class SingleMetavarHelpFormatter(argparse.HelpFormatter):
         else:
             return opts
 
-
-
-
 class InputParser():
     def __init__(self, args=sys.argv):
         self.argparser = argparse.ArgumentParser(prog="MolecularDynamics.py", 
@@ -33,8 +30,6 @@ class InputParser():
         self.args = vars(self.argparser.parse_args(args[1:]))
         
         loggerSetup(self.args["debug"])
-
-        
 
     def addArguments(self):
         """ Whenever a new setting is added, add the corresponding flag here."""

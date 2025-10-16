@@ -1,6 +1,6 @@
-from .simulationInput import NPTSettings,NVESettings,NVTSettings
-from .inputParser import InputParser
-from .MDBase import MDBase
+from simulationInput import NPTSettings,NVESettings,NVTSettings
+from inputParser import InputParser
+from MDBase import MDBase
 
 import json
 import sys
@@ -36,7 +36,7 @@ class PreProcessing:
 
     def readSettings(self, input_settings):
         """Reads settings from json file, checks all expected settings present. Overwrite settings file if a terminal flag is set."""
-        log.info("Reading settings file: %s", self.argparser.args["input_structure"]) ####TODO  SHOULD BE "SETTINGS" not inpu structure
+        log.info("Reading settings file: %s", self.argparser.args["input_settings"])
         try:
             with open(input_settings, "r") as file:
                 temp_settings = json.load(file)
@@ -62,6 +62,7 @@ class PreProcessing:
             log.info("Reading atomic structure from: %s", input_structure)
             atoms = read(input_structure) * tuple(self.settings["Supercells"])
             atoms.pbc = True #TODO, Hard coded pbc always true for now.
+    
             with open(input_structure, "r") as file: # Manually read the first line and add as a comment.
                 structure_name = file.readline().strip()
                 atoms.info["comment"] = structure_name
