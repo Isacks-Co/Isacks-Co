@@ -6,9 +6,9 @@ LJ_DB = {
     "cu": {"epsilon_eV": 0.40,  "sigma": 2.28},
     "fe": {"epsilon_eV": 0.2007, "sigma": 2.4193},
     "ni": {"epsilon_eV": 0.1729, "sigma": 1.5808},
-}
+} 
 
-def LJParams(material: str = None, *, epsilon_eV=None, sigma_A=None, rc_A=None, ro_A=None):
+def LJParams(material: str = None, *, epsilon_eV=None, sigma_A=None, rc_A=None, ro_A=None): # So you can call this function without any argument? What happens? Should probably remove None on material
 
     if material:
         base = LJ_DB.get(material.lower())
@@ -17,7 +17,7 @@ def LJParams(material: str = None, *, epsilon_eV=None, sigma_A=None, rc_A=None, 
                              f"Change to any of these: "
                              f"{", ".join(LJ_DB.keys())}")
     else:
-        base = {}
+        base = {} 
 
     eps = epsilon_eV if epsilon_eV is not None else base.get("epsilon_eV")
     sig = sigma_A   if sigma_A   is not None else base.get("sigma")
@@ -28,7 +28,7 @@ def LJParams(material: str = None, *, epsilon_eV=None, sigma_A=None, rc_A=None, 
     ro = ro_A if ro_A is not None else 0.9*float(rc)
 
     if not (0 < ro < rc):
-        raise ValueError(f"LJ ro_A must be between 0 and rc_A (ro={ro}, rc={rc}).")
+        raise ValueError(f"LJ ro_A must be between 0 and rc_A (ro={ro}, rc={rc}).") # Doesnt really make sense as error message since user have no control of these values 
 
     return {"epsilon_eV": float(eps), "sigma_A": float(sig), "rc_A": float(rc), "ro_A": float(ro)}
 
