@@ -19,7 +19,7 @@ class CustomFormatter(logging.Formatter):
         message = super().format(record)
         return f"{color}{message}{self.RESET}"
 
-def loggerSetup(debug=True):
+def loggerSetup(debug):
     log = logging.getLogger()
     log.setLevel(logging.INFO if not debug else logging.DEBUG)
     log.propagate = False        

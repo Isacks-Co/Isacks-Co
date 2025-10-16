@@ -211,26 +211,13 @@ class MDBase:
 
         traj = Trajectory(filename=f"{self.output_file}.traj", mode="w", atoms=atoms) ## currently have .. before
 
-        """
-        # Custom calculation function
-        def save_custom_data():
-            atoms.info['stress eV/A3'] = atoms.get_stress(voigt=True)
-
-            # Add any other custom calculations here
-        """
-
-        #dyn.attach(save_custom_data, interval=self.interval)
         dyn.attach(lambda: self.compute_properties(atoms), interval=self.interval)
-
-        #for a in self.attachments:
-         #   dyn.attach(functools.partial(a, atoms=atoms),
-         #              interval=self.interval)  # Attach the different functions for printing
 
         dyn.attach(traj.write, interval=self.interval)
 
         dyn.attach(lambda: self.checkDivergence(atoms),
                    interval=self.interval)  # TODO Possibly include checkConvergence here?
-        #"""
+        """
         # Apply a short sequence of slight, controlled strains and run a few steps at each.
         # This creates trajectory frames with non-zero strain for robust post-processing of elastic constants.
         def _apply_F_and_run(F, steps):
@@ -268,7 +255,7 @@ class MDBase:
         #log.info(f"Starting pre-production strain sequence with {len(F_list)} strains; {hold_steps} steps each")
         for F in F_list:
             _apply_F_and_run(F, hold_steps)
-        #"""
+        """
 
         dyn.run(self.steps)  # RUN
         traj.close()  # Explicitly close the trajectory
