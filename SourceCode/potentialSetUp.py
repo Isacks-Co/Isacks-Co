@@ -3,8 +3,9 @@ from LJRegistry import LJParams, calcMaxRc
 
 log = logging.getLogger(__name__)
 
+
 class Potential:
-    #Could be worth self.atoms = atoms ??
+    # Could be worth self.atoms = atoms ??
     def getPotential(self, potential: str):
         """
         In:
@@ -26,9 +27,9 @@ class Potential:
 
     def setupEMT(self, atoms):
         from asap3 import EMT as asap_EMT
-        return  asap_EMT()
-        #return lambda atoms: asap_EMT()
-
+        # atoms not used, but lets us skip the lambda solution
+        return asap_EMT()
+        # return lambda atoms: asap_EMT()
 
     def setupLJCalculator(self, atoms):
         symbols = atoms.get_chemical_symbols()
@@ -63,8 +64,8 @@ class Potential:
                 modified=True
             )
 
-            #atoms.calc = calc_asap
-            #_ = atoms.get_potential_energy()
+            # atoms.calc = calc_asap
+            # _ = atoms.get_potential_energy()
             log.info("Using asap3 LJ | element=%s (Z=%s) | ε=%.4g eV | σ=%.4g Å | rc=%.4g Å ",
                      material_key, atomic_number[0], eps, sig, rc)
             return calc_asap
@@ -82,5 +83,3 @@ class Potential:
                 f"Falling back to ASE LJ | Reason: {e}"
             )
             return calc_ase
-
-

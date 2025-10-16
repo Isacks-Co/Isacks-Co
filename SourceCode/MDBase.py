@@ -26,7 +26,6 @@ class MDBase: #TODO Look at unit conversions
         SimulationSettings object. 
         In:
             SimulationSettings object of type NVE,NVT or NPT
-        
         """
 
         # General parameters
@@ -62,6 +61,7 @@ class MDBase: #TODO Look at unit conversions
         return:
             partial integrator: partial function of ASE integrator
         """
+
         integrator_lower = integrator.lower()
         if integrator_lower in ["verlet", "nve"]:
             from asap3.md.verlet import VelocityVerlet
@@ -86,17 +86,20 @@ class MDBase: #TODO Look at unit conversions
 
 
 
-    def equilibriumRun(self, atoms):
-        equilibrium_steps = 10000
-        dyn_eq = self.integrator(atoms=atoms)
+    def equilibriumRun(self, atoms, equilibrium_steps = 40000):
+        """
+        Function that runs certain amount of steps 'equilibrium_steps', to make the system reach equilibrium,
+        before the 'real' production simulation is run.
 
-        dyn_eq.attach(lambda: self.checkConvergence(atoms), interval=max(1, int(1 / self.timestep)))
-        # log.info(
-        #  f"Starting equilibrium run with {self.ensemble} Ensemble to reach desired temperature of {self.temperature_k} K")
+        in:
+        atoms : ase.Atoms object
+        """
+
+        dyn_eq = self.integrator(atoms=atoms)
+        dyn_eq.attach(lambda: self._checkDivergence(atoms), interval=max(1, int(1 / self.timestep) ))
 
         try:
             dyn_eq.run(equilibrium_steps)
-
             current_T = atoms.get_temperature()
             log.info(f"Systems temperature is {round(current_T, 2)} K after {equilibrium_steps} steps")
 
@@ -115,8 +118,8 @@ class MDBase: #TODO Look at unit conversions
             log.error(f"Equilibrium aborted due to instability: {err}")
             quit()
 
-        finally:
-            self.quantity_list = []
+        #finally:
+        #    self.quantity_list = []
 
     
 
@@ -139,6 +142,7 @@ class MDBase: #TODO Look at unit conversions
 
         log.info("MD run starts with: %i steps", self.steps)
         dyn = self.integrator(atoms=atoms)
+        #dyn.attach(lambda: self._checkDivergence(atoms), interval=max(1, int(1 / self.timestep) ))
 
         traj = Trajectory(filename=f"{self.output_file}.traj", mode="w", atoms=atoms) ## currently have .. before
 
@@ -236,7 +240,26 @@ class MDBase: #TODO Look at unit conversions
             case "NPT":
                 raise StopIteration(f"Converged: T = {atoms.get_temperature():.2f} K")
 
+    def _checkDivergence(self, atoms):
+        """
+        Very simple divergence check, that controls that the temperature is finite and that it does not
+        rise above a threshold based on the variable 'div_factor. Raises errors if we pass it or if temperature
+        becomes infinite.
 
+        In:
+            Atoms: ase Atoms object representing the crystal structure
+
+        """
+
+        div_factor = 1.8
+        current_T = atoms.get_temperature()
+
+        if not np.isfinite(current_T):
+            raise RuntimeError(f"Divergence appeared, temperature is NaN/Inf")
+
+        if (current_T > div_factor * self.temperature_k):
+            raise RuntimeError(f"Divergence: T={current_T:.1f} K >  {div_factor * self.temperature_k:.1f} K, "
+                               f"(div_factor * desired temp).")
 
 
     def _updateQuantityList(self, atoms):
