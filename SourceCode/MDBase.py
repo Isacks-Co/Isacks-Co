@@ -1,6 +1,5 @@
 from simulationInput import SimulationSettings
 import functools
-import logging
 
 import numpy as np
 from ase.io.trajectory import Trajectory
@@ -212,36 +211,25 @@ class MDBase: #TODO Look at unit conversions
         Stationary(atoms) # Make sure center of mass has no linear momentum
         ZeroRotation(atoms) # Make sure center of mass has no angular momentum, might not be needed
         self.equilibriumRun(atoms=atoms) # TODO BREAKS TO EARLY
-        
+
         log.info("MD run starts with: %i steps", self.steps)
         dyn = self.integrator(atoms=atoms)
 
         traj = Trajectory(filename=f"{self.output_file}.traj", mode="w", atoms=atoms) ## currently have .. before
 
-        # Custom calculation function
-        def save_custom_data(): # Should be moved
-            """Store custom calculations in atoms.info"""
-            atoms.info['stress eV/A3'] = atoms.get_stress(voigt=True)
-
-            # Add any other custom calculations here
-
-        dyn.attach(save_custom_data, interval=self.interval)
-
-        #for a in self.attachments:
-         #   dyn.attach(functools.partial(a, atoms=atoms),
-         #              interval=self.interval)  # Attach the different functions for printing
         dyn.attach(lambda: self.save_data(atoms,traj),
                    interval=self.interval)
-        #dyn.attach(traj.write, interval=self.interval)
 
         dyn.attach(lambda: self.checkDivergence(atoms),
-                   interval=self.interval) 
-        
-        
+                   interval=self.interval)
 
         # Continue with the main MD run
         dyn.run(self.steps)  # RUN
         traj.close()  # Explicitly close the trajectory
+
+        # Run stretch sequence for elastic constants
+        self._runStretchSequence(atoms)
+
 
     def save_data(self, atoms,traj):
         atoms.get_potential_energy()
@@ -251,6 +239,52 @@ class MDBase: #TODO Look at unit conversions
         atoms.get_volume()
         atoms.get_positions()
         traj.write()
+
+    def _runStretchSequence(self, atoms):
+
+        def getStress(traj,atoms=atoms):
+            atoms.info["stress"] = atoms.get_stress(voigt = True)
+            traj.write()
+
+        # Small strain amplitude
+        eta = 5e-3  # 0.5%
+        # Number of MD steps to run at each strained state
+        hold_steps = 100
+        I = np.eye(3)
+        # Symmetric small-strain deformation gradients (F ≈ I + eps for small strains)
+        F_list = []
+        # ± isotropic
+        F_list.append(I * (1.0 + eta))
+        F_list.append(I * (1.0 - eta))
+        # Orthorhombic (volume-conserving to first order): diag(1+eta, 1-eta, 1)
+        F_list.append(np.diag([1.0 + eta, 1.0 - eta, 1.0]))
+        F_list.append(np.diag([1.0 - eta, 1.0 + eta, 1.0]))
+        # Symmetric shears: xy, xz, yz (F = I + eps, eps_ij = eps_ji = eta)
+        eps_xy = I.copy()
+        eps_xy[0, 1] = eps_xy[1, 0] = eta
+        F_list.append(eps_xy)
+
+        eps_xz = I.copy()
+        eps_xz[0, 2] = eps_xz[2, 0] = eta
+        F_list.append(eps_xz)
+
+        eps_yz = I.copy()
+        eps_yz[1, 2] = eps_yz[2, 1] = eta
+        F_list.append(eps_yz)
+
+        traj = Trajectory(filename=f"{self.output_file}_stretch_data.traj", mode="w", atoms=atoms)
+        dyn = self.integrator(atoms=atoms)
+
+        dyn.attach(lambda: getStress(traj=traj,atoms=atoms), 1)
+        dyn.run(hold_steps)
+
+        for F in F_list:
+            A = atoms.cell.array.T
+            A_new = (F @ A).T
+            atoms.set_cell(A_new, scale_atoms=True)
+            dyn.run(hold_steps)
+            atoms.set_cell(A, scale_atoms=True)
+
 
     def checkConvergence(self, atoms):
         self._updateQuantityList(atoms)
