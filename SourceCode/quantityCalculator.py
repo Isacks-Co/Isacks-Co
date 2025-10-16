@@ -276,7 +276,7 @@ class QuantityCalculator:
         Returns Theta_D in Kelvin (SI).
         """
 
-        if self.settings.temperature < 1:
+        """if self.settings.temperature < 1:
             # Low-temperature Debye from heat capacity; use a.u. for kB
             C_v = self.computeSpecificHeat()  # [J kg-1 K-1]
             temperature = float(np.mean([atom_frame.get_temperature() for atom_frame in self.traj]))
@@ -284,42 +284,42 @@ class QuantityCalculator:
             # Here we keep the classical constant form but ensure SI at the end
             debye = (234 * N * kB * EV_TO_JOULE * temperature ** 3 / C_v) ** (1 / 3)
             logger.info(f"Debye temperature: {debye} K")
-            return float(debye)
-        else:
-            # Θ_D = (ħ/kB) (6π^2 n)^(1/3) vm
-            out = self.elastic_properties  # SI Pa
-            G = out['G']
-            K = out['K']
-            EV_PER_A3_TO_GPA = 160.21766208
-            logger.info(f"Bulk modulus = {K * EV_PER_A3_TO_GPA} GPa")
-            logger.info(f" modulus = {G * EV_PER_A3_TO_GPA} GPa")
+            return float(debye)"""
+    
+        # Θ_D = (ħ/kB) (6π^2 n)^(1/3) vm
+        out = self.elastic_properties  # SI Pa
+        G = out['G']
+        K = out['K']
+        EV_PER_A3_TO_GPA = 160.21766208
+        logger.info(f"Bulk modulus = {K * EV_PER_A3_TO_GPA} GPa")
+        logger.info(f" modulus = {G * EV_PER_A3_TO_GPA} GPa")
 
-            if K < 0 or G < 0:
-                error_log = "Negative pressure during calulation of Debye temperature"
-                logger.error(error_log)
-                raise ValueError(error_log)
+        if K < 0 or G < 0:
+            error_log = "Negative pressure during calulation of Debye temperature"
+            logger.error(error_log)
+            raise ValueError(error_log)
 
-            if not (np.isfinite(G) and np.isfinite(K)):
-                logger.info("Elastic constants not reliable from traj; Debye temperature cannot be computed.")
-                return float('nan')
+        if not (np.isfinite(G) and np.isfinite(K)):
+            logger.info("Elastic constants not reliable from traj; Debye temperature cannot be computed.")
+            return float('nan')
 
-            V_A3 = np.mean([fr.get_volume() for fr in self.traj])
-            mass_u = float(sum(self.traj[0].get_masses()))
-            rho = (mass_u / V_A3)
+        V_A3 = np.mean([fr.get_volume() for fr in self.traj])
+        mass_u = float(sum(self.traj[0].get_masses()))
+        rho = (mass_u / V_A3)
 
-            transversal_sound_velocity = np.sqrt(G / rho)
-            longitudinal_sound_velocity = np.sqrt((K + 4.0 * G / 3.0) / rho)
-            sound_velocity = ((1.0 / 3.0) * (1.0 / (longitudinal_sound_velocity ** 3) + 2.0 / (transversal_sound_velocity ** 3))) ** (-1.0 / 3.0)
+        transversal_sound_velocity = np.sqrt(G / rho)
+        longitudinal_sound_velocity = np.sqrt((K + 4.0 * G / 3.0) / rho)
+        sound_velocity = ((1.0 / 3.0) * (1.0 / (longitudinal_sound_velocity ** 3) + 2.0 / (transversal_sound_velocity ** 3))) ** (-1.0 / 3.0)
 
-            logger.info(f"Sound Velociy : {sound_velocity}")
-            N = len(self.traj[0])
-            n = (N / V_A3)
+        logger.info(f"Sound Velociy : {sound_velocity}")
+        N = len(self.traj[0])
+        n = (N / V_A3)
 
-            logger.info(f"N = {N} : V_A3 = {V_A3}")
+        logger.info(f"N = {N} : V_A3 = {V_A3}")
 
-            Theta_D = (hbar / kB) * ((6.0 * np.pi ** 2 * n) ** (1.0 / 3.0)) * sound_velocity / 10.18 # NEED TO DO SQRT(ev/u) to fs/Å
-            logger.info(f"Debye temperature: {Theta_D} K")
-            return Theta_D
+        Theta_D = (hbar / kB) * ((6.0 * np.pi ** 2 * n) ** (1.0 / 3.0)) * sound_velocity / 10.18 # NEED TO DO SQRT(ev/u) to fs/Å
+        logger.info(f"Debye temperature: {Theta_D} K")
+        return Theta_D
 
     def _cubicConstantsFromTrajectory(self, ref=None, tol_abs=1e-8, tol_rel=1e-3):
         """
