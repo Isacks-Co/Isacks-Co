@@ -317,7 +317,7 @@ class QuantityCalculator:
 
             logger.info(f"N = {N} : V_A3 = {V_A3}")
 
-            Theta_D = (hbar / kB) * (6.0 * np.pi ** 2 * n) ** (1.0 / 3.0) * sound_velocity
+            Theta_D = (hbar / kB) * ((6.0 * np.pi ** 2 * n) ** (1.0 / 3.0)) * sound_velocity / 10.18 # NEED TO DO SQRT(ev/u) to fs/Å
             logger.info(f"Debye temperature: {Theta_D} K")
             return Theta_D
 

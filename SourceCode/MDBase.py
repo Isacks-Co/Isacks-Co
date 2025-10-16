@@ -149,8 +149,8 @@ class MDBase: #TODO Look at unit conversions
         dyn.attach(lambda: self.save_data(atoms,traj),
                    interval=self.interval)
 
-        dyn.attach(lambda: self.checkDivergence(atoms),
-                   interval=self.interval)
+        #dyn.attach(lambda: self._checkDivergence(atoms),
+                 #  interval=self.interval)
 
         # Continue with the main MD run
         dyn.run(self.steps)  # RUN
@@ -257,7 +257,7 @@ class MDBase: #TODO Look at unit conversions
         if not np.isfinite(current_T):
             raise RuntimeError(f"Divergence appeared, temperature is NaN/Inf")
 
-        if (current_T > div_factor * self.temperature_k):
+        if (current_T > div_factor * self.temperature_k and self.temperature_k != 0):
             raise RuntimeError(f"Divergence: T={current_T:.1f} K >  {div_factor * self.temperature_k:.1f} K, "
                                f"(div_factor * desired temp).")
 

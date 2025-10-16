@@ -5,7 +5,7 @@ log = logging.getLogger(__name__)
 
 
 class Potential:
-    # Could be worth self.atoms = atoms ??
+    
     def getPotential(self, potential: str):
         """
         In:
