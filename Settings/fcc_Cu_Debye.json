@@ -1,19 +1,13 @@
 {
   "Ensemble": "NPT",
-
   "Temperature": 300,
-  "Timestep": 0.1,
-  "Number_of_steps": 8000,
-  "Interval": 1,
+  "Timestep": 1,
+  "Number_of_steps": 60000,
+  "Sample_interval": 10,
   "Potential": "EMT",
-  "Attachments": ["energy"],
-
-  "Friction": 1,
-  "Pressure": 5e9,
-  "Compressibility": 7.14e-12,
-
-  "EquilSteps": 5000,
-  "Supercells": [3,3,3],
-  "Output_file" : "Outputs/output"
-
+  "Friction": 0.05,
+  "Pressure": 0,
+  "Compressibility": 0,
+  "Supercells": [7, 7, 7],
+  "Output_file": "../Outputs/output"
 }

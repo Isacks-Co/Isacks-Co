@@ -1,19 +1,17 @@
 {
-  "Ensemble": "NVE",
+  "Ensemble": "NVT",
 
-  "Temperature": 2000,
+  "Temperature": 300,
   "Timestep": 1,
-  "Number_of_steps": 2000,
-  "Sample_interval": 50,
+  "Number_of_steps": 60000,
+  "Sample_interval": 10,
   "Potential": "EMT",
 
-  "Friction": 1,
+  "Friction": 0.05,
   "Pressure": 0,
-  "Compressibility": 1e-7,
+  "Compressibility": 0,
 
-  "Supercells": [3,3,3],
+  "Supercells": [4, 4, 4],
   "Output_file" : "../Outputs/output"
-
-
 
 }

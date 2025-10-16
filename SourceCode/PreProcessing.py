@@ -32,7 +32,7 @@ class PreProcessing:
 
     def readSettings(self, input_settings):
         """Reads settings from json file, checks all expected settings present. Overwrite settings file if a terminal flag is set."""
-        log.info("Reading settings file: %s", self.argparser.args["input_structure"])
+        log.info("Reading settings file: %s", self.argparser.args["input_settings"])
         try:
             with open(input_settings, "r") as file:
                 temp_settings = json.load(file)

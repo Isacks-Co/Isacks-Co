@@ -13,7 +13,9 @@ class PostProcessing():
         self.traj = Trajectory(f"{self.settings.output_file}.traj")
         
         equil_traj = Trajectory("../Outputs/equil_output_file.traj")
-        self.qc = QuantityCalculator(self.settings, equil_traj)
+        self.qce = QuantityCalculator(self.settings, equil_traj)
+        self.qc = QuantityCalculator(self.settings, self.traj)
+
         """
         msds =[]
         e_pot = []

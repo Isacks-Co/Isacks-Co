@@ -166,7 +166,7 @@ class MDBase:
         #log.info(
           #  f"Starting equilibrium run with {self.ensemble} Ensemble to reach desired temperature of {self.temperature_k} K")
         equil_traj = Trajectory(filename=f"../Outputs/equil_output_file.traj", mode="w", atoms=atoms) ## currently have .. before
-        dyn_eq.attach(lambda : self.compute_energies(atoms), interval = 20)
+        dyn_eq.attach(lambda : self.compute_properties(atoms), interval = 20)
         dyn_eq.attach(equil_traj.write, interval=20)
         try:
             dyn_eq.run(equilibrium_steps)
@@ -196,7 +196,7 @@ class MDBase:
         In: 
             Atoms: ase Atoms object representing the crystal structure
 
-        Runs a MD simulation with the setting specified in __init__
+        Runs an MD simulation with the setting specified in __init__
         Depending on attachments will possibly print some data.
         Will always save a trajectory and log file.        
         """
@@ -211,14 +211,16 @@ class MDBase:
 
         traj = Trajectory(filename=f"{self.output_file}.traj", mode="w", atoms=atoms) ## currently have .. before
 
+        """
         # Custom calculation function
         def save_custom_data():
-            """Store custom calculations in atoms.info"""
             atoms.info['stress eV/A3'] = atoms.get_stress(voigt=True)
 
             # Add any other custom calculations here
+        """
 
-        dyn.attach(save_custom_data, interval=self.interval)
+        #dyn.attach(save_custom_data, interval=self.interval)
+        dyn.attach(lambda: self.compute_properties(atoms), interval=self.interval)
 
         #for a in self.attachments:
          #   dyn.attach(functools.partial(a, atoms=atoms),
@@ -228,7 +230,7 @@ class MDBase:
 
         dyn.attach(lambda: self.checkDivergence(atoms),
                    interval=self.interval)  # TODO Possibly include checkConvergence here?
-
+        #"""
         # Apply a short sequence of slight, controlled strains and run a few steps at each.
         # This creates trajectory frames with non-zero strain for robust post-processing of elastic constants.
         def _apply_F_and_run(F, steps):
@@ -253,29 +255,31 @@ class MDBase:
         F_list.append(np.diag([1.0 + eta, 1.0 - eta, 1.0]))
         F_list.append(np.diag([1.0 - eta, 1.0 + eta, 1.0]))
         # Symmetric shears: xy, xz, yz (F = I + eps, eps_ij = eps_ji = eta)
-        eps_xy = I.copy();
-        eps_xy[0, 1] = eps_xy[1, 0] = eta;
+        eps_xy = I.copy()
+        eps_xy[0, 1] = eps_xy[1, 0] = eta
         F_list.append(eps_xy)
-        eps_xz = I.copy();
-        eps_xz[0, 2] = eps_xz[2, 0] = eta;
+        eps_xz = I.copy()
+        eps_xz[0, 2] = eps_xz[2, 0] = eta
         F_list.append(eps_xz)
-        eps_yz = I.copy();
-        eps_yz[1, 2] = eps_yz[2, 1] = eta;
+        eps_yz = I.copy()
+        eps_yz[1, 2] = eps_yz[2, 1] = eta
         F_list.append(eps_yz)
 
         #log.info(f"Starting pre-production strain sequence with {len(F_list)} strains; {hold_steps} steps each")
         for F in F_list:
             _apply_F_and_run(F, hold_steps)
+        #"""
 
-        # Continue with the main MD run
         dyn.run(self.steps)  # RUN
         traj.close()  # Explicitly close the trajectory
 
-    def compute_energies(self, atoms):
+    def compute_properties(self, atoms):
         atoms.get_potential_energy()
         atoms.get_kinetic_energy()
         atoms.get_total_energy()
         atoms.get_forces()
+        atoms.get_stress(voigt=True)
+        atoms.info['stress eV/A3'] = atoms.get_stress(voigt=True)
 
 
     def checkConvergence(self, atoms):

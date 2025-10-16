@@ -113,11 +113,9 @@ class PostProcessing:
             forces_eVA = atoms.get_forces()
             positions_A = atoms.get_positions()
 
+            sum_rf = float(np.sum(forces_eVA * positions_A))
 
-
-            sum_rf_Eh = float(np.sum(forces_eVA * positions_A))
-
-            P_eVA3 = (1.0 / (3.0 * V_A3)) * (2.0 * N * e_kin_eV + sum_rf_Eh)
+            P_eVA3 = (1.0 / (3.0 * V_A3)) * (2.0 * N * e_kin_eV + sum_rf)
             internal_pressures_eVA3.append(P_eVA3)
 
         avg_P = float(np.mean(internal_pressures_eVA3)) if internal_pressures_eVA3 else float('nan')

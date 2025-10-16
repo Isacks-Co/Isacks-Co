@@ -29,10 +29,19 @@ if __name__ == "__main__":
         exit(1)
 
     try:
-        Postviz = PostProcessing(settings)
+        PostProcess = PostProcessing(settings)
     except Exception as err:
         log.error(f"Postprocessing failed: {err}")
         exit(1)
+
+    #"""
+    try:
+
+        PostProcess.qc.getQuantities()
+    except Exception as err:
+        log.error(f"Quantity calculation failed: {err}")
+        exit(1)
+    #"""
 
 
     log.info("Simulation done")
