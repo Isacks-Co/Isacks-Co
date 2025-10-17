@@ -176,6 +176,8 @@ class MDBase:
 
         def getStress(traj,atoms=atoms):
             atoms.info["stress"] = atoms.get_stress(voigt = True)
+            atoms.get_total_energy()
+            atoms.get_volume()
             traj.write()
 
         # Small strain amplitude

@@ -7,6 +7,7 @@ from ase import Atoms
 from ase.neighborlist import NeighborList, natural_cutoffs
 from ase.calculators.emt import EMT
 from ase.units import kB
+from ase.eos import EquationOfState
 
 import numpy as np
 import logging
@@ -38,6 +39,7 @@ class QuantityCalculator:
         # Compute all general quantities
 
         #MSD = self.computeMSD() # Å  Should we output average over late frames ?
+        self.computeBulkModulus("../Outputs/output_stretch_data.traj")
         self_diffusion_coeff = selfDiffusionCoeffAuToSI(self.computeSelfDiffusionCoefficient())# m^2/s
         coh_energy = self.computeCohesiveEnergy() # ev
         lattice_constant = self.computeLatticeConstant()
@@ -322,6 +324,26 @@ class QuantityCalculator:
         Theta_D = (hbar / kB) * ((6.0 * np.pi ** 2 * n) ** (1.0 / 3.0)) * sound_velocity / 10.18 # NEED TO DO SQRT(ev/u) to fs/Å
         logger.info(f"Debye temperature: {Theta_D} K")
         return Theta_D
+
+    def computeBulkModulus(self, stretched_traj):
+        stretch_trajectory = Trajectory(stretched_traj)
+        energies = []
+        cells = []
+        for frame in stretch_trajectory:
+            energies.append(frame.get_total_energy())
+            cells.append(frame.get_volume())
+        V = np.array(cells)
+        E = np.array(energies)
+        order = np.argsort(E)
+        E, V = E[order], V[order]
+        eos = EquationOfState(E, V, eos='birchmurnaghan')
+        _, _, B0_eVa3 = eos.fit()
+        B0_GPa = B0_eVa3 * 160.21766208
+        print(B0_GPa)
+        print(f"Real bulk module is: 137.8 GPa, the relative error is: {abs(137.8-B0_GPa)/137.8}")
+        eos.plot('Ag-eos.png')
+
+
 
     def _cubicConstantsFromTrajectory(self, ref=None, tol_abs=1e-8, tol_rel=1e-3):
         """
