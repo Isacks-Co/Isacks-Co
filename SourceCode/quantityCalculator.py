@@ -40,6 +40,7 @@ class QuantityCalculator:
         #MSD = self.computeMSD() # Å  Should we output average over late frames ?
         self_diffusion_coeff = selfDiffusionCoeffAuToSI(self.computeSelfDiffusionCoefficient())# m^2/s
         coh_energy = self.computeCohesiveEnergy() # ev
+        lattice_constant = self.computeLatticeConstant()
         internal_pressure = AuToGPascal(self.computeInternalPressure()) #GPa
         lindemann_crit = self.computeLindemannIndex() # Unitless
         debye_temperature = self.computeDebyeTemperature()
@@ -149,6 +150,7 @@ class QuantityCalculator:
         lattice_frames = [atoms.get_cell().cellpar() for atoms in self.traj]
         lattice_mean = np.mean(lattice_frames,axis = 0)
         lattice_mean[:3] /= np.array(self.settings.supercells)
+        logger.debug(f"Lattice constant: {lattice_mean}")
         return lattice_mean
 
     def computeInternalPressure(self):

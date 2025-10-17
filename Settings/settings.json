@@ -7,9 +7,9 @@
   "Sample_interval": 1,
   "Potential": "EMT",
 
-  "Friction": 1,
+  "Friction": 0.05,
   "Pressure": 0,
-  "Compressibility": 1e-7,
+  "Compressibility": 7.14e-12,
 
   "Supercells": [5,5,5],
   "Output_file" : "../Outputs/output"
