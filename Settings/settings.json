@@ -1,7 +1,7 @@
 {
   "Ensemble": "NVT",
 
-  "Temperature": 0,
+  "Temperature": 300,
   "Timestep": 1,
   "Number_of_steps": 10000,
   "Sample_interval": 1,
@@ -12,6 +12,6 @@
   "Compressibility": 1e-7,
 
   "Supercells": [5,5,5],
-  "Output_file" : "Outputs/output"
+  "Output_file" : "../Outputs/output"
 
 }
