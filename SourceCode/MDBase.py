@@ -172,7 +172,7 @@ class MDBase: #TODO Look at unit conversions
     def _runStretchSequence(self, atoms):
 
         # Small strain amplitude
-        stretch_constant = 1e-2  # 0.5%
+        stretch_constant = 1e-2  # 1%
         # Number of MD steps to run at each strained state
         hold_steps = 100
         I = np.eye(3)
