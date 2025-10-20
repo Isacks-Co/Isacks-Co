@@ -46,7 +46,9 @@ class MDBase: #TODO Look at unit conversions
         elif settings.ensemble == "NPT":
             self.temperature_k = settings.temperature
             self.pressure = settings.pressure * GPa * 1e-9  # Pa to Au
-            self.compressibility = settings.compressibility / (GPa * 1e-9)  # Pa^-1 to Au
+            self.tdamp = settings.tdamp
+            self.pdamp = settings.pdamp
+
 
         # Integrator and potential
         self.integrator = self.getIntegrator(self.ensemble)
@@ -74,11 +76,11 @@ class MDBase: #TODO Look at unit conversions
             return functools.partial(Langevin, timestep=self.timestep, temperature_K=self.temperature_k,
                                      friction=self.friction)
 
-        elif integrator_lower in ["berendsen", "npt"]:
-            from asap3.md.nptberendsen import NPTBerendsen
-            log.info("Integrator: Berendsen")
-            return functools.partial(NPTBerendsen, timestep=self.timestep, temperature_K=self.temperature_k,
-                                     pressure_au=self.pressure, compressibility_au=self.compressibility)
+        elif integrator_lower in ["MKT", "npt"]:
+            from asap3.md.nose_hoover_chain import IsotropicMTKNPT
+            log.info("Integrator: Isotropic Martyna-Tobias-klein dynamics")
+            return functools.partial(IsotropicMTKNPT, timestep=self.timestep, temperature_K=self.temperature_k,
+                                     pressure_au=self.pressure, tdamp=self.tdamp, pdamp=self.pdamp)
 
         else:
             log.error("Invalid Integrator function: %s", integrator)  ##
@@ -101,7 +103,13 @@ class MDBase: #TODO Look at unit conversions
         try:
             dyn_eq.run(equilibrium_steps)
             current_T = atoms.get_temperature()
-            log.info(f"Systems temperature is {round(current_T, 2)} K after {equilibrium_steps} steps")
+            current_V = atoms.get_volume()
+            current_S = atoms.get_stress(voigt = True)[:3] * 160.21766208e9
+            current_F = atoms.get_forces()
+            log.info(f"System's temperature is {round(current_T, 2)} K after {equilibrium_steps} steps")
+            #log.debug(f"System's volume is {round(current_V, 2)} Å^3 after {equilibrium_steps} steps")
+            #log.debug(f"System's stress is {current_S} SOME UNIT after {equilibrium_steps} steps")
+            #log.debug(f"System's forces is {current_F} after {equilibrium_steps} steps")
 
         except RuntimeError as e:
             # pep 437 problem

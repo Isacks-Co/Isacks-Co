@@ -1,5 +1,5 @@
 from simulationInput import SimulationSettings
-from unitConversions import AuToGPascal,specificHeatAuToSI,selfDiffusionCoeffAuToSI
+from unitConversions import AuToGPascal,specificHeatAuToSI,selfDiffusionCoeffAuToSI, a1ToM1, a2ToM2, a3ToM3, atomicMassTokg, auToPascal
 
 from scipy.constants import physical_constants
 from ase.io.trajectory import Trajectory
@@ -167,12 +167,12 @@ class QuantityCalculator:
             V_A3 = atoms.get_volume()
             forces_eVA = atoms.get_forces()
             positions_A = atoms.get_positions()
-            sum_rf_Eh = np.sum(forces_eVA * positions_A)
-            P_eVA3 = (1.0 / (3.0 * V_A3)) * (2.0 * e_kin_eV + sum_rf_Eh)
+            sum_rf = np.sum(forces_eVA * positions_A)
+            P_eVA3 = (1.0 / (3.0 * V_A3)) * (2.0 * e_kin_eV + sum_rf)
             internal_pressures_eVA3.append(P_eVA3)
 
         avg_P = np.mean(internal_pressures_eVA3) if internal_pressures_eVA3 else float('nan')
-        logger.debug(f"Average internal pressure: {avg_P} eV/Å^3")
+        logger.debug(f"Average internal pressure: {avg_P} eV/Å^3; {avg_P * 160.21766208} GPa; {avg_P * 160.21766208e9} Pa")
         return avg_P
 
     def computeMSD(self, frame, reference=0):
@@ -292,9 +292,6 @@ class QuantityCalculator:
         out = self.elastic_properties  # SI Pa
         G = out['G']
         K = out['K']
-        EV_PER_A3_TO_GPA = 160.21766208
-        logger.info(f"Bulk modulus = {K * EV_PER_A3_TO_GPA} GPa")
-        logger.info(f" modulus = {G * EV_PER_A3_TO_GPA} GPa")
 
         if K < 0 or G < 0:
             error_log = "Negative pressure during calulation of Debye temperature"
@@ -313,17 +310,14 @@ class QuantityCalculator:
         longitudinal_sound_velocity = np.sqrt((K + 4.0 * G / 3.0) / rho)
         sound_velocity = ((1.0 / 3.0) * (1.0 / (longitudinal_sound_velocity ** 3) + 2.0 / (transversal_sound_velocity ** 3))) ** (-1.0 / 3.0)
 
-        logger.info(f"Sound Velociy : {sound_velocity}")
         N = len(self.traj[0])
         n = (N / V_A3)
 
-        logger.info(f"N = {N} : V_A3 = {V_A3}")
-
         Theta_D = (hbar / kB) * ((6.0 * np.pi ** 2 * n) ** (1.0 / 3.0)) * sound_velocity / 10.18 # NEED TO DO SQRT(ev/u) to fs/Å
-        logger.info(f"Debye temperature: {Theta_D} K")
+        logger.debug(f"Debye temperature: {Theta_D} K")
         return Theta_D
 
-    def _cubicConstantsFromTrajectory(self, ref=None, tol_abs=1e-8, tol_rel=1e-3):
+    def _cubicConstantsFromTrajectory(self, ref=None):
         """
         Estimate C11, C12, C44, K, G using only cell geometry and info['stress'] saved in traj.
         Internally uses atomic units (stress in Eh/a0^3), and returns SI Pascals.
@@ -332,25 +326,14 @@ class QuantityCalculator:
         if ref == None:
             ref = stretch_trajectory[0]
         # Collect arrays
-        x_D, y_D = [], []  # for D = C11−C12 via (σa−σb) vs (εa−εb)
-        x_S, y_S = [], []  # for S = C11+2C12 via σ_h vs tr(ε)
-        x_xy, y_xy = [], []  # for C44 via σ_xy vs γ_xy
-        x_xz, y_xz = [], []
-        x_yz, y_yz = [], []
         C_11, C_22, C_33 = [], [], []
         C_12 = []
+        K = []
 
         for frame in stretch_trajectory:
             sig_eVA3 = frame.info["stress"]
             current_measurement = frame.info["measurement"]
             current_stretch_matrix = frame.info["stretch_matrix"]
-            # eps = _smallStrainFromCells(ref, frame)
-
-
-            # stretch_xx, stretch_yy, stretch_zz = eps[0, 0], eps[1, 1], eps[2, 2]
-            # stretch_xy, stretch_xz, stretch_yz = eps[0, 1], eps[0, 2], eps[1, 2]
-
-            # hydrostatic_pressure = (stretch_xx + stretch_yy + stretch_zz) / 3
 
             match current_measurement:
                 case "reference":
@@ -360,13 +343,14 @@ class QuantityCalculator:
                     C_22.append(sig_eVA3[1] / (current_stretch_matrix[1][1] - 1))
                     C_33.append(sig_eVA3[2] / (current_stretch_matrix[2][2] - 1))
                     C_12.append(sig_eVA3[0] / (current_stretch_matrix[1][1] - 1))
-
+                    K.append((((C_11[-1] + C_22[-1] + C_33[-1]) / 3) + 2 * C_12[-1]) / 3)
 
                 case "isotropic_minus":
                     C_11.append(sig_eVA3[0] / (current_stretch_matrix[0][0] - 1))
                     C_22.append(sig_eVA3[1] / (current_stretch_matrix[1][1] - 1))
                     C_33.append(sig_eVA3[2] / (current_stretch_matrix[2][2] - 1))
                     C_12.append(sig_eVA3[0] / (current_stretch_matrix[1][1] - 1))
+                    K.append((((C_11[-1] + C_22[-1] + C_33[-1]) / 3) + 2 * C_12[-1]) / 3)
 
                 case "orthorhombic_plus_minus":
                     continue
@@ -378,85 +362,18 @@ class QuantityCalculator:
                     continue
                 case "shears_yz":
                     continue
-        logger.info(f"C11 : {np.mean(C_11)} , C22 : {np.mean(C_22)} , C33 : {np.mean(C_33)}, C12 : {np.mean(C_12)}")
-        logger.info(f"Bulk : {(np.mean(C_11) + 2*np.mean(C_12)) * 160.21766208 / 3}")
-        """
-            e_xx, e_yy, e_zz = eps[0, 0], eps[1, 1], eps[2, 2]
-            e_xy, e_xz, e_yz = eps[0, 1], eps[0, 2], eps[1, 2]
-            g_xy, g_xz, g_yz = 2 * e_xy, 2 * e_xz, 2 * e_yz
 
-            s_xx, s_yy, s_zz = sig_eVA3[0], sig_eVA3[1], sig_eVA3[2]
-            s_yz, s_xz, s_xy = sig_eVA3[3], sig_eVA3[4], sig_eVA3[5]
+        C11 = np.mean(C_11 + C_22 + C_33) / 3
+        C12 = np.mean(C_12)
+        K0_mean = np.mean(K)
 
-            # D pairs
-            x_D.extend([e_xx - e_yy, e_yy - e_zz, e_zz - e_xx])
-            y_D.extend([s_xx - s_yy, s_yy - s_zz, s_zz - s_xx])
+        K1 = (C11 + 2 * C12) / 3
+        G0 = (K1 - C11) * 3 / 4     # C11 = K + 4G/3
 
-            # Hydrostatic
-            tr_eps = e_xx + e_yy + e_zz
-            sig_h = (s_xx + s_yy + s_zz) / 3.0
-            x_S.append(tr_eps)
-            y_S.append(sig_h)
+        logger.debug(f"\n\n C11 : {np.mean(C_11)} , C22 : {np.mean(C_22)} , C33 : {np.mean(C_33)}, C12 : {np.mean(C_12)}, "
+                     f"Bulk Modulus {K0_mean * 160.21766208} GPa, Shear Modulus {G0 * 160.21766208} GPa\n\n")
 
-            # Shears
-            x_xy.append(g_xy)
-            y_xy.append(s_xy)
-            x_xz.append(g_xz)
-            y_xz.append(s_xz)
-            x_yz.append(g_yz)
-            y_yz.append(s_yz)
-
-        def slopeFiltered(x, y):
-            x = np.asarray(x, dtype=float)
-            y = np.asarray(y, dtype=float)
-            if x.size < 3:
-                return float('nan')
-            scale = np.max(np.abs(x))
-            mask = np.abs(x) > max(tol_abs, tol_rel * scale)
-            x2 = x[mask]
-            y2 = y[mask]
-            if x2.size < 3:
-                return float('nan')
-            m = np.dot(x2, y2) / np.dot(x2, x2)
-            return float(m)
-
-        D = slopeFiltered(x_D, y_D)
-        S_3 = slopeFiltered(x_S, y_S)
-        S_3 = S_3 * 3.0 if np.isfinite(S_3) else float('nan')
-
-        C44_xy = slopeFiltered(x_xy, y_xy)
-        C44_xz = slopeFiltered(x_xz, y_xz)
-        C44_yz = slopeFiltered(x_yz, y_yz)
-
-        C44s = [v for v in [C44_xy, C44_xz, C44_yz] if np.isfinite(v)]
-        C44 = float(np.mean(C44s)) if C44s else float('nan')
-
-        if np.isfinite(S_3) and np.isfinite(D):
-            C11 = (S_3 + 2.0 * D) / 3.0
-            C12 = (S_3 - D) / 3.0
-            K = S_3 / 3.0
-        else:
-            C11 = C12 = K = float('nan')
-
-        # VRH shear modulus
-        if np.isfinite(D) and np.isfinite(C44):
-            G_V = (D + 3.0 * C44) / 5.0
-            denom = 4.0 * C44 + 3.0 * D
-            if denom != 0:
-                G_R = 5.0 * D * C44 / denom
-                G = 0.5 * (G_V + G_R) if np.isfinite(G_R) else G_V
-            else:
-                G = G_V
-        else:
-            G = C44
-
-        return {
-            'C11': C11, 'C12': C12, 'C44': C44, 'K': K, 'G': G,
-            'C44_xy': float(C44_xy) if np.isfinite(C44_xy) else float('nan'),
-            'C44_xz': float(C44_xz) if np.isfinite(C44_xz) else float('nan'),
-            'C44_yz': float(C44_yz) if np.isfinite(C44_yz) else float('nan')
-        }
-        """
+        return {'C11': C11, 'C12': C12, 'K': K0_mean, 'G': G0}
 
 
 def _smallStrainFromCells(ref, cur):
