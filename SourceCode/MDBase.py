@@ -159,6 +159,8 @@ class MDBase:
         dyn.run(self.steps)  # RUN
         traj.close()  # Explicitly close the trajectory
 
+        self._make_eos_traj(atoms, eta=0.02, npoints=9, relax=True)
+
         # Run stretch sequence for elastic constants
         self._runStretchSequence(atoms)
 
@@ -177,6 +179,7 @@ class MDBase:
         def getStress(traj,atoms=atoms):
             atoms.info["stress"] = atoms.get_stress(voigt = True)
             atoms.get_total_energy()
+            atoms.get_potential_energy()
             atoms.get_volume()
             traj.write()
 
@@ -191,8 +194,8 @@ class MDBase:
         F_list.append(I * (1.0 + eta))
         F_list.append(I * (1.0 - eta))
         # Orthorhombic (volume-conserving to first order): diag(1+eta, 1-eta, 1)
-        F_list.append(np.diag([1.0 + eta, 1.0 - eta, 1.0]))
-        F_list.append(np.diag([1.0 - eta, 1.0 + eta, 1.0]))
+        #F_list.append(np.diag([1.0 + eta, 1.0 - eta, 1.0]))
+        #F_list.append(np.diag([1.0 - eta, 1.0 + eta, 1.0]))
         # Symmetric shears: xy, xz, yz (F = I + eps, eps_ij = eps_ji = eta)
         eps_xy = I.copy()
         eps_xy[0, 1] = eps_xy[1, 0] = eta
@@ -280,3 +283,37 @@ class MDBase:
                 self.quantity_list.append(atoms.get_potential_energy())
             case "NVE":
                 self.quantity_list.append(atoms.get_temperature())
+
+    def _make_eos_traj(self, atoms, eta=0.02, npoints=9, relax=False, fmax=0.02,
+                       traj_path=f"../Outputs/isotropic_stretch.traj"):
+        """
+        Creates isotrophic scaling of cell
+        - eta: max scaling factor
+        - npoints: nbr of points between (1-eta) och (1+eta)
+        - relax: if True, relax only inrternal positions at everyt volume
+        - fmax: force criterua for relax
+        - traj_path:
+        Return: traj_path
+        """
+        from ase.optimize import BFGS
+
+        if traj_path is None:
+            traj_path = f"{self.output_file}_eos.traj"
+
+        # Skala längder linjärt runt 1.0 → ger ungefär +-3*eta i volym
+        scales = np.linspace(1.0 - eta, 1.0 + eta, npoints)
+
+        A0 = atoms.cell.array.copy()
+        traj = Trajectory(traj_path, mode="w")
+
+        for s in scales:
+            a = atoms.copy()
+            a.calc = atoms.calc
+            a.set_cell(A0 * s, scale_atoms=True)  # isotrop scaling
+            if relax:
+                BFGS(a, logfile=None).run(fmax=fmax)  # relax internal coordi
+            _ = a.get_potential_energy()
+            _ = a.get_volume()
+            traj.write(a)
+
+        return traj_path

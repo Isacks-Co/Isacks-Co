@@ -29,7 +29,7 @@ class QuantityCalculator:
         self.traj = traj
         self.settings = settings
         self.structure_name = self.traj[0].info["comment"]
-        self.elastic_properties = self._cubicConstantsFromTrajectory()
+        #self.elastic_properties = self._cubicConstantsFromTrajectory()
 
     def getQuantities(self):
         """
@@ -39,13 +39,13 @@ class QuantityCalculator:
         # Compute all general quantities
 
         #MSD = self.computeMSD() # Å  Should we output average over late frames ?
-        self.computeBulkModulus("../Outputs/output_stretch_data.traj")
+        self.computeBulkModulus("../Outputs/isotropic_stretch.traj")
         self_diffusion_coeff = selfDiffusionCoeffAuToSI(self.computeSelfDiffusionCoefficient())# m^2/s
         coh_energy = self.computeCohesiveEnergy() # ev
         lattice_constant = self.computeLatticeConstant()
         internal_pressure = AuToGPascal(self.computeInternalPressure()) #GPa
         lindemann_crit = self.computeLindemannIndex() # Unitless
-        debye_temperature = self.computeDebyeTemperature()
+        #debye_temperature = self.computeDebyeTemperature()
 
         logger.info(self.elastic_properties)
 
@@ -326,22 +326,42 @@ class QuantityCalculator:
         return Theta_D
 
     def computeBulkModulus(self, stretched_traj):
+        import matplotlib.pyplot as plt
+
         stretch_trajectory = Trajectory(stretched_traj)
+        print(stretch_trajectory[-1].get_volume())
+        print(stretch_trajectory[-1].get_potential_energy())
         energies = []
         cells = []
         for frame in stretch_trajectory:
-            energies.append(frame.get_total_energy())
+            energies.append(frame.get_potential_energy())
             cells.append(frame.get_volume())
+
         V = np.array(cells)
         E = np.array(energies)
-        order = np.argsort(E)
+        order = np.argsort(V)
         E, V = E[order], V[order]
-        eos = EquationOfState(E, V, eos='birchmurnaghan')
-        _, _, B0_eVa3 = eos.fit()
+
+        # --- Minimal diagnosplot: råpunkter ---
+        plt.figure(figsize=(6, 4))
+        plt.scatter(V, E, s=28)
+        plt.xlabel('volume [Å³]')
+        plt.ylabel('energy [eV]')
+        plt.title('E(V) – stretch trajectory (råpunkter)')
+        plt.tight_layout()
+        plt.savefig('e_vs_v_points.png', dpi=200)
+        plt.close()
+
+
+        eos = EquationOfState(V, E, eos='birchmurnaghan')
+        v0, e0, B0_eVa3 = eos.fit()
         B0_GPa = B0_eVa3 * 160.21766208
-        print(B0_GPa)
-        print(f"Real bulk module is: 137.8 GPa, the relative error is: {abs(137.8-B0_GPa)/137.8}")
+        print("BULKMODULUS", B0_GPa)
         eos.plot('Ag-eos.png')
+
+
+
+
 
 
 
