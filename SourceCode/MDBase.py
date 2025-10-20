@@ -284,15 +284,15 @@ class MDBase:
             case "NVE":
                 self.quantity_list.append(atoms.get_temperature())
 
-    def _make_eos_traj(self, atoms, eta=0.02, npoints=9, relax=False, fmax=0.02,
+    def _make_eos_traj(self, atoms, eta=0.03, npoints=10, relax=True, fmax=0.02,
                        traj_path=f"../Outputs/isotropic_stretch.traj"):
         """
         Creates isotrophic scaling of cell
-        - eta: max scaling factor
-        - npoints: nbr of points between (1-eta) och (1+eta)
-        - relax: if True, relax only inrternal positions at everyt volume
-        - fmax: force criterua for relax
-        - traj_path:
+            eta: max scaling factor
+            npoints: nbr of points between (1-eta) och (1+eta)
+            relax: if True, relax only inrternal positions at everyt volume
+            fmax: force criteria for relax
+            traj_path:
         Return: traj_path
         """
         from ase.optimize import BFGS
@@ -300,9 +300,7 @@ class MDBase:
         if traj_path is None:
             traj_path = f"{self.output_file}_eos.traj"
 
-        # Skala längder linjärt runt 1.0 → ger ungefär +-3*eta i volym
         scales = np.linspace(1.0 - eta, 1.0 + eta, npoints)
-
         A0 = atoms.cell.array.copy()
         traj = Trajectory(traj_path, mode="w")
 
