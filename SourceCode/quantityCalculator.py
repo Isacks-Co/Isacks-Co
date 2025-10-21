@@ -327,59 +327,54 @@ class QuantityCalculator:
         """
         Estimate C11, C12, C44, K, G using only cell geometry and info['stress'] saved in traj.
         Internally uses atomic units (stress in Eh/a0^3), and returns SI Pascals.
+        Voigt notation: 1 -> xx
+                        2 -> yy
+                        3 -> zz
+                        4 -> yz
+                        5 -> xz
+                        6 -> xy
         """
         stretch_trajectory = Trajectory(self.settings.output_file + "_stretch_data.traj")
-        if ref == None:
-            ref = stretch_trajectory[0]
+
         # Collect arrays
-        x_D, y_D = [], []  # for D = C11−C12 via (σa−σb) vs (εa−εb)
-        x_S, y_S = [], []  # for S = C11+2C12 via σ_h vs tr(ε)
-        x_xy, y_xy = [], []  # for C44 via σ_xy vs γ_xy
-        x_xz, y_xz = [], []
-        x_yz, y_yz = [], []
         C_11, C_22, C_33 = [], [], []
         C_12 = []
+        C_44, C_55, C_66 = [], [], []
 
         for frame in stretch_trajectory:
             sig_eVA3 = frame.info["stress"]
             current_measurement = frame.info["measurement"]
             current_stretch_matrix = frame.info["stretch_matrix"]
-            # eps = _smallStrainFromCells(ref, frame)
-
-
-            # stretch_xx, stretch_yy, stretch_zz = eps[0, 0], eps[1, 1], eps[2, 2]
-            # stretch_xy, stretch_xz, stretch_yz = eps[0, 1], eps[0, 2], eps[1, 2]
-
-            # hydrostatic_pressure = (stretch_xx + stretch_yy + stretch_zz) / 3
 
             match current_measurement:
-                case "reference":
-                    continue
-                case "isotropic_plus":
+                case "isotropic":
                     C_11.append(sig_eVA3[0] / (current_stretch_matrix[0][0] - 1))
+                    logger.info((sig_eVA3[0] / (current_stretch_matrix[0][0] - 1))  * 160.21766208)
                     C_22.append(sig_eVA3[1] / (current_stretch_matrix[1][1] - 1))
                     C_33.append(sig_eVA3[2] / (current_stretch_matrix[2][2] - 1))
                     C_12.append(sig_eVA3[0] / (current_stretch_matrix[1][1] - 1))
 
-
-                case "isotropic_minus":
-                    C_11.append(sig_eVA3[0] / (current_stretch_matrix[0][0] - 1))
-                    C_22.append(sig_eVA3[1] / (current_stretch_matrix[1][1] - 1))
-                    C_33.append(sig_eVA3[2] / (current_stretch_matrix[2][2] - 1))
-                    C_12.append(sig_eVA3[0] / (current_stretch_matrix[1][1] - 1))
-
-                case "orthorhombic_plus_minus":
-                    continue
-                case "orthorhombic_minus_plus":
-                    continue
                 case "shears_xy":
-                    continue
+                    C_66.append(sig_eVA3[5] / (current_stretch_matrix[0][1]))
                 case "shears_xz":
-                    continue
+                    C_55.append(sig_eVA3[4] / (current_stretch_matrix[0][2]))
                 case "shears_yz":
-                    continue
-        logger.info(f"C11 : {np.mean(C_11)} , C22 : {np.mean(C_22)} , C33 : {np.mean(C_33)}, C12 : {np.mean(C_12)}")
-        logger.info(f"Bulk : {(np.mean(C_11) + 2*np.mean(C_12)) * 160.21766208 / 3}")
+                    C_44.append(sig_eVA3[3] / (current_stretch_matrix[1][2]))
+                case _:
+                    logger.warning("Didn't recognize current stretch matrix type")
+
+        logger.info(f"Steps : {len(C_11)} {len(C_44)} {len(C_55)} {len(C_66)} ")
+
+        B_bulk = (np.mean(C_11) + 2*np.mean(C_12)) * 160.21766208 / 3
+        G_shear = (np.mean(C_44) + np.mean(C_55) + np.mean(C_66) + np.mean(C_11) - np.mean(C_12)) * 160.21766208 / 5
+        E_young = 9 * B_bulk * G_shear / (3 * B_bulk + G_shear)
+
+
+        logger.info(f"C11 : {np.mean(C_11) * 160.21766208} , C22 : {np.mean(C_22) * 160.21766208} , C33 : {np.mean(C_33) * 160.21766208}, C12 : {np.mean(C_12) * 160.21766208}")
+        logger.info(f"C44 : {np.mean(C_44) * 160.21766208}, C55 : {np.mean(C_55) * 160.21766208}, C66 : {np.mean(C_66) * 160.21766208}")
+        logger.info(f"Bulk modulus B : {B_bulk}")
+        logger.info(f"Shear modulus G : {G_shear}")
+        logger.info(f"Young modulus E : {E_young}")
         """
             e_xx, e_yy, e_zz = eps[0, 0], eps[1, 1], eps[2, 2]
             e_xy, e_xz, e_yz = eps[0, 1], eps[0, 2], eps[1, 2]
