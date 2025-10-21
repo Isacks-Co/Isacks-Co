@@ -39,7 +39,7 @@ class QuantityCalculator:
         # Compute all general quantities
 
         #MSD = self.computeMSD() # Å  Should we output average over late frames ?
-        self.computeBulkModulus("../Outputs/isotropic_stretch.traj")
+        bulk_modulus = self.computeBulkModulus("../Outputs/isotropic_stretch.traj")
         self_diffusion_coeff = selfDiffusionCoeffAuToSI(self.computeSelfDiffusionCoefficient())# m^2/s
         coh_energy = self.computeCohesiveEnergy() # ev
         lattice_constant = self.computeLatticeConstant()
@@ -47,10 +47,10 @@ class QuantityCalculator:
         lindemann_crit = self.computeLindemannIndex() # Unitless
         #debye_temperature = self.computeDebyeTemperature()
 
-        logger.info(self.elastic_properties)
+        #logger.info(self.elastic_properties)
 
-        labels = ["D","E_coh","P_i","L_crit", "T_D"]
-        quantities = [self_diffusion_coeff,coh_energy,internal_pressure,lindemann_crit, debye_temperature] # TODO Maybe nicer way to handle this ?
+        labels = ["D","E_coh","P_i","L_crit", "B"] #, "T_D"
+        quantities = [self_diffusion_coeff,coh_energy,internal_pressure,lindemann_crit, bulk_modulus] # TODO Maybe nicer way to handle this ? , debye_temperature
         match self.settings.ensemble:
             case "NVE":
                 Cv = specificHeatAuToSI(self.computeSpecificHeatNVE()) # J/K per atom
@@ -58,7 +58,6 @@ class QuantityCalculator:
                 quantities.append(Cv)
 
             case "NVT":
-                print("NVT")
                 Cv = specificHeatAuToSI(self.computeSpecificHeatNVT()) # J/K per atom
                 labels.append("Cv")
                 quantities.append(Cv)
@@ -327,10 +326,7 @@ class QuantityCalculator:
 
     def computeBulkModulus(self, stretched_traj):
         import matplotlib.pyplot as plt
-
         stretch_trajectory = Trajectory(stretched_traj)
-        print(stretch_trajectory[-1].get_volume())
-        print(stretch_trajectory[-1].get_potential_energy())
         energies = []
         cells = []
         for frame in stretch_trajectory:
@@ -341,24 +337,21 @@ class QuantityCalculator:
         E = np.array(energies)
         order = np.argsort(V)
         E, V = E[order], V[order]
-
-        # --- Minimal diagnosplot: råpunkter ---
+        """
         plt.figure(figsize=(6, 4))
         plt.scatter(V, E, s=28)
         plt.xlabel('volume [Å³]')
         plt.ylabel('energy [eV]')
-        plt.title('E(V) – stretch trajectory (råpunkter)')
+        plt.title('E(V) – stretch trajectory')
         plt.tight_layout()
         plt.savefig('e_vs_v_points.png', dpi=200)
         plt.close()
-
-
+        """
         eos = EquationOfState(V, E, eos='birchmurnaghan')
         v0, e0, B0_eVa3 = eos.fit()
         B0_GPa = B0_eVa3 * 160.21766208
-        print("BULKMODULUS", B0_GPa)
         eos.plot('Ag-eos.png')
-
+        return B0_GPa
 
 
 

@@ -64,8 +64,8 @@ class Potential:
                 modified=True
             )
 
-            # atoms.calc = calc_asap
-            # _ = atoms.get_potential_energy()
+            atoms.calc = calc_asap
+            _ = atoms.get_potential_energy()
             log.info("Using asap3 LJ | element=%s (Z=%s) | ε=%.4g eV | σ=%.4g Å | rc=%.4g Å ",
                      material_key, atomic_number[0], eps, sig, rc)
             return calc_asap

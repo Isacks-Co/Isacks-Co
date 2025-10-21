@@ -159,7 +159,7 @@ class MDBase:
         dyn.run(self.steps)  # RUN
         traj.close()  # Explicitly close the trajectory
 
-        self._make_eos_traj(atoms, eta=0.02, npoints=9, relax=True)
+        self._make_eos_traj(atoms)
 
         # Run stretch sequence for elastic constants
         self._runStretchSequence(atoms)
@@ -284,7 +284,7 @@ class MDBase:
             case "NVE":
                 self.quantity_list.append(atoms.get_temperature())
 
-    def _make_eos_traj(self, atoms, eta=0.03, npoints=10, relax=True, fmax=0.02,
+    def _make_eos_traj(self, atoms, eta=0.12, npoints=20, relax=False, fmax=0.02,
                        traj_path=f"../Outputs/isotropic_stretch.traj"):
         """
         Creates isotrophic scaling of cell
@@ -296,22 +296,30 @@ class MDBase:
         Return: traj_path
         """
         from ase.optimize import BFGS
+        from ase.md.langevin import Langevin
+
 
         if traj_path is None:
             traj_path = f"{self.output_file}_eos.traj"
 
+
+
         scales = np.linspace(1.0 - eta, 1.0 + eta, npoints)
         A0 = atoms.cell.array.copy()
-        traj = Trajectory(traj_path, mode="w")
+        traj = Trajectory(traj_path, mode="w", )
 
         for s in scales:
             a = atoms.copy()
-            a.calc = atoms.calc
             a.set_cell(A0 * s, scale_atoms=True)  # isotrop scaling
+            a.calc = self.potential(a)
+
+            if hasattr(a.calc, "set_atoms"):
+                a.calc.set_atoms(a)
+
             if relax:
                 BFGS(a, logfile=None).run(fmax=fmax)  # relax internal coordi
             _ = a.get_potential_energy()
             _ = a.get_volume()
             traj.write(a)
 
-        return traj_path
+        #return traj_path
