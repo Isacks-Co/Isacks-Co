@@ -166,6 +166,7 @@ class MDBase:
 
 
     def save_data(self, atoms,traj):
+        """
         atoms.get_potential_energy()
         atoms.get_kinetic_energy()
         atoms.get_total_energy()
@@ -173,6 +174,28 @@ class MDBase:
         atoms.get_volume()
         atoms.get_positions()
         traj.write()
+        """
+        Ep = atoms.get_potential_energy()
+        Ek = atoms.get_kinetic_energy()
+        Et = atoms.get_total_energy()
+        F = atoms.get_forces()
+        V = atoms.get_volume()
+        T = atoms.get_temperature()
+
+        atoms.info['E_pot'] = float(Ep)
+        atoms.info['E_kin'] = float(Ek)
+        atoms.info['E_tot'] = float(Et)
+        atoms.info['V'] = float(V)
+        atoms.info['T'] = float(T)
+        #atoms.arrays['F'] = F
+        if 'F' in atoms.arrays:
+            atoms.arrays['F'][:] = np.asarray(F, float)
+        else:
+            atoms.new_array('F', np.asarray(F, float))
+        atoms.info['F'] = np.asarray(F, float).tolist()
+
+        traj.write()
+
 
     def _runStretchSequence(self, atoms):
 
@@ -318,8 +341,12 @@ class MDBase:
 
             if relax:
                 BFGS(a, logfile=None).run(fmax=fmax)  # relax internal coordi
-            _ = a.get_potential_energy()
-            _ = a.get_volume()
+            E_pot = a.get_potential_energy()
+            V = a.get_volume()
+            a.info['E_pot'] = float(E_pot)
+            a.info['V'] = float(V)
+
+
             traj.write(a)
 
         #return traj_path

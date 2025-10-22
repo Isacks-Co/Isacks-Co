@@ -42,7 +42,6 @@ class QuantityCalculator:
         bulk_modulus = self.computeBulkModulus("../Outputs/isotropic_stretch.traj")
         self_diffusion_coeff = selfDiffusionCoeffAuToSI(self.computeSelfDiffusionCoefficient())# m^2/s
         coh_energy = self.computeCohesiveEnergy() # ev
-        lattice_constant = self.computeLatticeConstant()
         internal_pressure = AuToGPascal(self.computeInternalPressure()) #GPa
         lindemann_crit = self.computeLindemannIndex() # Unitless
         #debye_temperature = self.computeDebyeTemperature()
@@ -106,9 +105,11 @@ class QuantityCalculator:
             atom = Atoms(self.traj[0].get_chemical_symbols()[j], positions=[[0, 0, 0]], cell=[10, 10, 10], pbc=False)
             atom.calc = calc
             e_atoms += atom.get_potential_energy()
+
         e_coh_list = []
         for frame in self.traj:
-            e_bulk = frame.get_potential_energy()
+            #e_bulk = frame.get_potential_energy()
+            e_bulk = _get(frame, "E_pot")
             e_coh_list.append((e_atoms - e_bulk)/number)
 
         e_coh_mean = np.mean(e_coh_list)
@@ -121,8 +122,10 @@ class QuantityCalculator:
         over all frames.
         Unit: ev/(amu*K) (amu = atomic mass unit)
         """
-        energy = np.array([atom_frame.get_total_energy() for atom_frame in self.traj])
-        temperature = np.mean([atom_frame.get_temperature() for atom_frame in self.traj])
+        #energy = np.array([atom_frame.get_total_energy() for atom_frame in self.traj])
+        #temperature = np.mean([atom_frame.get_temperature() for atom_frame in self.traj])
+        energy = np.array([_get(frame, "E_tot") for frame in self.traj])
+        temperature = np.mean([_get(frame, "T") for frame in self.traj])
 
         e_mean = np.mean(energy)
         e_2_mean = np.mean(energy**2)
@@ -138,8 +141,11 @@ class QuantityCalculator:
         over all frames. 
         Unit: ev/(amu*K) (amu = atomic mass units)
         """
-        e_kin = np.array([atom_frame.get_kinetic_energy() for atom_frame in self.traj])
-        T = np.mean([atom_frame.get_temperature() for atom_frame in self.traj])
+        #e_kin = np.array([atom_frame.get_kinetic_energy() for atom_frame in self.traj])
+        #T = np.mean([atom_frame.get_temperature() for atom_frame in self.traj])
+        e_kin = np.array([_get(fr, "E_kin") for fr in self.traj])
+        T = float(np.nanmean([_get(fr, "T") for fr in self.traj]))
+
         e_kin_mean = np.mean(e_kin)
         e_kin_2_mean = np.mean(e_kin**2)
         total_mass_amu = float(sum(self.traj[0].get_masses()))
@@ -163,11 +169,26 @@ class QuantityCalculator:
         """
         internal_pressures_eVA3 = []
         N = len(self.traj[0])
+        """
         for atoms in self.traj:
             e_kin_eV = atoms.get_kinetic_energy()
             V_A3 = atoms.get_volume()
             forces_eVA = atoms.get_forces()
             positions_A = atoms.get_positions()
+            sum_rf_Eh = np.sum(forces_eVA * positions_A)
+            P_eVA3 = (1.0 / (3.0 * V_A3)) * (2.0 * e_kin_eV + sum_rf_Eh)
+            internal_pressures_eVA3.append(P_eVA3)
+        """
+        for atoms in self.traj:
+            e_kin_eV = _get(atoms, "E_kin")
+            V_A3 = _get(atoms, "V")
+            forces_eVA = _get(atoms, "F")
+            positions_A = atoms.get_positions()
+
+            if forces_eVA is None:
+                pass
+            #print("FORCE", forces_eVA)
+            #print("POSITIONS", positions_A)
             sum_rf_Eh = np.sum(forces_eVA * positions_A)
             P_eVA3 = (1.0 / (3.0 * V_A3)) * (2.0 * e_kin_eV + sum_rf_Eh)
             internal_pressures_eVA3.append(P_eVA3)
@@ -306,7 +327,8 @@ class QuantityCalculator:
             logger.info("Elastic constants not reliable from traj; Debye temperature cannot be computed.")
             return float('nan')
 
-        V_A3 = np.mean([fr.get_volume() for fr in self.traj])
+        #V_A3 = np.mean([fr.get_volume() for fr in self.traj])
+        V_A3 = float(np.nanmean([_get(fr, "V") for fr in self.traj]))
         mass_u = float(sum(self.traj[0].get_masses()))
         rho = (mass_u / V_A3)
 
@@ -330,13 +352,14 @@ class QuantityCalculator:
         energies = []
         cells = []
         for frame in stretch_trajectory:
-            energies.append(frame.get_potential_energy())
-            cells.append(frame.get_volume())
+            energies.append(_get(frame, "E_pot"))
+            cells.append(_get(frame, "V"))
 
         V = np.array(cells)
         E = np.array(energies)
         order = np.argsort(V)
         E, V = E[order], V[order]
+
         """
         plt.figure(figsize=(6, 4))
         plt.scatter(V, E, s=28)
@@ -507,3 +530,47 @@ def _stressEVA3FromInfo(cur):
     if sig_v is None:
         return None
     return np.asarray(sig_v, dtype=float)  # eV/A3
+
+
+
+def _get(frame, name):
+    """Read from info/arrays first (traj-safe), else fall back to get_* (requires calc)."""
+    try:
+        if name == "E_pot":
+            E_pot = frame.info.get("E_pot")
+            return float(E_pot) if E_pot is not None else frame.get_potential_energy()
+
+        if name == "E_kin":
+            E_kin = frame.info.get("E_kin")
+            return float(E_kin) if E_kin is not None else frame.get_kinetic_energy()
+
+        if name == "E_tot":
+            E_tot = frame.info.get("E_tot")
+            return float(E_tot) if E_tot is not None else frame.get_total_energy()
+
+        if name == "V":
+            v = frame.info.get("V")
+            return float(v) if v is not None else frame.get_volume()
+
+        if name == "T":
+            T = frame.info.get("T")
+            return float(T) if T is not None else frame.get_temperature()
+
+        if name == "F":
+            #1) arrays['F']
+            F = frame.arrays.get("F")
+            if F is not None:
+                return np.asarray(F, float)
+            #2) info['F']
+            Fi = frame.info.get("F", frame.info.get("forces"))
+            if Fi is not None:
+                return np.asarray(Fi, float)
+            #3) fallback
+            try:
+                return np.asarray(frame.get_forces(), float)
+            except Exception:
+                return None
+
+
+    except Exception:
+        return None
