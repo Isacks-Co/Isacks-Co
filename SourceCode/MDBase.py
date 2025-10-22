@@ -172,62 +172,58 @@ class MDBase: #TODO Look at unit conversions
     def _runStretchSequence(self, atoms):
 
         # Small strain amplitude
-        stretch_constant = 1e-2  # 1%
+        stretch_constant = 2e-2  # 1%
         # Number of MD steps to run at each strained state
-        hold_steps = 100
+        hold_steps = 1
+        stretch_steps = 100
         I = np.eye(3)
         # Symmetric small-strain deformation gradients (F ≈ I + eps for small strains)
-        stretch_matrix_list = []
-        measurement_list = []
-        # Reference measurement
-        stretch_matrix_list.append(I)
-        measurement_list.append("reference")
+        stretch_matrix_list = np.zeros((4*stretch_steps, 3, 3), dtype=float)
+        type_list = np.empty(4*stretch_steps, dtype='<U10')
+        count = 0
 
-        # ± isotropic
-        stretch_matrix_list.append(I * (1.0 + stretch_constant))
-        stretch_matrix_list.append(I * (1.0 - stretch_constant))
-        measurement_list.append("isotropic_plus")
-        measurement_list.append("isotropic_minus")
+        for current_stretch in (np.linspace(-stretch_constant, stretch_constant, stretch_steps)):
+            # isotropic
+            stretch_matrix_list[count] = I * (1.0 + current_stretch)
+            type_list[count] = "isotropic"
 
-        # Orthorhombic (volume-conserving to first order): diag(1+eta, 1-eta, 1)
-        stretch_matrix_list.append(np.diag([1.0 + stretch_constant, 1.0 - stretch_constant, 1.0]))
-        stretch_matrix_list.append(np.diag([1.0 - stretch_constant, 1.0 + stretch_constant, 1.0]))
-        measurement_list.append("orthorhombic_plus_minus")
-        measurement_list.append("orthorhombic_minus_plus")
+            # Symmetric shears: xy, xz, yz (F = I + eps, eps_ij = eps_ji = eta)
+            stretch_xy = I.copy()
+            stretch_xy[0, 1] = stretch_xy[1, 0] = current_stretch
+            stretch_matrix_list[stretch_steps + count] = stretch_xy
+            type_list[stretch_steps + count] = "shears_xy"
 
-        # Symmetric shears: xy, xz, yz (F = I + eps, eps_ij = eps_ji = eta)
-        stretch_xy = I.copy()
-        stretch_xy[0, 1] = stretch_xy[1, 0] = stretch_constant
-        stretch_matrix_list.append(stretch_xy)
-        measurement_list.append("shears_xy")
+            stretch_xz = I.copy()
+            stretch_xz[0, 2] = stretch_xz[2, 0] = current_stretch
+            stretch_matrix_list[2*stretch_steps + count] = stretch_xz
+            type_list[2*stretch_steps + count] = "shears_xz"
 
-        stretch_xz = I.copy()
-        stretch_xz[0, 2] = stretch_xz[2, 0] = stretch_constant
-        stretch_matrix_list.append(stretch_xz)
-        measurement_list.append("shears_xz")
+            stretch_yz = I.copy()
+            stretch_yz[1, 2] = stretch_yz[2, 1] = current_stretch
+            stretch_matrix_list[3*stretch_steps + count] = stretch_yz
+            type_list[3*stretch_steps + count] = "shears_yz"
 
-        stretch_yz = I.copy()
-        stretch_yz[1, 2] = stretch_yz[2, 1] = stretch_constant
-        stretch_matrix_list.append(stretch_yz)
-        measurement_list.append("shears_yz")
+            log.info(f"Placing on {count} , {stretch_steps + count} , {2*stretch_steps + count} , {3*stretch_steps + count} ")
+
+            count += 1
+
 
         traj = Trajectory(filename=f"{self.output_file}_stretch_data.traj", mode="w", atoms=atoms)
         dyn = self.integrator(atoms=atoms)
+        index  = 0
+        dyn.attach(lambda: getStress(traj=traj,atoms=atoms, index=index), 1)
 
-        dyn.run(hold_steps)
+        def getStress(traj, atoms, index):
+            atoms.info["stress"] = atoms.get_stress(voigt = True)
+            atoms.info["stretch_matrix"]  = stretch_matrix_list[index]
+            atoms.info["measurement"] = type_list[index]
+            traj.write()
 
         for i in range(len(stretch_matrix_list)):
-            def getStress(traj,atoms=atoms, index=i):
-                atoms.info["stress"] = atoms.get_stress(voigt = True)
-                atoms.info["stretch_matrix"]  = stretch_matrix_list[index]
-                atoms.info["measurement"] = measurement_list[index]
-                atoms.info["steps"] = hold_steps
-                traj.write()
-
+            index = i
             A = atoms.cell.array.T
             A_new = (stretch_matrix_list[i] @ A).T
             atoms.set_cell(A_new, scale_atoms=True)
-            dyn.attach(lambda: getStress(traj=traj,atoms=atoms, index=i), 1)
             dyn.run(hold_steps)
             atoms.set_cell(A, scale_atoms=True)
 
