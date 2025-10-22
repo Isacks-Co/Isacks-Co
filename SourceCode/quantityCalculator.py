@@ -11,6 +11,7 @@ from ase.eos import EquationOfState
 
 import numpy as np
 import logging
+from potentialSetUp import Potential
 
 hbar = physical_constants['Planck constant over 2 pi in eV s'][0] * 1e15
 
@@ -97,13 +98,14 @@ class QuantityCalculator:
         The return value is the mean of this over all snapshots
         Unit: ev/atom
         """
-
-        calc = EMT() #TODO NEED TO BE SAME AS ACTUAL MD RUN
+        calc = Potential().getPotential(self.settings.potential)
+        #calc = EMT() #TODO NEED TO BE SAME AS ACTUAL MD RUN
         number = self.traj[0].get_global_number_of_atoms()
         e_atoms = 0
         for j in range(len(self.traj[0])):
             atom = Atoms(self.traj[0].get_chemical_symbols()[j], positions=[[0, 0, 0]], cell=[10, 10, 10], pbc=False)
-            atom.calc = calc
+
+            atom.calc = calc(atom)
             e_atoms += atom.get_potential_energy()
 
         e_coh_list = []
