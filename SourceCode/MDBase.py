@@ -168,15 +168,7 @@ class MDBase:
 
 
     def save_data(self, atoms,traj):
-        """
-        atoms.get_potential_energy()
-        atoms.get_kinetic_energy()
-        atoms.get_total_energy()
-        atoms.get_forces()
-        atoms.get_volume()
-        atoms.get_positions()
-        traj.write()
-        """
+
         Ep = atoms.get_potential_energy()
         Ek = atoms.get_kinetic_energy()
         Et = atoms.get_total_energy()
@@ -350,5 +342,3 @@ class MDBase:
 
 
             traj.write(a)
-
-        #return traj_path
