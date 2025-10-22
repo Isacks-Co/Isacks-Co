@@ -49,8 +49,8 @@ class QuantityCalculator:
 
         #logger.info(self.elastic_properties)
 
-        labels = ["D","E_coh","P_i","L_crit", "B"] #, "T_D"
-        quantities = [self_diffusion_coeff,coh_energy,internal_pressure,lindemann_crit, bulk_modulus] # TODO Maybe nicer way to handle this ? , debye_temperature
+        labels = ["D","E_coh","L_crit"] #, "T_D"
+        quantities = [self_diffusion_coeff,coh_energy,lindemann_crit] # TODO Maybe nicer way to handle this ? , debye_temperature
         match self.settings.ensemble:
             case "NVE":
                 Cv = specificHeatAuToSI(self.computeSpecificHeatNVE()) # J/K per atom
@@ -58,9 +58,12 @@ class QuantityCalculator:
                 quantities.append(Cv)
 
             case "NVT":
+                internal_pressure = AuToGPascal(self.computeInternalPressure())  # GPa
+                bulk_modulus = self.computeBulkModulus("../Outputs/isotropic_stretch.traj")
                 Cv = specificHeatAuToSI(self.computeSpecificHeatNVT()) # J/K per atom
-                labels.append("Cv")
-                quantities.append(Cv)
+                labels.extend(["P_i", "B", "Cv"])
+                quantities.extend([internal_pressure, bulk_modulus, Cv])
+
 
             case "NPT":
                 pass
@@ -171,26 +174,12 @@ class QuantityCalculator:
         """
         internal_pressures_eVA3 = []
         N = len(self.traj[0])
-        """
-        for atoms in self.traj:
-            e_kin_eV = atoms.get_kinetic_energy()
-            V_A3 = atoms.get_volume()
-            forces_eVA = atoms.get_forces()
-            positions_A = atoms.get_positions()
-            sum_rf_Eh = np.sum(forces_eVA * positions_A)
-            P_eVA3 = (1.0 / (3.0 * V_A3)) * (2.0 * e_kin_eV + sum_rf_Eh)
-            internal_pressures_eVA3.append(P_eVA3)
-        """
+
         for atoms in self.traj:
             e_kin_eV = _get(atoms, "E_kin")
             V_A3 = _get(atoms, "V")
             forces_eVA = _get(atoms, "F")
             positions_A = atoms.get_positions()
-
-            if forces_eVA is None:
-                pass
-            #print("FORCE", forces_eVA)
-            #print("POSITIONS", positions_A)
             sum_rf_Eh = np.sum(forces_eVA * positions_A)
             P_eVA3 = (1.0 / (3.0 * V_A3)) * (2.0 * e_kin_eV + sum_rf_Eh)
             internal_pressures_eVA3.append(P_eVA3)

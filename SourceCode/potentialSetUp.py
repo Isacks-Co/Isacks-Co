@@ -25,6 +25,14 @@ class Potential:
             log.error("Invalid potential function: %s", potential)
             raise ValueError(f"Invalid potential function: {potential}")
 
+    def setUpMACE(self, atoms):
+        from mace.calculators import MACECalculator
+
+        model_path = "MACEModels/mace-mpa-0-medium.model" #just to try
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+        return MACECalculator(model_paths= model_path, device=device, head="default")
+
+
     def setupEMT(self, atoms):
         from asap3 import EMT as asap_EMT
         # atoms not used, but lets us skip the lambda solution
@@ -66,8 +74,8 @@ class Potential:
 
             atoms.calc = calc_asap
             _ = atoms.get_potential_energy()
-            log.info("Using asap3 LJ | element=%s (Z=%s) | ε=%.4g eV | σ=%.4g Å | rc=%.4g Å ",
-                     material_key, atomic_number[0], eps, sig, rc)
+            #log.info("Using asap3 LJ | element=%s (Z=%s) | ε=%.4g eV | σ=%.4g Å | rc=%.4g Å ",
+             #        material_key, atomic_number[0], eps, sig, rc)
             return calc_asap
 
 
@@ -83,3 +91,4 @@ class Potential:
                 f"Falling back to ASE LJ | Reason: {e}"
             )
             return calc_ase
+

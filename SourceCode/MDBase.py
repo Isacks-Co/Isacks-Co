@@ -159,10 +159,12 @@ class MDBase:
         dyn.run(self.steps)  # RUN
         traj.close()  # Explicitly close the trajectory
 
-        self._make_eos_traj(atoms)
+
 
         # Run stretch sequence for elastic constants
-        self._runStretchSequence(atoms)
+        if self.ensemble == "NVT":
+            self._make_eos_traj(atoms)
+            self._runStretchSequence(atoms)
 
 
     def save_data(self, atoms,traj):
