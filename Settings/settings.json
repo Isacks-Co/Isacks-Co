@@ -1,9 +1,9 @@
 {
   "Ensemble": "NVT",
 
-  "Temperature": 300,
+  "Temperature": 4,
   "Timestep": 1,
-  "Number_of_steps": 30000,
+  "Number_of_steps": 10000,
   "Sample_interval": 1,
   "Potential": "EMT",
 
@@ -12,6 +12,6 @@
   "Tdamp": 10,
   "Pdamp": 100,
 
-  "Supercells": [7,7,7],
+  "Supercells": [4,4,4],
   "Output_file" : "../Outputs/output"
 }

@@ -1,7 +1,8 @@
 from simulationInput import SimulationSettings
-from unitConversions import AuToGPascal,specificHeatAuToSI,selfDiffusionCoeffAuToSI, a1ToM1, a2ToM2, a3ToM3, atomicMassTokg, auToPascal
+from unitConversions import auToGPascal,specificHeatAuToSI,selfDiffusionCoeffAuToSI, a1ToM1, a2ToM2, a3ToM3, atomicMassTokg, auToPascal, evToJ
+from Utils import plot, fitter
 
-from scipy.constants import physical_constants
+from scipy.constants import physical_constants, epsilon_0
 from ase.io.trajectory import Trajectory
 from ase import Atoms
 from ase.neighborlist import NeighborList, natural_cutoffs
@@ -36,16 +37,14 @@ class QuantityCalculator:
         and write them to a txt file
         """
         # Compute all general quantities
-
+        """
         #MSD = self.computeMSD() # Å  Should we output average over late frames ?
         self_diffusion_coeff = selfDiffusionCoeffAuToSI(self.computeSelfDiffusionCoefficient())# m^2/s
         coh_energy = self.computeCohesiveEnergy() # ev
         lattice_constant = self.computeLatticeConstant()
-        internal_pressure = AuToGPascal(self.computeInternalPressure()) #GPa
+        internal_pressure = auToGPascal(self.computeInternalPressure()) #GPa
         lindemann_crit = self.computeLindemannIndex() # Unitless
         debye_temperature = self.computeDebyeTemperature()
-
-        logger.info(self.elastic_properties)
 
         labels = ["D","E_coh","P_i","L_crit", "T_D"]
         quantities = [self_diffusion_coeff,coh_energy,internal_pressure,lindemann_crit, debye_temperature] # TODO Maybe nicer way to handle this ?
@@ -65,6 +64,7 @@ class QuantityCalculator:
                 pass
 
         self.writeQuantities(labels,quantities) # Write to txt file
+        """
 
 
     def writeQuantities(self,labels,quantities):
@@ -146,12 +146,14 @@ class QuantityCalculator:
         logger.debug(f"Cv: {specific_heat} eV/(amu*K)")
         return specific_heat
 
+
     def computeLatticeConstant(self):# Need to test
         lattice_frames = [atoms.get_cell().cellpar() for atoms in self.traj]
         lattice_mean = np.mean(lattice_frames,axis = 0)
         lattice_mean[:3] /= np.array(self.settings.supercells)
         logger.debug(f"Lattice constant: {lattice_mean}")
         return lattice_mean
+
 
     def computeInternalPressure(self):
         """
@@ -175,6 +177,7 @@ class QuantityCalculator:
         logger.debug(f"Average internal pressure: {avg_P} eV/Å^3; {avg_P * 160.21766208} GPa; {avg_P * 160.21766208e9} Pa")
         return avg_P
 
+
     def computeMSD(self, frame, reference=0):
         """
         Compute MSD for a specific frame relatice the first frame in the trajectory. 
@@ -188,7 +191,8 @@ class QuantityCalculator:
         logger.debug(f"MSD: {msd} Å^2")
         return msd
 
-    def computeSelfDiffusionCoefficient(self):  # Needs constant temperature, for current implementation. 
+
+    def computeSelfDiffusionCoefficient(self):  # Needs constant temperature, for current implementation.
         """
         Compute self diffusion coefficient from the slope of MSD over a large timeperiod
         Unit: Å^2/fs
@@ -258,6 +262,7 @@ class QuantityCalculator:
         logger.debug(f"Mean value of nearest neighbor : {NN_mean_distance}")
         return NN_mean_distance
 
+
     def computeLindemannIndex(self, start:int = -25, end:int = 0):
         """Returns the global Lindemann index for the given interval
         (int) start : index for the start of the interval that should be checked
@@ -278,44 +283,50 @@ class QuantityCalculator:
         Returns Theta_D in Kelvin (SI).
         """
 
-        """if self.settings.temperature < 1:
+        if self.settings.temperature < 50:
             # Low-temperature Debye from heat capacity; use a.u. for kB
-            C_v = self.computeSpecificHeat()  # [J kg-1 K-1]
+            if self.settings.ensemble == "NVT":
+                C_v = self.computeSpecificHeatNVT()  # [J kg-1 K-1]
+            elif self.settings.ensemble == "NVE":
+                C_v = self.computeSpecificHeatNVE()  # [J kg-1 K-1]
+
             temperature = float(np.mean([atom_frame.get_temperature() for atom_frame in self.traj]))
             N = self.traj[0].get_global_number_of_atoms()
             # Here we keep the classical constant form but ensure SI at the end
-            debye = (234 * N * kB * EV_TO_JOULE * temperature ** 3 / C_v) ** (1 / 3)
-            logger.info(f"Debye temperature: {debye} K")
-            return float(debye)"""
-    
-        # Θ_D = (ħ/kB) (6π^2 n)^(1/3) vm
-        out = self.elastic_properties  # SI Pa
-        G = out['G']
-        K = out['K']
+            debye = (234 * N * kB * evToJ(1) * temperature ** 3 / C_v) ** (1 / 3)
+            logger.debug(f"Debye temperature: {debye} K")
+            return float(debye)
 
-        if K < 0 or G < 0:
-            error_log = "Negative pressure during calulation of Debye temperature"
-            logger.error(error_log)
-            raise ValueError(error_log)
+        else:
+            # Θ_D = (ħ/kB) (6π^2 n)^(1/3) vm
+            out = self.elastic_properties  # SI Pa
+            G = out['G']
+            K = out['K']
 
-        if not (np.isfinite(G) and np.isfinite(K)):
-            logger.info("Elastic constants not reliable from traj; Debye temperature cannot be computed.")
-            return float('nan')
+            if K < 0 or G < 0:
+                error_log = "Negative pressure during calulation of Debye temperature"
+                logger.error(error_log)
+                raise ValueError(error_log)
 
-        V_A3 = np.mean([fr.get_volume() for fr in self.traj])
-        mass_u = float(sum(self.traj[0].get_masses()))
-        rho = (mass_u / V_A3)
+            if not (np.isfinite(G) and np.isfinite(K)):
+                logger.info("Elastic constants not reliable from traj; Debye temperature cannot be computed.")
+                return float('nan')
 
-        transversal_sound_velocity = np.sqrt(G / rho)
-        longitudinal_sound_velocity = np.sqrt((K + 4.0 * G / 3.0) / rho)
-        sound_velocity = ((1.0 / 3.0) * (1.0 / (longitudinal_sound_velocity ** 3) + 2.0 / (transversal_sound_velocity ** 3))) ** (-1.0 / 3.0)
+            V_A3 = np.mean([fr.get_volume() for fr in self.traj])
+            mass_u = float(sum(self.traj[0].get_masses()))
+            rho = (mass_u / V_A3)
 
-        N = len(self.traj[0])
-        n = (N / V_A3)
+            transversal_sound_velocity = np.sqrt(G / rho)
+            longitudinal_sound_velocity = np.sqrt((K + 4.0 * G / 3.0) / rho)
+            sound_velocity = ((1.0 / 3.0) * (1.0 / (longitudinal_sound_velocity ** 3) + 2.0 / (transversal_sound_velocity ** 3))) ** (-1.0 / 3.0)
 
-        Theta_D = (hbar / kB) * ((6.0 * np.pi ** 2 * n) ** (1.0 / 3.0)) * sound_velocity / 10.18 # NEED TO DO SQRT(ev/u) to fs/Å
-        logger.debug(f"Debye temperature: {Theta_D} K")
-        return Theta_D
+            N = len(self.traj[0])
+            n = (N / V_A3)
+
+            Theta_D = (hbar / kB) * ((6.0 * np.pi ** 2 * n) ** (1.0 / 3.0)) * sound_velocity / 10.18 # NEED TO DO SQRT(ev/u) to fs/Å
+            logger.debug(f"Debye temperature: {Theta_D} K")
+            return Theta_D
+
 
     def _cubicConstantsFromTrajectory(self, ref=None):
         """
@@ -329,62 +340,187 @@ class QuantityCalculator:
                         6 -> xy
         """
         stretch_trajectory = Trajectory(self.settings.output_file + "_stretch_data.traj")
+        if ref == None:
+            #ref = stretch_trajectory[0]
+            #vol = ref.get_volume()
+            #logger.debug(f"Volume of reference frame: {vol}")
+            ref = self.traj[0]
+            vol = ref.get_volume()
+            logger.debug(f"Volume of reference frame: {vol}")
 
         # Collect arrays
         C_11, C_22, C_33 = [], [], []
         C_12 = []
         C_44, C_55, C_66 = [], [], []
+        sigma_xx = []
+        sigma_yy = []
+        sigma_zz = []
+        epsilon_xx = []
+        epsilon_yy = []
+        epsilon_zz = []
+        stretch_xx = []
+        stretch_yy = []
+        stretch_zz = []
+        energies = []
+        eps = []
+
+        stretch_duration = stretch_trajectory[1].info["stretching sequence duration"]
+        filtering = True
 
         for frame in stretch_trajectory:
             sig_eVA3 = frame.info["stress"]
             current_measurement = frame.info["measurement"]
             current_stretch_matrix = frame.info["stretch_matrix"]
-
             match current_measurement:
                 case "isotropic":
+                    sigma_xx.append(sig_eVA3[0])
+                    sigma_yy.append(sig_eVA3[1])
+                    sigma_zz.append(sig_eVA3[2])
+                    eps = _smallStrainFromCells(ref, frame)
+
+                    if epsilon_xx == [] or (epsilon_xx != [] and eps[0][0] != epsilon_xx[-1]):
+                        epsilon_xx.append(eps[0][0])
+                        stretch_xx.append(current_stretch_matrix[0][0] - 1)
+                        #logger.debug(f"\n eps_xx: {epsilon_xx[-1]} \n stretch_xx: {stretch_xx[-1]} \n ")
+
+                        energy = frame.info["total energy"]
+                        #energy = frame.info["kinetic energy"]
+                        #energy = frame.info["potential energy"]
+                        #logger.debug(f"Total energy: {energy}")
+                        energies.append(energy)
+
                     C_11.append(sig_eVA3[0] / (current_stretch_matrix[0][0] - 1))
                     C_22.append(sig_eVA3[1] / (current_stretch_matrix[1][1] - 1))
                     C_33.append(sig_eVA3[2] / (current_stretch_matrix[2][2] - 1))
                     C_12.append(sig_eVA3[0] / (current_stretch_matrix[1][1] - 1))
 
                 case "shears_xy":
+                    #logger.debug(f"inside shears_xy")
                     C_66.append(sig_eVA3[5] / (current_stretch_matrix[0][1]))
                 case "shears_xz":
+                    #logger.debug(f"inside shears_xz")
                     C_55.append(sig_eVA3[4] / (current_stretch_matrix[0][2]))
                 case "shears_yz":
+                    #logger.debug(f"inside shears_yz")
                     C_44.append(sig_eVA3[3] / (current_stretch_matrix[1][2]))
                 case _:
                     logger.warning("Didn't recognize current stretch matrix type")
 
+        logger.debug(f"\n\n Length of energies: {len(energies)} \n Length of epsilon_xx: {len(epsilon_xx)} \n Length of stretch_xx: {len(stretch_xx)} \n")
+        eps_xx, realigned_energies_eps = sortRealignAndFilter(epsilon_xx, energies, resolution=stretch_duration)
+        plot(eps_xx, realigned_energies_eps, save_as="realigned_energies_eps")
+
+        d1_eps_xx = numericalDerivative(eps_xx, realigned_energies_eps)
+        eps_xx, d1_eps_xx = sortRealignAndFilter(eps_xx, d1_eps_xx, filter=filtering, resolution=stretch_duration)
+        plot(eps_xx, d1_eps_xx, save_as="d1_eps_xx")
+        d2_eps_xx = numericalDerivative(eps_xx, d1_eps_xx)
+        eps_xx, d2_eps_xx = sortRealignAndFilter(eps_xx, d2_eps_xx, filter=filtering, resolution=stretch_duration)
+        plot(eps_xx, d2_eps_xx, save_as="d2_eps_xx")
+        d2_eps_mean_xx = np.mean(d2_eps_xx)
+        C11_eps = d2_eps_mean_xx / ref.get_volume()
+        logger.debug(f"C11_eps: {auToGPascal(C11_eps)} GPa")
+
+
+        str_xx, realigned_energies_stretch = sortRealignAndFilter(stretch_xx, energies, resolution=stretch_duration)
+        plot(str_xx, realigned_energies_stretch, save_as="realigned_energies_stretch")
+
+        logger.debug(f"\n\n Length of realigned_energies_stretch: {len(realigned_energies_stretch)} \n Length of eps_xx: {len(eps_xx)} \n Length of str_xx: {len(str_xx)} \n")
+
+        d1_stretch_xx = numericalDerivative(str_xx, realigned_energies_stretch)
+        str_xx, d1_stretch_xx = sortRealignAndFilter(str_xx, d1_stretch_xx, filter=filtering, resolution=stretch_duration)
+        plot(str_xx, d1_stretch_xx, save_as="d1_stretch_xx")
+        d2_stretch_xx = numericalDerivative(str_xx, d1_stretch_xx)
+        str_xx, d2_stretch_xx = sortRealignAndFilter(str_xx, d2_stretch_xx, filter=filtering, resolution=stretch_duration)
+        plot(str_xx, d2_stretch_xx, save_as="d2_stretch_xx")
+        d2_stretch_mean_xx = np.mean(d2_stretch_xx)
+        C11_stretch = d2_stretch_mean_xx / ref.get_volume()
+        logger.debug(f"C11_stretch: {auToGPascal(C11_stretch)} GPa")
+
+
+
+
+        """
         logger.info(f"Steps : {len(C_11)} {len(C_44)} {len(C_55)} {len(C_66)} ")
 
         B_bulk = (np.mean(C_11) + 2*np.mean(C_12)) * 160.21766208 / 3
         G_shear = (np.mean(C_44) + np.mean(C_55) + np.mean(C_66) + np.mean(C_11) - np.mean(C_12)) * 160.21766208 / 5
         E_young = 9 * B_bulk * G_shear / (3 * B_bulk + G_shear)
 
-
         logger.info(f"C11 : {np.mean(C_11) * 160.21766208} , C22 : {np.mean(C_22) * 160.21766208} , C33 : {np.mean(C_33) * 160.21766208}, C12 : {np.mean(C_12) * 160.21766208}")
         logger.info(f"C44 : {np.mean(C_44) * 160.21766208}, C55 : {np.mean(C_55) * 160.21766208}, C66 : {np.mean(C_66) * 160.21766208}")
         logger.info(f"Bulk modulus B : {B_bulk}")
         logger.info(f"Shear modulus G : {G_shear}")
         logger.info(f"Young modulus E : {E_young}")
+        """
 
 
 def _smallStrainFromCells(ref, cur):
     C_ref = ref.cell.array
     C_cur = cur.cell.array
     A_ref = C_ref.T
-    # logger.info(f"A_ref: {A_ref} \n")
     A_cur = C_cur.T
-    # logger.info(f"A_cur: {A_cur} \n")
-    # logger.info(f"INV : {np.linalg.inv(A_ref)} \n")
     F = A_cur @ np.linalg.inv(A_ref)
-    # logger.info(f"F: {F} \n")
     eps = 0.5 * (F + F.T) - np.eye(3)
     return eps
 
-def _stressEVA3FromInfo(cur):
-    sig_v = cur.info["stress eV/A3"]
-    if sig_v is None:
-        return None
-    return np.asarray(sig_v, dtype=float)  # eV/A3
+
+def numericalDerivative(x, y):
+    """
+    Compute the numerical derivative dy/dx given lists of x and y values.
+    Uses central difference for interior points and forward/backward for endpoints.
+
+    Parameters:
+        x (list or array): x-values (must be increasing and same length as y)
+        y (list or array): y-values
+
+    Returns:
+        list: derivative values (same length as x)
+    """
+    if len(x) != len(y):
+        raise ValueError("x and y must have the same length.")
+    if len(x) < 2:
+        raise ValueError("At least two points are required to compute a derivative.")
+
+    dydx = [0.0] * len(x)
+
+    # Forward difference for first point
+    dydx[0] = (y[1] - y[0]) / (x[1] - x[0])
+
+    # Central difference for interior points
+    for i in range(1, len(x) - 1):
+        if x[i + 1] != x[i - 1]:
+            dx = x[i + 1] - x[i - 1]
+            dy = y[i + 1] - y[i - 1]
+            #logger.debug(f"\n [{i}] ----- dx = {dx} \n [{i}] ----- dy = {dy} \n")
+            dydx[i] = dy / dx
+        else:
+            dydx[i] = (y[i + 1] - y[i - 1]) / (2 * (x[i + 1] - x[i]))
+            #logger.info(f"Warning: x values are not unique at index {i}, using central difference.")
+
+    # Backward difference for last point
+    dydx[-1] = (y[-1] - y[-2]) / (x[-1] - x[-2])
+
+    return dydx
+
+
+def sortRealignAndFilter(x_list, y_list, filter=True, resolution=None):
+    x_sorted = sorted(x_list)
+    y_realigned = []
+    for x in x_sorted:
+        y_realigned.append(y_list[x_list.index(x)])
+
+    poly, error, x_fit, y_fit = fitter(x_sorted, y_realigned, deg=20, resolution=resolution)
+    error_mean = np.mean(list(map(abs, error)))
+
+    if filter:
+        to_remove = []
+        for j, (quantity, index) in enumerate(zip(y_realigned, x_sorted)):
+            if (error[j] / error_mean) >= 2.0:
+                logger.debug(f"error ratio at step {j} : {error[j] / error_mean})")
+                to_remove.append(j)
+
+        for i in sorted(to_remove, reverse=True):
+            print(f"Removing index {i} -> {y_realigned[i]}")
+            del y_realigned[i]
+            del x_sorted[i]
+    return x_sorted, y_realigned

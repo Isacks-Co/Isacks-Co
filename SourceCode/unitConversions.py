@@ -1,9 +1,9 @@
-def AuToGPascal(pressure_au):
-    """Convert pressure from eV/Å^3 to Pa."""
+def auToGPascal(pressure_au):
+    """Convert pressure from eV/Å^3 to GPa."""
     return pressure_au * 1.602176634e2
 
 def auToPascal(pressure_au):
-    return AuToGPascal(pressure_au) * 1e9
+    return auToGPascal(pressure_au) * 1e9
 
 def pascalToAu(pressure_Pa):
     """Convert pressure from Pa to eV/Å^3."""
@@ -45,3 +45,6 @@ def evToJ(energy_eV):
 
 def jToEv(energy_J):
     return energy_J * 6.241509074e18
+
+def hartreePerbohr3ToJPerM3(energy_hartreePerbohr3):
+    return energy_hartreePerbohr3 * 2.19474631370215e13

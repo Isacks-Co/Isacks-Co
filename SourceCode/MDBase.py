@@ -180,7 +180,7 @@ class MDBase: #TODO Look at unit conversions
     def _runStretchSequence(self, atoms):
 
         # Small strain amplitude
-        stretch_constant = 2e-2  # 1%
+        stretch_constant = 2e-2  # 2%
         # Number of MD steps to run at each strained state
         hold_steps = 1
         stretch_steps = 100
@@ -211,7 +211,7 @@ class MDBase: #TODO Look at unit conversions
             stretch_matrix_list[3*stretch_steps + count] = stretch_yz
             type_list[3*stretch_steps + count] = "shears_yz"
 
-            log.info(f"Placing on {count} , {stretch_steps + count} , {2*stretch_steps + count} , {3*stretch_steps + count} ")
+            #log.info(f"Placing on {count} , {stretch_steps + count} , {2*stretch_steps + count} , {3*stretch_steps + count} ")
 
             count += 1
 
@@ -225,6 +225,10 @@ class MDBase: #TODO Look at unit conversions
             atoms.info["stress"] = atoms.get_stress(voigt = True)
             atoms.info["stretch_matrix"]  = stretch_matrix_list[index]
             atoms.info["measurement"] = type_list[index]
+            atoms.info["total energy"] = atoms.get_total_energy()
+            atoms.info["kinetic energy"] = atoms.get_kinetic_energy()
+            atoms.info["potential energy"] = atoms.get_potential_energy()
+            atoms.info["stretching sequence duration"] = stretch_steps * 2
             traj.write()
 
         for i in range(len(stretch_matrix_list)):
