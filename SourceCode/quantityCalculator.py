@@ -31,7 +31,8 @@ class QuantityCalculator:
         self.traj = traj
         self.settings = settings
         self.structure_name = self.traj[0].info["comment"]
-        #self.elastic_properties = self._cubicConstantsFromTrajectory()
+        self.elastic_properties = self._C()
+        logger.info(self.elastic_properties)
 
     def getQuantities(self):
         """
@@ -337,6 +338,46 @@ class QuantityCalculator:
         Theta_D = (hbar / kB) * ((6.0 * np.pi ** 2 * n) ** (1.0 / 3.0)) * sound_velocity / 10.18 # NEED TO DO SQRT(ev/u) to fs/Å
         logger.info(f"Debye temperature: {Theta_D} K")
         return Theta_D
+    
+    def _C(self):
+        stretch_trajectory = Trajectory(self.settings.output_file + "_stretch_data.traj")
+        xx_dir = []
+        xy_dir = []
+        for frame in stretch_trajectory:
+            if frame.info["beta"] == 0:
+                xx_dir.append([frame.info["strain"], frame.info["stress"][0]])
+                xy_dir.append([frame.info["strain"], frame.info["stress"][1]])
+        
+        xx_dir = np.asarray(xx_dir)
+        xy_dir = np.asarray(xy_dir)
+        
+        unique_keys, inverse = np.unique(xx_dir[:, 0], return_inverse=True)
+
+        # Compute the mean of the second column for each group
+        means = np.bincount(inverse, weights=xx_dir[:, 1]) / np.bincount(inverse)
+
+        # Combine into a result array
+        result = np.column_stack((unique_keys, means))
+        xx_dir = result
+        unique_keys, inverse = np.unique(xy_dir[:, 0], return_inverse=True)
+
+        # Compute the mean of the second column for each group
+        means = np.bincount(inverse, weights=xy_dir[:, 1]) / np.bincount(inverse)
+
+        # Combine into a result array
+        result = np.column_stack((unique_keys, means))
+        xy_dir = result
+
+        C_11 = np.polyfit(xx_dir[:, 0], xx_dir[:,1], 1)[0] * 160.21766208
+        C_12 = np.polyfit(xy_dir[:, 0], xy_dir[:,1], 1)[0] * 160.21766208
+        plt.scatter(xx_dir[:,0], xx_dir[:,1])
+        plt.show()
+
+        logger.info(f"Bulk : {(C_11 + 2*C_12)/3}")
+        return C_11, C_12
+
+                
+        
 
     def computeBulkModulus(self, stretched_traj):
         import matplotlib.pyplot as plt
@@ -417,8 +458,8 @@ class QuantityCalculator:
                 case _:
                     logger.warning("Didn't recognize current stretch matrix type")
 
-        C_11 = np.polyfit(C_11_sigma, C_11_epsilon, 1)[0]
-        C_12 = np.polyfit(C_12_sigma, C_12_epsilon, 1)[0]
+        C_11 = np.polyfit(C_11_epsilon, C_11_sigma, 1)[0]
+        C_12 = np.polyfit( C_12_epsilon,C_12_sigma, 1)[0]
 
         plt.scatter(C_11_epsilon, C_11_sigma, c='r', marker='o', label='C11')
         plt.scatter(C_12_epsilon, C_12_sigma, c='b', marker='o', label='C12')
