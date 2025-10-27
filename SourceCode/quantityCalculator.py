@@ -1,6 +1,6 @@
 from simulationInput import SimulationSettings
 from unitConversions import auToGPascal,specificHeatAuToSI,selfDiffusionCoeffAuToSI, a1ToM1, a2ToM2, a3ToM3, atomicMassTokg, auToPascal, evToJ
-from Utils import plot, fitter
+from Utils import plot, fitter, numericalDerivative
 
 from scipy.constants import physical_constants
 from ase.io.trajectory import Trajectory
@@ -9,6 +9,7 @@ from ase.neighborlist import NeighborList, natural_cutoffs
 from ase.calculators.emt import EMT
 from ase.units import kB
 from matplotlib import pyplot as plt
+from collections import defaultdict
 
 import numpy as np
 import logging
@@ -330,43 +331,42 @@ class QuantityCalculator:
 
     def _C(self):
         stretch_trajectory = Trajectory(self.settings.output_file + "_stretch_data.traj")
-        xx_dir = []
-        xy_dir = []
+        betas = [[],[],[],[],[],[]]
         for frame in stretch_trajectory:
-            if frame.info["beta"] == 0:
-                xx_dir.append([frame.info["strain"], frame.info["stress"][0]])
-                xy_dir.append([frame.info["strain"], frame.info["stress"][1]])
+            betas[frame.info["beta"]].append([frame.info["strain"], frame.info["stress"]])
+        beta_arrays = [np.array(beta, dtype=object) for beta in betas]
+        beta_dicts = [defaultdict(list) for i in range(6)]
+        averages = []
 
-        xx_dir = np.asarray(xx_dir)
-        xy_dir = np.asarray(xy_dir)
 
-        unique_keys, inverse = np.unique(xx_dir[:, 0], return_inverse=True)
-
-        # Compute the mean of the second column for each group
-        means = np.bincount(inverse, weights=xx_dir[:, 1]) / np.bincount(inverse)
-
-        # Combine into a result array
-        result = np.column_stack((unique_keys, means))
-        xx_dir = result
-        unique_keys, inverse = np.unique(xy_dir[:, 0], return_inverse=True)
-
-        # Compute the mean of the second column for each group
-        means = np.bincount(inverse, weights=xy_dir[:, 1]) / np.bincount(inverse)
-
-        # Combine into a result array
-        result = np.column_stack((unique_keys, means))
-        xy_dir = result
-
-        C_11 = np.polyfit(xx_dir[:, 0], xx_dir[:,1], 1)[0] * 160.21766208
-        C_12 = np.polyfit(xy_dir[:, 0], xy_dir[:,1], 1)[0] * 160.21766208
-        plt.scatter(xx_dir[:,0], xx_dir[:,1])
-        plt.show()
-
-        logger.info(f"Bulk : {(C_11 + 2*C_12)/3}")
-        return C_11, C_12
+        for i in range(6):
+            for eps, matrix in beta_arrays[i]:
+                beta_dicts[i][eps].append(matrix)
 
 
 
+        for beta in beta_dicts:
+            avg_data = []
+
+            for eps, matrices in beta.items():
+                # Take elementwise average for each epsilon
+                stacked = np.stack(matrices)
+                avg_matrix = stacked.mean(axis=0)
+                avg_data.append(np.array((eps, avg_matrix),dtype=object))
+
+            avg_data = sorted(avg_data, key=lambda x: x[0])
+            averages.append(avg_data)
+        C = np.zeros((6,6))
+        for i in range(6):
+            epsilons = np.array([x[0] for x in averages[i]], dtype=float)
+            for j in range(6):
+                sigmas = np.array([x[1][j] for x in averages[i]], dtype=float)
+                C[j, i] = np.polyfit(epsilons, sigmas, 1)[0]
+        C *= 160.21766208 # Convert to GPa
+        return C
+
+                
+        
 
 
     def _cubicConstantsFromTrajectory(self, ref=None):
