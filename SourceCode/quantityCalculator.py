@@ -2,12 +2,13 @@ from simulationInput import SimulationSettings
 from unitConversions import auToGPascal,specificHeatAuToSI,selfDiffusionCoeffAuToSI, a1ToM1, a2ToM2, a3ToM3, atomicMassTokg, auToPascal, evToJ
 from Utils import plot, fitter
 
-from scipy.constants import physical_constants, epsilon_0
+from scipy.constants import physical_constants
 from ase.io.trajectory import Trajectory
 from ase import Atoms
 from ase.neighborlist import NeighborList, natural_cutoffs
 from ase.calculators.emt import EMT
 from ase.units import kB
+from matplotlib import pyplot as plt
 
 import numpy as np
 import logging
@@ -29,7 +30,8 @@ class QuantityCalculator:
         self.traj = traj
         self.settings = settings
         self.structure_name = self.traj[0].info["comment"]
-        self.elastic_properties = self._cubicConstantsFromTrajectory()
+        self.elastic_properties = self._C()
+        logger.info(self.elastic_properties)
 
     def getQuantities(self):
         """
@@ -37,7 +39,7 @@ class QuantityCalculator:
         and write them to a txt file
         """
         # Compute all general quantities
-        """
+
         #MSD = self.computeMSD() # Å  Should we output average over late frames ?
         self_diffusion_coeff = selfDiffusionCoeffAuToSI(self.computeSelfDiffusionCoefficient())# m^2/s
         coh_energy = self.computeCohesiveEnergy() # ev
@@ -64,7 +66,6 @@ class QuantityCalculator:
                 pass
 
         self.writeQuantities(labels,quantities) # Write to txt file
-        """
 
 
     def writeQuantities(self,labels,quantities):
@@ -323,9 +324,49 @@ class QuantityCalculator:
             N = len(self.traj[0])
             n = (N / V_A3)
 
-            Theta_D = (hbar / kB) * ((6.0 * np.pi ** 2 * n) ** (1.0 / 3.0)) * sound_velocity / 10.18 # NEED TO DO SQRT(ev/u) to fs/Å
-            logger.debug(f"Debye temperature: {Theta_D} K")
-            return Theta_D
+        Theta_D = (hbar / kB) * ((6.0 * np.pi ** 2 * n) ** (1.0 / 3.0)) * sound_velocity / 10.18 # NEED TO DO SQRT(ev/u) to fs/Å
+        logger.debug(f"Debye temperature: {Theta_D} K")
+        return Theta_D
+
+    def _C(self):
+        stretch_trajectory = Trajectory(self.settings.output_file + "_stretch_data.traj")
+        xx_dir = []
+        xy_dir = []
+        for frame in stretch_trajectory:
+            if frame.info["beta"] == 0:
+                xx_dir.append([frame.info["strain"], frame.info["stress"][0]])
+                xy_dir.append([frame.info["strain"], frame.info["stress"][1]])
+
+        xx_dir = np.asarray(xx_dir)
+        xy_dir = np.asarray(xy_dir)
+
+        unique_keys, inverse = np.unique(xx_dir[:, 0], return_inverse=True)
+
+        # Compute the mean of the second column for each group
+        means = np.bincount(inverse, weights=xx_dir[:, 1]) / np.bincount(inverse)
+
+        # Combine into a result array
+        result = np.column_stack((unique_keys, means))
+        xx_dir = result
+        unique_keys, inverse = np.unique(xy_dir[:, 0], return_inverse=True)
+
+        # Compute the mean of the second column for each group
+        means = np.bincount(inverse, weights=xy_dir[:, 1]) / np.bincount(inverse)
+
+        # Combine into a result array
+        result = np.column_stack((unique_keys, means))
+        xy_dir = result
+
+        C_11 = np.polyfit(xx_dir[:, 0], xx_dir[:,1], 1)[0] * 160.21766208
+        C_12 = np.polyfit(xy_dir[:, 0], xy_dir[:,1], 1)[0] * 160.21766208
+        plt.scatter(xx_dir[:,0], xx_dir[:,1])
+        plt.show()
+
+        logger.info(f"Bulk : {(C_11 + 2*C_12)/3}")
+        return C_11, C_12
+
+
+
 
 
     def _cubicConstantsFromTrajectory(self, ref=None):
@@ -340,118 +381,58 @@ class QuantityCalculator:
                         6 -> xy
         """
         stretch_trajectory = Trajectory(self.settings.output_file + "_stretch_data.traj")
-        if ref == None:
-            #ref = stretch_trajectory[0]
-            #vol = ref.get_volume()
-            #logger.debug(f"Volume of reference frame: {vol}")
-            ref = self.traj[0]
-            vol = ref.get_volume()
-            logger.debug(f"Volume of reference frame: {vol}")
 
         # Collect arrays
-        C_11, C_22, C_33 = [], [], []
-        C_12 = []
+        C_11_sigma, C_11_epsilon, C_22, C_33 = [], [], [], []
+        C_12_sigma, C_12_epsilon = [], []
         C_44, C_55, C_66 = [], [], []
-        sigma_xx = []
-        sigma_yy = []
-        sigma_zz = []
-        epsilon_xx = []
-        epsilon_yy = []
-        epsilon_zz = []
-        stretch_xx = []
-        stretch_yy = []
-        stretch_zz = []
-        energies = []
-        eps = []
-
-        stretch_duration = stretch_trajectory[1].info["stretching sequence duration"]
-        filtering = True
 
         for frame in stretch_trajectory:
             sig_eVA3 = frame.info["stress"]
             current_measurement = frame.info["measurement"]
             current_stretch_matrix = frame.info["stretch_matrix"]
+            current_energy = frame.info["potential_energy"]
+
             match current_measurement:
-                case "isotropic":
-                    sigma_xx.append(sig_eVA3[0])
-                    sigma_yy.append(sig_eVA3[1])
-                    sigma_zz.append(sig_eVA3[2])
-                    eps = _smallStrainFromCells(ref, frame)
-
-                    if epsilon_xx == [] or (epsilon_xx != [] and eps[0][0] != epsilon_xx[-1]):
-                        epsilon_xx.append(eps[0][0])
-                        stretch_xx.append(current_stretch_matrix[0][0] - 1)
-                        #logger.debug(f"\n eps_xx: {epsilon_xx[-1]} \n stretch_xx: {stretch_xx[-1]} \n ")
-
-                        energy = frame.info["total energy"]
-                        #energy = frame.info["kinetic energy"]
-                        #energy = frame.info["potential energy"]
-                        #logger.debug(f"Total energy: {energy}")
-                        energies.append(energy)
-
-                    C_11.append(sig_eVA3[0] / (current_stretch_matrix[0][0] - 1))
-                    C_22.append(sig_eVA3[1] / (current_stretch_matrix[1][1] - 1))
-                    C_33.append(sig_eVA3[2] / (current_stretch_matrix[2][2] - 1))
-                    C_12.append(sig_eVA3[0] / (current_stretch_matrix[1][1] - 1))
+                case "stretch_xx":
+                    C_11_sigma.append(sig_eVA3[0])
+                    C_11_epsilon.append(current_stretch_matrix[0][0] - 1)
+                    C_12_sigma.append(sig_eVA3[1])
+                    C_12_epsilon.append(current_stretch_matrix[0][0] - 1)
+                    # C_11.append(sig_eVA3[0] / (current_stretch_matrix[0][0] - 1))
+                    # C_12.append(sig_eVA3[1] / (current_stretch_matrix[0][0] - 1))
+                    # logger.info((sig_eVA3[0] / (current_stretch_matrix[0][0] - 1)) * 160.21766208)
+                    # logger.info(f"Energy : {current_energy} , Sigma : {sig_eVA3[0]} , Epsilon : {current_stretch_matrix[0][0] - 1}")
 
                 case "shears_xy":
-                    #logger.debug(f"inside shears_xy")
                     C_66.append(sig_eVA3[5] / (current_stretch_matrix[0][1]))
                 case "shears_xz":
-                    #logger.debug(f"inside shears_xz")
                     C_55.append(sig_eVA3[4] / (current_stretch_matrix[0][2]))
                 case "shears_yz":
-                    #logger.debug(f"inside shears_yz")
                     C_44.append(sig_eVA3[3] / (current_stretch_matrix[1][2]))
                 case _:
                     logger.warning("Didn't recognize current stretch matrix type")
 
-        logger.debug(f"\n\n Length of energies: {len(energies)} \n Length of epsilon_xx: {len(epsilon_xx)} \n Length of stretch_xx: {len(stretch_xx)} \n")
-        eps_xx, realigned_energies_eps = sortRealignAndFilter(epsilon_xx, energies, resolution=stretch_duration)
-        plot(eps_xx, realigned_energies_eps, save_as="realigned_energies_eps")
+        C_11 = np.polyfit(C_11_epsilon, C_11_sigma, 1)[0]
+        C_12 = np.polyfit( C_12_epsilon,C_12_sigma, 1)[0]
 
-        d1_eps_xx = numericalDerivative(eps_xx, realigned_energies_eps)
-        eps_xx, d1_eps_xx = sortRealignAndFilter(eps_xx, d1_eps_xx, filter=filtering, resolution=stretch_duration)
-        plot(eps_xx, d1_eps_xx, save_as="d1_eps_xx")
-        d2_eps_xx = numericalDerivative(eps_xx, d1_eps_xx)
-        eps_xx, d2_eps_xx = sortRealignAndFilter(eps_xx, d2_eps_xx, filter=filtering, resolution=stretch_duration)
-        plot(eps_xx, d2_eps_xx, save_as="d2_eps_xx")
-        d2_eps_mean_xx = np.mean(d2_eps_xx)
-        C11_eps = d2_eps_mean_xx / ref.get_volume()
-        logger.debug(f"C11_eps: {auToGPascal(C11_eps)} GPa")
+        plt.scatter(C_11_epsilon, C_11_sigma, c='r', marker='o', label='C11')
+        plt.scatter(C_12_epsilon, C_12_sigma, c='b', marker='o', label='C12')
+        plt.plot(C_11_epsilon, C_11 * np.asarray(C_11_epsilon), c='g', label='C11_fit')
+        plt.plot(C_12_epsilon, C_12 * np.asarray(C_12_epsilon), c='y', label='C12_fit')
+        plt.legend(loc='best')
+        plt.show()
 
-
-        str_xx, realigned_energies_stretch = sortRealignAndFilter(stretch_xx, energies, resolution=stretch_duration)
-        plot(str_xx, realigned_energies_stretch, save_as="realigned_energies_stretch")
-
-        logger.debug(f"\n\n Length of realigned_energies_stretch: {len(realigned_energies_stretch)} \n Length of eps_xx: {len(eps_xx)} \n Length of str_xx: {len(str_xx)} \n")
-
-        d1_stretch_xx = numericalDerivative(str_xx, realigned_energies_stretch)
-        str_xx, d1_stretch_xx = sortRealignAndFilter(str_xx, d1_stretch_xx, filter=filtering, resolution=stretch_duration)
-        plot(str_xx, d1_stretch_xx, save_as="d1_stretch_xx")
-        d2_stretch_xx = numericalDerivative(str_xx, d1_stretch_xx)
-        str_xx, d2_stretch_xx = sortRealignAndFilter(str_xx, d2_stretch_xx, filter=filtering, resolution=stretch_duration)
-        plot(str_xx, d2_stretch_xx, save_as="d2_stretch_xx")
-        d2_stretch_mean_xx = np.mean(d2_stretch_xx)
-        C11_stretch = d2_stretch_mean_xx / ref.get_volume()
-        logger.debug(f"C11_stretch: {auToGPascal(C11_stretch)} GPa")
-
-
-
-
-        """
-        logger.info(f"Steps : {len(C_11)} {len(C_44)} {len(C_55)} {len(C_66)} ")
-
-        B_bulk = (np.mean(C_11) + 2*np.mean(C_12)) * 160.21766208 / 3
+        B_bulk = (C_11 + 2*C_12) * 160.21766208 / 3
         G_shear = (np.mean(C_44) + np.mean(C_55) + np.mean(C_66) + np.mean(C_11) - np.mean(C_12)) * 160.21766208 / 5
         E_young = 9 * B_bulk * G_shear / (3 * B_bulk + G_shear)
 
-        logger.info(f"C11 : {np.mean(C_11) * 160.21766208} , C22 : {np.mean(C_22) * 160.21766208} , C33 : {np.mean(C_33) * 160.21766208}, C12 : {np.mean(C_12) * 160.21766208}")
+
+        logger.info(f"C11 : {C_11 * 160.21766208} , C12 : {C_12 * 160.21766208}")
         logger.info(f"C44 : {np.mean(C_44) * 160.21766208}, C55 : {np.mean(C_55) * 160.21766208}, C66 : {np.mean(C_66) * 160.21766208}")
         logger.info(f"Bulk modulus B : {B_bulk}")
         logger.info(f"Shear modulus G : {G_shear}")
         logger.info(f"Young modulus E : {E_young}")
-        """
 
 
 def _smallStrainFromCells(ref, cur):

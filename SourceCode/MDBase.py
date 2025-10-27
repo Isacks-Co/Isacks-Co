@@ -103,13 +103,7 @@ class MDBase: #TODO Look at unit conversions
         try:
             dyn_eq.run(equilibrium_steps)
             current_T = atoms.get_temperature()
-            current_V = atoms.get_volume()
-            current_S = atoms.get_stress(voigt = True)[:3] * 160.21766208e9
-            current_F = atoms.get_forces()
-            log.info(f"System's temperature is {round(current_T, 2)} K after {equilibrium_steps} steps")
-            #log.debug(f"System's volume is {round(current_V, 2)} Å^3 after {equilibrium_steps} steps")
-            #log.debug(f"System's stress is {current_S} SOME UNIT after {equilibrium_steps} steps")
-            #log.debug(f"System's forces is {current_F} after {equilibrium_steps} steps")
+            log.info(f"Systems temperature is {round(current_T, 2)} K after {equilibrium_steps} steps")
 
         except RuntimeError as e:
             # pep 437 problem
@@ -165,7 +159,7 @@ class MDBase: #TODO Look at unit conversions
         traj.close()  # Explicitly close the trajectory
 
         # Run stretch sequence for elastic constants
-        self._runStretchSequence(atoms)
+        self._stretchCell(atoms)
 
 
     def save_data(self, atoms,traj):
@@ -175,15 +169,16 @@ class MDBase: #TODO Look at unit conversions
         atoms.get_forces()
         atoms.get_volume()
         atoms.get_positions()
+        atoms.info["stress"] = atoms.get_stress()
         traj.write()
 
     def _runStretchSequence(self, atoms):
 
         # Small strain amplitude
-        stretch_constant = 2e-2  # 2%
+        stretch_constant = 1e-2  # 1%
         # Number of MD steps to run at each strained state
-        hold_steps = 1
-        stretch_steps = 100
+        hold_steps = 1000
+        stretch_steps = 5
         I = np.eye(3)
         # Symmetric small-strain deformation gradients (F ≈ I + eps for small strains)
         stretch_matrix_list = np.zeros((4*stretch_steps, 3, 3), dtype=float)
@@ -191,9 +186,12 @@ class MDBase: #TODO Look at unit conversions
         count = 0
 
         for current_stretch in (np.linspace(-stretch_constant, stretch_constant, stretch_steps)):
-            # isotropic
-            stretch_matrix_list[count] = I * (1.0 + current_stretch)
-            type_list[count] = "isotropic"
+
+            # Stretch in x direction
+            stretch_xx = I
+            stretch_xx[0,0] = 1 + current_stretch
+            stretch_matrix_list[count] =stretch_xx
+            type_list[count] = "stretch_xx"
 
             # Symmetric shears: xy, xz, yz (F = I + eps, eps_ij = eps_ji = eta)
             stretch_xy = I.copy()
@@ -211,8 +209,6 @@ class MDBase: #TODO Look at unit conversions
             stretch_matrix_list[3*stretch_steps + count] = stretch_yz
             type_list[3*stretch_steps + count] = "shears_yz"
 
-            #log.info(f"Placing on {count} , {stretch_steps + count} , {2*stretch_steps + count} , {3*stretch_steps + count} ")
-
             count += 1
 
 
@@ -225,11 +221,10 @@ class MDBase: #TODO Look at unit conversions
             atoms.info["stress"] = atoms.get_stress(voigt = True)
             atoms.info["stretch_matrix"]  = stretch_matrix_list[index]
             atoms.info["measurement"] = type_list[index]
-            atoms.info["total energy"] = atoms.get_total_energy()
-            atoms.info["kinetic energy"] = atoms.get_kinetic_energy()
-            atoms.info["potential energy"] = atoms.get_potential_energy()
-            atoms.info["stretching sequence duration"] = stretch_steps * 2
+            atoms.info["potential_energy"] = atoms.get_potential_energy()
             traj.write()
+
+        dyn.run(1)
 
         for i in range(len(stretch_matrix_list)):
             index = i
@@ -238,6 +233,42 @@ class MDBase: #TODO Look at unit conversions
             atoms.set_cell(A_new, scale_atoms=True)
             dyn.run(hold_steps)
             atoms.set_cell(A, scale_atoms=True)
+
+    def elasticData(self, traj, atoms, strain, stress0, beta):
+        atoms.info["strain"] = strain
+        atoms.info["stress"] = atoms.get_stress(voigt=True) - stress0
+        atoms.info["beta"] = beta
+        traj.write()
+
+    def _stretchCell(self, atoms):
+        strains = np.linspace(-0.01, 0.01, 5)
+        cell0 = atoms.get_cell()
+        stress0 = atoms.get_stress(voigt=True)
+        hold_steps = 500
+
+        traj = Trajectory(filename=f"{self.output_file}_stretch_data.traj", mode="w", atoms=atoms)
+
+        for beta in range(6):
+            for e in strains:
+                # Strain tensor in Voigt form
+                eps = np.zeros((3, 3))
+                if beta < 3:
+                    eps[beta, beta] = e
+                elif beta == 3:
+                    eps[1, 2] = eps[2, 1] = e / 2.0
+                elif beta == 4:
+                    eps[0, 2] = eps[2, 0] = e / 2.0
+                elif beta == 5:
+                    eps[0, 1] = eps[1, 0] = e / 2.0
+
+                # Apply the strain to the cell
+                new_cell = np.dot(cell0, np.eye(3) + eps)
+                atoms.set_cell(new_cell, scale_atoms=True)
+                dyn = self.integrator(atoms=atoms)
+                dyn.attach(lambda : self.elasticData(traj, atoms, e, stress0, beta))
+                dyn.run(hold_steps)
+
+
 
 
     def checkConvergence(self, atoms):
