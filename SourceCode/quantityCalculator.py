@@ -7,6 +7,7 @@ from ase import Atoms
 from ase.neighborlist import NeighborList, natural_cutoffs
 from ase.calculators.emt import EMT
 from ase.units import kB
+from matplotlib import pyplot as plt
 
 import numpy as np
 import logging
@@ -337,22 +338,26 @@ class QuantityCalculator:
         stretch_trajectory = Trajectory(self.settings.output_file + "_stretch_data.traj")
 
         # Collect arrays
-        C_11, C_22, C_33 = [], [], []
-        C_12 = []
+        C_11_sigma, C_11_epsilon, C_22, C_33 = [], [], [], []
+        C_12_sigma, C_12_epsilon = [], []
         C_44, C_55, C_66 = [], [], []
 
         for frame in stretch_trajectory:
             sig_eVA3 = frame.info["stress"]
             current_measurement = frame.info["measurement"]
             current_stretch_matrix = frame.info["stretch_matrix"]
+            current_energy = frame.info["potential_energy"]
 
             match current_measurement:
-                case "isotropic":
-                    C_11.append(sig_eVA3[0] / (current_stretch_matrix[0][0] - 1))
-                    logger.info((sig_eVA3[0] / (current_stretch_matrix[0][0] - 1))  * 160.21766208)
-                    C_22.append(sig_eVA3[1] / (current_stretch_matrix[1][1] - 1))
-                    C_33.append(sig_eVA3[2] / (current_stretch_matrix[2][2] - 1))
-                    C_12.append(sig_eVA3[0] / (current_stretch_matrix[1][1] - 1))
+                case "stretch_xx":
+                    C_11_sigma.append(sig_eVA3[0])
+                    C_11_epsilon.append(current_stretch_matrix[0][0] - 1)
+                    C_12_sigma.append(sig_eVA3[1])
+                    C_12_epsilon.append(current_stretch_matrix[0][0] - 1)
+                    # C_11.append(sig_eVA3[0] / (current_stretch_matrix[0][0] - 1))
+                    # C_12.append(sig_eVA3[1] / (current_stretch_matrix[0][0] - 1))
+                    # logger.info((sig_eVA3[0] / (current_stretch_matrix[0][0] - 1)) * 160.21766208)
+                    # logger.info(f"Energy : {current_energy} , Sigma : {sig_eVA3[0]} , Epsilon : {current_stretch_matrix[0][0] - 1}")
 
                 case "shears_xy":
                     C_66.append(sig_eVA3[5] / (current_stretch_matrix[0][1]))
@@ -363,14 +368,22 @@ class QuantityCalculator:
                 case _:
                     logger.warning("Didn't recognize current stretch matrix type")
 
-        logger.info(f"Steps : {len(C_11)} {len(C_44)} {len(C_55)} {len(C_66)} ")
+        C_11 = np.polyfit(C_11_sigma, C_11_epsilon, 1)[0]
+        C_12 = np.polyfit(C_12_sigma, C_12_epsilon, 1)[0]
 
-        B_bulk = (np.mean(C_11) + 2*np.mean(C_12)) * 160.21766208 / 3
+        plt.scatter(C_11_epsilon, C_11_sigma, c='r', marker='o', label='C11')
+        plt.scatter(C_12_epsilon, C_12_sigma, c='b', marker='o', label='C12')
+        plt.plot(C_11_epsilon, C_11 * np.asarray(C_11_epsilon), c='g', label='C11_fit')
+        plt.plot(C_12_epsilon, C_12 * np.asarray(C_12_epsilon), c='y', label='C12_fit')
+        plt.legend(loc='best')
+        plt.show()
+
+        B_bulk = (C_11 + 2*C_12) * 160.21766208 / 3
         G_shear = (np.mean(C_44) + np.mean(C_55) + np.mean(C_66) + np.mean(C_11) - np.mean(C_12)) * 160.21766208 / 5
         E_young = 9 * B_bulk * G_shear / (3 * B_bulk + G_shear)
 
 
-        logger.info(f"C11 : {np.mean(C_11) * 160.21766208} , C22 : {np.mean(C_22) * 160.21766208} , C33 : {np.mean(C_33) * 160.21766208}, C12 : {np.mean(C_12) * 160.21766208}")
+        logger.info(f"C11 : {C_11 * 160.21766208} , C12 : {C_12 * 160.21766208}")
         logger.info(f"C44 : {np.mean(C_44) * 160.21766208}, C55 : {np.mean(C_55) * 160.21766208}, C66 : {np.mean(C_66) * 160.21766208}")
         logger.info(f"Bulk modulus B : {B_bulk}")
         logger.info(f"Shear modulus G : {G_shear}")

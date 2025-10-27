@@ -172,10 +172,10 @@ class MDBase: #TODO Look at unit conversions
     def _runStretchSequence(self, atoms):
 
         # Small strain amplitude
-        stretch_constant = 2e-2  # 1%
+        stretch_constant = 2e-2  # 0.5%
         # Number of MD steps to run at each strained state
-        hold_steps = 1
-        stretch_steps = 100
+        hold_steps = 50
+        stretch_steps = 200
         I = np.eye(3)
         # Symmetric small-strain deformation gradients (F ≈ I + eps for small strains)
         stretch_matrix_list = np.zeros((4*stretch_steps, 3, 3), dtype=float)
@@ -183,9 +183,12 @@ class MDBase: #TODO Look at unit conversions
         count = 0
 
         for current_stretch in (np.linspace(-stretch_constant, stretch_constant, stretch_steps)):
-            # isotropic
-            stretch_matrix_list[count] = I * (1.0 + current_stretch)
-            type_list[count] = "isotropic"
+
+            # Stretch in x direction
+            stretch_xx = I
+            stretch_xx[0,0] = 1 + current_stretch
+            stretch_matrix_list[count] =stretch_xx
+            type_list[count] = "stretch_xx"
 
             # Symmetric shears: xy, xz, yz (F = I + eps, eps_ij = eps_ji = eta)
             stretch_xy = I.copy()
@@ -203,8 +206,6 @@ class MDBase: #TODO Look at unit conversions
             stretch_matrix_list[3*stretch_steps + count] = stretch_yz
             type_list[3*stretch_steps + count] = "shears_yz"
 
-            log.info(f"Placing on {count} , {stretch_steps + count} , {2*stretch_steps + count} , {3*stretch_steps + count} ")
-
             count += 1
 
 
@@ -217,7 +218,10 @@ class MDBase: #TODO Look at unit conversions
             atoms.info["stress"] = atoms.get_stress(voigt = True)
             atoms.info["stretch_matrix"]  = stretch_matrix_list[index]
             atoms.info["measurement"] = type_list[index]
+            atoms.info["potential_energy"] = atoms.get_potential_energy()
             traj.write()
+
+        dyn.run(1)
 
         for i in range(len(stretch_matrix_list)):
             index = i
