@@ -49,19 +49,19 @@ class QuantityCalculator:
 
         #logger.info(self.elastic_properties)
 
-        labels = ["D","E_coh","L_crit"] #, "T_D"
+        labels = ["D[m^2/s]","E_coh[eV]","L_crit[1]"] #, "T_D"
         quantities = [self_diffusion_coeff,coh_energy,lindemann_crit] # TODO Maybe nicer way to handle this ? , debye_temperature
         match self.settings.ensemble:
             case "NVE":
                 Cv = specificHeatAuToSI(self.computeSpecificHeatNVE()) # J/K per atom
-                labels.append("Cv")
+                labels.append("Cv[J/kgK]")
                 quantities.append(Cv)
 
             case "NVT":
                 internal_pressure = AuToGPascal(self.computeInternalPressure())  # GPa
                 bulk_modulus = self.computeBulkModulus("../Outputs/isotropic_stretch.traj")
                 Cv = specificHeatAuToSI(self.computeSpecificHeatNVT()) # J/K per atom
-                labels.extend(["P_i", "B", "Cv"])
+                labels.extend(["P_i[GPa]", "B[GPa]", "Cv[J/kgK]"])
                 quantities.extend([internal_pressure, bulk_modulus, Cv])
 
 

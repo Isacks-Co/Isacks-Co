@@ -1,6 +1,5 @@
 from simulationInput import NPTSettings,NVESettings,NVTSettings
 from inputParser import InputParser
-from MDBase import MDBase
 
 import json
 import sys
@@ -9,10 +8,6 @@ import logging
 from ase.io import read
 from ase.lattice.cubic import FaceCenteredCubic
 import numpy as np
-from SourceCode.logger import logger_setup
-from SourceCode.simulationInput import NPTSettings,NVESettings,NVTSettings
-from SourceCode.inputParser import InputParser
-log = logger_setup()
 
 
 log = logging.getLogger(__name__)
