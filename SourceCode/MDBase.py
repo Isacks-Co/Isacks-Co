@@ -191,83 +191,6 @@ class MDBase:
 
 
 
-    def _runStretchSequence(self, atoms):
-
-        def getStress(traj,atoms=atoms):
-            atoms.info["stress"] = atoms.get_stress(voigt = True)
-            atoms.get_total_energy()
-            atoms.get_potential_energy()
-            atoms.get_volume()
-            traj.write()
-
-        # Small strain amplitude
-        stretch_constant = 1e-2  # 0.5%
-        # Number of MD steps to run at each strained state
-        hold_steps = 1000
-        stretch_steps = 5
-        I = np.eye(3)
-        # Symmetric small-strain deformation gradients (F ≈ I + eps for small strains)
-        F_list = []
-        # ± isotropic
-        F_list.append(I * (1.0 + eta))
-        F_list.append(I * (1.0 - eta))
-        # Orthorhombic (volume-conserving to first order): diag(1+eta, 1-eta, 1)
-        #F_list.append(np.diag([1.0 + eta, 1.0 - eta, 1.0]))
-        #F_list.append(np.diag([1.0 - eta, 1.0 + eta, 1.0]))
-        # Symmetric shears: xy, xz, yz (F = I + eps, eps_ij = eps_ji = eta)
-        eps_xy = I.copy()
-        eps_xy[0, 1] = eps_xy[1, 0] = eta
-        F_list.append(eps_xy)
-
-        for current_stretch in (np.linspace(-stretch_constant, stretch_constant, stretch_steps)):
-
-            # Stretch in x direction
-            stretch_xx = I
-            stretch_xx[0,0] = 1 + current_stretch
-            stretch_matrix_list[count] =stretch_xx
-            type_list[count] = "stretch_xx"
-
-            # Symmetric shears: xy, xz, yz (F = I + eps, eps_ij = eps_ji = eta)
-            stretch_xy = I.copy()
-            stretch_xy[0, 1] = stretch_xy[1, 0] = current_stretch
-            stretch_matrix_list[stretch_steps + count] = stretch_xy
-            type_list[stretch_steps + count] = "shears_xy"
-
-            stretch_xz = I.copy()
-            stretch_xz[0, 2] = stretch_xz[2, 0] = current_stretch
-            stretch_matrix_list[2*stretch_steps + count] = stretch_xz
-            type_list[2*stretch_steps + count] = "shears_xz"
-
-            stretch_yz = I.copy()
-            stretch_yz[1, 2] = stretch_yz[2, 1] = current_stretch
-            stretch_matrix_list[3*stretch_steps + count] = stretch_yz
-            type_list[3*stretch_steps + count] = "shears_yz"
-
-            count += 1
-
-        eps_yz = I.copy()
-        eps_yz[1, 2] = eps_yz[2, 1] = eta
-        F_list.append(eps_yz)
-
-        traj = Trajectory(filename=f"{self.output_file}_stretch_data.traj", mode="w", atoms=atoms)
-        dyn = self.integrator(atoms=atoms)
-
-        def getStress(traj, atoms, index):
-            atoms.info["stress"] = atoms.get_stress(voigt = True) 
-            atoms.info["stretch_matrix"]  = stretch_matrix_list[index]
-            atoms.info["measurement"] = type_list[index]
-            atoms.info["potential_energy"] = atoms.get_potential_energy()
-            traj.write()
-
-        dyn.run(1)
-
-        for i in range(len(stretch_matrix_list)):
-            index = i
-            A = atoms.cell.array.T
-            A_new = (F @ A).T
-            atoms.set_cell(A_new, scale_atoms=True)
-            dyn.run(hold_steps)
-            atoms.set_cell(A, scale_atoms=True)
     
     def elasticData(self, traj, atoms, strain, stress0, beta):
         atoms.info["strain"] = strain
@@ -279,7 +202,7 @@ class MDBase:
         strains = np.linspace(-0.01, 0.01, 5)
         cell0 = atoms.get_cell()
         stress0 = atoms.get_stress(voigt=True)
-        hold_steps = 500
+        hold_steps = 1000
         
         traj = Trajectory(filename=f"{self.output_file}_stretch_data.traj", mode="w", atoms=atoms)
         

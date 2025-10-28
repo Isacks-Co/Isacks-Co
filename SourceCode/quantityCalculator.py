@@ -32,8 +32,6 @@ class QuantityCalculator:
         self.traj = traj
         self.settings = settings
         self.structure_name = self.traj[0].info["comment"]
-        self.elastic_properties = self._C()
-        logger.info(self.elastic_properties)
 
     def getQuantities(self):
         """
@@ -61,12 +59,20 @@ class QuantityCalculator:
                 quantities.append(Cv)
 
             case "NVT":
+                print("NVT")
                 internal_pressure = AuToGPascal(self.computeInternalPressure())  # GPa
                 bulk_modulus = self.computeBulkModulus("../Outputs/isotropic_stretch.traj")
                 Cv = specificHeatAuToSI(self.computeSpecificHeatNVT()) # J/K per atom
                 labels.extend(["P_i[GPa]", "B[GPa]", "Cv[J/kgK]"])
                 quantities.extend([internal_pressure, bulk_modulus, Cv])
 
+                
+                C_matrix = self.calculateCMatrix()
+                bulk_modulus, g_shear, youngs_modulus = self.calculateModuli(C_matrix)
+                labels.append("B")
+                labels.append("G")
+                labels.append("E")
+                quantities.extend([bulk_modulus, g_shear, youngs_modulus])
 
             case "NPT":
                 pass
@@ -340,41 +346,46 @@ class QuantityCalculator:
         logger.info(f"Debye temperature: {Theta_D} K")
         return Theta_D
     
-    def _C(self):
+    def calculateCMatrix(self):
         stretch_trajectory = Trajectory(self.settings.output_file + "_stretch_data.traj")
         betas = [[],[],[],[],[],[]]
         for frame in stretch_trajectory:
+            # Add the corresponding values to the right beta (strain direction)
             betas[frame.info["beta"]].append([frame.info["strain"], frame.info["stress"]])
         beta_arrays = [np.array(beta, dtype=object) for beta in betas]
+        
+        # Create dictionaries, one for each beta, and store the arrays of matrices with epsilon as key
         beta_dicts = [defaultdict(list) for i in range(6)]
-        averages = []
-        
-        
         for i in range(6):
-            for eps, matrix in beta_arrays[i]:
-                beta_dicts[i][eps].append(matrix)
-            
-
+            for epsilon, matrix in beta_arrays[i]:
+                beta_dicts[i][epsilon].append(matrix)
         
+        averages = []
         for beta in beta_dicts:
             avg_data = []
 
-            for eps, matrices in beta.items():
-                # Take elementwise average for each epsilon
+            for epsilon, matrices in beta.items():
+                # Take elementwise average over all the matrices for each epsilon
                 stacked = np.stack(matrices)
                 avg_matrix = stacked.mean(axis=0)
-                avg_data.append(np.array((eps, avg_matrix),dtype=object))
+                avg_data.append(np.array((epsilon, avg_matrix),dtype=object))
 
             avg_data = sorted(avg_data, key=lambda x: x[0])
             averages.append(avg_data)
         C = np.zeros((6,6))
         for i in range(6):
+            # Line fit epsilon vs sigma to find each c_ij
             epsilons = np.array([x[0] for x in averages[i]], dtype=float)
             for j in range(6):
                 sigmas = np.array([x[1][j] for x in averages[i]], dtype=float)
                 C[j, i] = np.polyfit(epsilons, sigmas, 1)[0]
         C *= 160.21766208 # Convert to GPa
         return C
+    def calculateModuli(self, C_matrix):
+        bulk_modulus = (C_matrix[0,0] + 2*C_matrix[0,1])/3
+        G_shear = (C_matrix[3,3] + C_matrix[4,4] + C_matrix[5,5] + C_matrix[1,1] - C_matrix[0,1]) /5
+        youngs_modulus = 9* bulk_modulus* G_shear /(3*bulk_modulus + G_shear)
+        return bulk_modulus, G_shear, youngs_modulus
 
         
 
@@ -410,170 +421,6 @@ class QuantityCalculator:
 
 
 
-
-
-
-    def _cubicConstantsFromTrajectory(self, ref=None, tol_abs=1e-8, tol_rel=1e-3):
-        """
-        Estimate C11, C12, C44, K, G using only cell geometry and info['stress'] saved in traj.
-        Internally uses atomic units (stress in Eh/a0^3), and returns SI Pascals.
-        Voigt notation: 1 -> xx
-                        2 -> yy
-                        3 -> zz
-                        4 -> yz
-                        5 -> xz
-                        6 -> xy
-        """
-        stretch_trajectory = Trajectory(self.settings.output_file + "_stretch_data.traj")
-
-        # Collect arrays
-        C_11_sigma, C_11_epsilon, C_22, C_33 = [], [], [], []
-        C_12_sigma, C_12_epsilon = [], []
-        C_44, C_55, C_66 = [], [], []
-
-        for frame in stretch_trajectory:
-            sig_eVA3 = frame.info["stress"]
-            current_measurement = frame.info["measurement"]
-            current_stretch_matrix = frame.info["stretch_matrix"]
-            current_energy = frame.info["potential_energy"]
-
-            match current_measurement:
-                case "stretch_xx":
-                    C_11_sigma.append(sig_eVA3[0])
-                    C_11_epsilon.append(current_stretch_matrix[0][0] - 1)
-                    C_12_sigma.append(sig_eVA3[1])
-                    C_12_epsilon.append(current_stretch_matrix[0][0] - 1)
-                    # C_11.append(sig_eVA3[0] / (current_stretch_matrix[0][0] - 1))
-                    # C_12.append(sig_eVA3[1] / (current_stretch_matrix[0][0] - 1))
-                    # logger.info((sig_eVA3[0] / (current_stretch_matrix[0][0] - 1)) * 160.21766208)
-                    # logger.info(f"Energy : {current_energy} , Sigma : {sig_eVA3[0]} , Epsilon : {current_stretch_matrix[0][0] - 1}")
-
-                case "shears_xy":
-                    C_66.append(sig_eVA3[5] / (current_stretch_matrix[0][1]))
-                case "shears_xz":
-                    C_55.append(sig_eVA3[4] / (current_stretch_matrix[0][2]))
-                case "shears_yz":
-                    C_44.append(sig_eVA3[3] / (current_stretch_matrix[1][2]))
-                case _:
-                    logger.warning("Didn't recognize current stretch matrix type")
-
-        C_11 = np.polyfit(C_11_epsilon, C_11_sigma, 1)[0]
-        C_12 = np.polyfit( C_12_epsilon,C_12_sigma, 1)[0]
-
-        plt.scatter(C_11_epsilon, C_11_sigma, c='r', marker='o', label='C11')
-        plt.scatter(C_12_epsilon, C_12_sigma, c='b', marker='o', label='C12')
-        plt.plot(C_11_epsilon, C_11 * np.asarray(C_11_epsilon), c='g', label='C11_fit')
-        plt.plot(C_12_epsilon, C_12 * np.asarray(C_12_epsilon), c='y', label='C12_fit')
-        plt.legend(loc='best')
-        plt.show()
-
-        B_bulk = (C_11 + 2*C_12) * 160.21766208 / 3
-        G_shear = (np.mean(C_44) + np.mean(C_55) + np.mean(C_66) + np.mean(C_11) - np.mean(C_12)) * 160.21766208 / 5
-        E_young = 9 * B_bulk * G_shear / (3 * B_bulk + G_shear)
-
-
-        logger.info(f"C11 : {C_11 * 160.21766208} , C12 : {C_12 * 160.21766208}")
-        logger.info(f"C44 : {np.mean(C_44) * 160.21766208}, C55 : {np.mean(C_55) * 160.21766208}, C66 : {np.mean(C_66) * 160.21766208}")
-        logger.info(f"Bulk modulus B : {B_bulk}")
-        logger.info(f"Shear modulus G : {G_shear}")
-        logger.info(f"Young modulus E : {E_young}")
-        """
-            e_xx, e_yy, e_zz = eps[0, 0], eps[1, 1], eps[2, 2]
-            e_xy, e_xz, e_yz = eps[0, 1], eps[0, 2], eps[1, 2]
-            g_xy, g_xz, g_yz = 2 * e_xy, 2 * e_xz, 2 * e_yz
-
-            s_xx, s_yy, s_zz = sig_eVA3[0], sig_eVA3[1], sig_eVA3[2]
-            s_yz, s_xz, s_xy = sig_eVA3[3], sig_eVA3[4], sig_eVA3[5]
-
-            # D pairs
-            x_D.extend([e_xx - e_yy, e_yy - e_zz, e_zz - e_xx])
-            y_D.extend([s_xx - s_yy, s_yy - s_zz, s_zz - s_xx])
-
-            # Hydrostatic
-            tr_eps = e_xx + e_yy + e_zz
-            sig_h = (s_xx + s_yy + s_zz) / 3.0
-            x_S.append(tr_eps)
-            y_S.append(sig_h)
-
-            # Shears
-            x_xy.append(g_xy)
-            y_xy.append(s_xy)
-            x_xz.append(g_xz)
-            y_xz.append(s_xz)
-            x_yz.append(g_yz)
-            y_yz.append(s_yz)
-
-        def slopeFiltered(x, y):
-            x = np.asarray(x, dtype=float)
-            y = np.asarray(y, dtype=float)
-            if x.size < 3:
-                return float('nan')
-            scale = np.max(np.abs(x))
-            mask = np.abs(x) > max(tol_abs, tol_rel * scale)
-            x2 = x[mask]
-            y2 = y[mask]
-            if x2.size < 3:
-                return float('nan')
-            m = np.dot(x2, y2) / np.dot(x2, x2)
-            return float(m)
-
-        D = slopeFiltered(x_D, y_D)
-        S_3 = slopeFiltered(x_S, y_S)
-        S_3 = S_3 * 3.0 if np.isfinite(S_3) else float('nan')
-
-        C44_xy = slopeFiltered(x_xy, y_xy)
-        C44_xz = slopeFiltered(x_xz, y_xz)
-        C44_yz = slopeFiltered(x_yz, y_yz)
-
-        C44s = [v for v in [C44_xy, C44_xz, C44_yz] if np.isfinite(v)]
-        C44 = float(np.mean(C44s)) if C44s else float('nan')
-
-        if np.isfinite(S_3) and np.isfinite(D):
-            C11 = (S_3 + 2.0 * D) / 3.0
-            C12 = (S_3 - D) / 3.0
-            K = S_3 / 3.0
-        else:
-            C11 = C12 = K = float('nan')
-
-        # VRH shear modulus
-        if np.isfinite(D) and np.isfinite(C44):
-            G_V = (D + 3.0 * C44) / 5.0
-            denom = 4.0 * C44 + 3.0 * D
-            if denom != 0:
-                G_R = 5.0 * D * C44 / denom
-                G = 0.5 * (G_V + G_R) if np.isfinite(G_R) else G_V
-            else:
-                G = G_V
-        else:
-            G = C44
-
-        return {
-            'C11': C11, 'C12': C12, 'C44': C44, 'K': K, 'G': G,
-            'C44_xy': float(C44_xy) if np.isfinite(C44_xy) else float('nan'),
-            'C44_xz': float(C44_xz) if np.isfinite(C44_xz) else float('nan'),
-            'C44_yz': float(C44_yz) if np.isfinite(C44_yz) else float('nan')
-        }
-        """
-
-
-def _smallStrainFromCells(ref, cur):
-    C_ref = ref.cell.array
-    C_cur = cur.cell.array
-    A_ref = C_ref.T
-    # logger.info(f"A_ref: {A_ref} \n")
-    A_cur = C_cur.T
-    # logger.info(f"A_cur: {A_cur} \n")
-    # logger.info(f"INV : {np.linalg.inv(A_ref)} \n")
-    F = A_cur @ np.linalg.inv(A_ref)
-    # logger.info(f"F: {F} \n")
-    eps = 0.5 * (F + F.T) - np.eye(3)
-    return eps
-
-def _stressEVA3FromInfo(cur):
-    sig_v = cur.info["stress eV/A3"]
-    if sig_v is None:
-        return None
-    return np.asarray(sig_v, dtype=float)  # eV/A3
 
 
 
