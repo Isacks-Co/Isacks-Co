@@ -3,17 +3,15 @@
 
   "Temperature": 300,
   "Timestep": 1,
-  "Number_of_steps": 60000,
-  "Interval": 10,
+  "Number_of_steps": 10000,
+  "Sample_interval": 1,
   "Potential": "EMT",
-  "Attachments": ["energy"],
 
   "Friction": 0.05,
   "Pressure": 0,
-  "Compressibility": 0,
+  "Compressibility": 1e-7,
 
-  "EquilSteps": 15000,
-  "Supercells": [7, 7, 7],
-  "Output_file" : "Outputs/output"
+  "Supercells": [5,5,5],
+  "Output_file" : "../Outputs/output"
 
 }

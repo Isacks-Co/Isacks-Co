@@ -1,65 +1,30 @@
 import json
 import re
-import math
+from math import sqrt
 from pathlib import Path
-
 import numpy as np
-from SourceCode.logger import logger_setup
 from ase import Atoms
-from ase.build import bulk
+from ase.calculators.emt import EMT
+from ase.eos import EquationOfState
 from ase.io import read
 from ase.io.trajectory import Trajectory
-from ase.md.analysis import DiffusionCoefficient
-from ase.neighborlist import NeighborList, natural_cutoffs, build_neighbor_list
-from ase.units import Bohr, kB, Hartree
+
+from ase.neighborlist import NeighborList, natural_cutoffs, build_neighbor_list, NeighborList
+
 from ase.visualize import view
-from scipy.constants import pi, k, physical_constants
+from scipy.constants import pi, hbar, k as kB
+import logging
 
-# Common conversions
-EV_PER_A3_TO_GPA = 160.21766208
-EV_PER_A3_TO_PA = 160.21766208e9  # Pa per (eV/Å^3)
-AMU_TO_KG = 1.66053906660e-27
-EV_TO_JOULE = 1.602176634e-19
-AVOGRADO = 6.02214076e23
-A_TO_M = 1e-10
 
-# Atomic unit constants
-BOHR_ANG = Bohr  # 1 a0 in Å
-BOHR_M = BOHR_ANG * A_TO_M  # 1 a0 in m
-HARTREE_eV = Hartree  # 1 Eh in eV
-HARTREE_J = HARTREE_eV * EV_TO_JOULE  # 1 Eh in J
-AU_TIME_S = physical_constants['atomic unit of time'][0]  # s
-AU_VEL_MS = BOHR_M / AU_TIME_S  # m/s
-AU_PRESSURE_PA = HARTREE_J / (BOHR_M ** 3)  # Pa
-AMU_TO_ME = physical_constants['atomic mass constant energy equivalent in MeV'][0]  # placeholder, replace below
-# Better: ratio amu to electron mass
-AMU_TO_ME = physical_constants['atomic mass constant'][0] / physical_constants['electron mass'][0]
 
-# Helper conversions to/from atomic units
-# Length
-ang_to_bohr = lambda x: np.asarray(x, dtype=float) / BOHR_ANG
-bohr_to_m = lambda x: np.asarray(x, dtype=float) * BOHR_M
-# Energy
-ev_to_hartree = lambda x: np.asarray(x, dtype=float) / HARTREE_eV
-hartree_to_j = lambda x: np.asarray(x, dtype=float) * HARTREE_J
-# Volume
-A3_to_bohr3 = lambda x: np.asarray(x, dtype=float) / (BOHR_ANG ** 3)
-# Force
-eV_per_A_to_Eh_per_bohr = lambda x: (np.asarray(x, dtype=float) / HARTREE_eV) * (1.0 / BOHR_ANG)
-# Pressure
-eV_per_A3_to_auP = lambda x: (np.asarray(x, dtype=float) / HARTREE_eV) * (BOHR_ANG ** 3)
-auP_to_Pa = lambda x: np.asarray(x, dtype=float) * AU_PRESSURE_PA
-
-logger = logger_setup()
-
+logger = logging.getLogger(__name__)
 
 class PostProcessing:
     """
         Uses the log files generates from the Molecular Dynamics class to vizualize and analyze the data
         input trajectory file as trajectory_file 
     """
-
-    def __init__(self, settings_path: str, trajectory_file: str):
+    def __init__(self, settings_path: str, input_structure: str, trajectory_file: str, data_log_file: str):
         try:
             self.traj = Trajectory(trajectory_file)
             self.settings = json.loads(Path(settings_path).read_text())
@@ -67,7 +32,7 @@ class PostProcessing:
         except FileNotFoundError:
             raise FileNotFoundError(f"Trajectory file {trajectory_file} not found")
 
-    def vizualize(self):
+    def vizualize(self): # REMOVE
         view(self.traj)
 
     def computeCohesiveEnergy(self, discard_fraction: float = 0.2, return_unit: str = "J_per_atom") -> float:
