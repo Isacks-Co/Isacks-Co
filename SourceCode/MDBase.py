@@ -1,8 +1,7 @@
-from simulationInput import SimulationSettings
 import functools
 
 import numpy as np
-import functools
+from ase import Atoms
 from ase.io.trajectory import Trajectory
 from ase.md.velocitydistribution import MaxwellBoltzmannDistribution,Stationary, ZeroRotation
 from ase.units import fs, GPa
@@ -13,7 +12,8 @@ from potentialSetUp import Potential
 log = logging.getLogger(__name__)
 
 
-class MDBase: #TODO Look at unit conversions
+
+class MDBase:
     """
     basic MD class
     When initialized it represents a MD-simulation with prefilled settings that can be used for multiple runs with
@@ -22,10 +22,11 @@ class MDBase: #TODO Look at unit conversions
 
     def __init__(self, settings: SimulationSettings):
         """
-        Create a MD runner from the settings specified in the 
-        SimulationSettings object. 
+        Create a MD runner from the settings specified in the
+        SimulationSettings object.
         In:
             SimulationSettings object of type NVE,NVT or NPT
+
         """
 
         # General parameters
@@ -121,7 +122,9 @@ class MDBase: #TODO Look at unit conversions
         #finally:
         #    self.quantity_list = []
 
-    
+
+
+
 
     def runMD(self, atoms): #TODO Needs better comments
         """
@@ -142,87 +145,94 @@ class MDBase: #TODO Look at unit conversions
 
         log.info("MD run starts with: %i steps", self.steps)
         dyn = self.integrator(atoms=atoms)
-        #dyn.attach(lambda: self._checkDivergence(atoms), interval=max(1, int(1 / self.timestep) ))
 
         traj = Trajectory(filename=f"{self.output_file}.traj", mode="w", atoms=atoms) ## currently have .. before
 
         dyn.attach(lambda: self.save_data(atoms,traj),
                    interval=self.interval)
 
-        #dyn.attach(lambda: self._checkDivergence(atoms),
-                 #  interval=self.interval)
+            # Add any other custom calculations here
 
         # Continue with the main MD run
         dyn.run(self.steps)  # RUN
         traj.close()  # Explicitly close the trajectory
 
+
+
         # Run stretch sequence for elastic constants
-        self._runStretchSequence(atoms)
+        if self.ensemble == "NVT":
+            self._make_eos_traj(atoms)
+            self._runStretchSequence(atoms)
 
 
     def save_data(self, atoms,traj):
-        atoms.get_potential_energy()
-        atoms.get_kinetic_energy()
-        atoms.get_total_energy()
-        atoms.get_forces()
-        atoms.get_volume()
-        atoms.get_positions()
+
+        Ep = atoms.get_potential_energy()
+        Ek = atoms.get_kinetic_energy()
+        Et = atoms.get_total_energy()
+        F = atoms.get_forces()
+        V = atoms.get_volume()
+        T = atoms.get_temperature()
+
+        atoms.info['E_pot'] = float(Ep)
+        atoms.info['E_kin'] = float(Ek)
+        atoms.info['E_tot'] = float(Et)
+        atoms.info['V'] = float(V)
+        atoms.info['T'] = float(T)
+        #atoms.arrays['F'] = F
+        if 'F' in atoms.arrays:
+            atoms.arrays['F'][:] = np.asarray(F, float)
+        else:
+            atoms.new_array('F', np.asarray(F, float))
+        atoms.info['F'] = np.asarray(F, float).tolist()
+
         traj.write()
+
 
     def _runStretchSequence(self, atoms):
 
+        def getStress(traj,atoms=atoms):
+            atoms.info["stress"] = atoms.get_stress(voigt = True)
+            atoms.get_total_energy()
+            atoms.get_potential_energy()
+            atoms.get_volume()
+            traj.write()
+
         # Small strain amplitude
-        stretch_constant = 2e-2  # 1%
+        eta = 5e-3  # 0.5%
         # Number of MD steps to run at each strained state
-        hold_steps = 1
-        stretch_steps = 100
+        hold_steps = 100
         I = np.eye(3)
         # Symmetric small-strain deformation gradients (F ≈ I + eps for small strains)
-        stretch_matrix_list = np.zeros((4*stretch_steps, 3, 3), dtype=float)
-        type_list = np.empty(4*stretch_steps, dtype='<U10')
-        count = 0
+        F_list = []
+        # ± isotropic
+        F_list.append(I * (1.0 + eta))
+        F_list.append(I * (1.0 - eta))
+        # Orthorhombic (volume-conserving to first order): diag(1+eta, 1-eta, 1)
+        #F_list.append(np.diag([1.0 + eta, 1.0 - eta, 1.0]))
+        #F_list.append(np.diag([1.0 - eta, 1.0 + eta, 1.0]))
+        # Symmetric shears: xy, xz, yz (F = I + eps, eps_ij = eps_ji = eta)
+        eps_xy = I.copy()
+        eps_xy[0, 1] = eps_xy[1, 0] = eta
+        F_list.append(eps_xy)
 
-        for current_stretch in (np.linspace(-stretch_constant, stretch_constant, stretch_steps)):
-            # isotropic
-            stretch_matrix_list[count] = I * (1.0 + current_stretch)
-            type_list[count] = "isotropic"
+        eps_xz = I.copy()
+        eps_xz[0, 2] = eps_xz[2, 0] = eta
+        F_list.append(eps_xz)
 
-            # Symmetric shears: xy, xz, yz (F = I + eps, eps_ij = eps_ji = eta)
-            stretch_xy = I.copy()
-            stretch_xy[0, 1] = stretch_xy[1, 0] = current_stretch
-            stretch_matrix_list[stretch_steps + count] = stretch_xy
-            type_list[stretch_steps + count] = "shears_xy"
-
-            stretch_xz = I.copy()
-            stretch_xz[0, 2] = stretch_xz[2, 0] = current_stretch
-            stretch_matrix_list[2*stretch_steps + count] = stretch_xz
-            type_list[2*stretch_steps + count] = "shears_xz"
-
-            stretch_yz = I.copy()
-            stretch_yz[1, 2] = stretch_yz[2, 1] = current_stretch
-            stretch_matrix_list[3*stretch_steps + count] = stretch_yz
-            type_list[3*stretch_steps + count] = "shears_yz"
-
-            log.info(f"Placing on {count} , {stretch_steps + count} , {2*stretch_steps + count} , {3*stretch_steps + count} ")
-
-            count += 1
-
+        eps_yz = I.copy()
+        eps_yz[1, 2] = eps_yz[2, 1] = eta
+        F_list.append(eps_yz)
 
         traj = Trajectory(filename=f"{self.output_file}_stretch_data.traj", mode="w", atoms=atoms)
         dyn = self.integrator(atoms=atoms)
-        index  = 0
-        dyn.attach(lambda: getStress(traj=traj,atoms=atoms, index=index), 1)
 
-        def getStress(traj, atoms, index):
-            atoms.info["stress"] = atoms.get_stress(voigt = True)
-            atoms.info["stretch_matrix"]  = stretch_matrix_list[index]
-            atoms.info["measurement"] = type_list[index]
-            traj.write()
+        dyn.attach(lambda: getStress(traj=traj,atoms=atoms), 1)
+        dyn.run(hold_steps)
 
-        for i in range(len(stretch_matrix_list)):
-            index = i
+        for F in F_list:
             A = atoms.cell.array.T
-            A_new = (stretch_matrix_list[i] @ A).T
+            A_new = (F @ A).T
             atoms.set_cell(A_new, scale_atoms=True)
             dyn.run(hold_steps)
             atoms.set_cell(A, scale_atoms=True)
@@ -288,3 +298,45 @@ class MDBase: #TODO Look at unit conversions
                 self.quantity_list.append(atoms.get_potential_energy())
             case "NVE":
                 self.quantity_list.append(atoms.get_temperature())
+
+    def _make_eos_traj(self, atoms, eta=0.12, npoints=20, relax=False, fmax=0.02,
+                       traj_path=f"../Outputs/isotropic_stretch.traj"):
+        """
+        Creates isotrophic scaling of cell
+            eta: max scaling factor
+            npoints: nbr of points between (1-eta) och (1+eta)
+            relax: if True, relax only inrternal positions at everyt volume
+            fmax: force criteria for relax
+            traj_path:
+        Return: traj_path
+        """
+        from ase.optimize import BFGS
+        from ase.md.langevin import Langevin
+
+
+        if traj_path is None:
+            traj_path = f"{self.output_file}_eos.traj"
+
+
+
+        scales = np.linspace(1.0 - eta, 1.0 + eta, npoints)
+        A0 = atoms.cell.array.copy()
+        traj = Trajectory(traj_path, mode="w", )
+
+        for s in scales:
+            a = atoms.copy()
+            a.set_cell(A0 * s, scale_atoms=True)  # isotrop scaling
+            a.calc = self.potential(a)
+
+            if hasattr(a.calc, "set_atoms"):
+                a.calc.set_atoms(a)
+
+            if relax:
+                BFGS(a, logfile=None).run(fmax=fmax)  # relax internal coordi
+            E_pot = a.get_potential_energy()
+            V = a.get_volume()
+            a.info['E_pot'] = float(E_pot)
+            a.info['V'] = float(V)
+
+
+            traj.write(a)
