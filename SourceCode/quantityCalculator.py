@@ -8,10 +8,13 @@ from ase import Atoms
 from ase.neighborlist import NeighborList, natural_cutoffs
 from ase.calculators.emt import EMT
 from ase.units import kB
+from ase.eos import EquationOfState
+from matplotlib import pyplot as plt
 from collections import defaultdict
 
 import numpy as np
 import logging
+from potentialSetUp import Potential
 
 hbar = physical_constants['Planck constant over 2 pi in eV s'][0] * 1e15
 
@@ -30,7 +33,7 @@ class QuantityCalculator:
         self.traj = traj
         self.settings = settings
         self.structure_name = self.traj[0].info["comment"]
-        self.elastic_properties = self._numericalC()
+        self.numeric_elastic_properties = self._numericalC()
 
     def getQuantities(self):
         """
@@ -39,33 +42,44 @@ class QuantityCalculator:
         """
         # Compute all general quantities
 
+        #MSD = self.computeMSD() # Å  Should we output average over late frames ?
+        bulk_modulus = self.computeBulkModulus("../Outputs/isotropic_stretch.traj")
         self_diffusion_coeff = selfDiffusionCoeffAuToSI(self.computeSelfDiffusionCoefficient())# m^2/s
         coh_energy = self.computeCohesiveEnergy() # ev
         internal_pressure = auToGPascal(self.computeInternalPressure()) #GPa
         lattice_constant = self.computeLatticeConstant()
         lindemann_crit = self.computeLindemannIndex() # Unitless
 
-        debye_temperature = self.computeDebyeTemperature()
-        elastic_moduli = self.calcElasticModuli()
+        elastic_moduli = self.calcNumericElasticModuli()
 
-        labels = ["D","E_coh","P_i","Lat_const", "L_crit", "T_D", "Elast_mod"]
-        quantities = [self_diffusion_coeff,coh_energy,internal_pressure, lattice_constant, lindemann_crit, debye_temperature, elastic_moduli] # TODO Maybe nicer way to handle this ?
+        labels = ["D[m^2/s]","E_coh[eV]","L_crit[1]"] #, "T_D"
+        quantities = [self_diffusion_coeff,coh_energy,lindemann_crit] # TODO Maybe nicer way to handle this ? , debye_temperature
         match self.settings.ensemble:
             case "NVE":
                 Cv = specificHeatAuToSI(self.computeSpecificHeatNVE()) # J/K per atom
-                labels.append("Cv")
+                labels.append("Cv[J/kgK]")
                 quantities.append(Cv)
 
             case "NVT":
                 print("NVT")
+                internal_pressure = AuToGPascal(self.computeInternalPressure())  # GPa
+                bulk_modulus = self.computeBulkModulus("../Outputs/isotropic_stretch.traj")
                 Cv = specificHeatAuToSI(self.computeSpecificHeatNVT()) # J/K per atom
-                labels.append("Cv")
-                quantities.append(Cv)
+                labels.extend(["P_i[GPa]", "B[GPa]", "Cv[J/kgK]"])
+                quantities.extend([internal_pressure, bulk_modulus, Cv])
+
+
+                C_matrix = self.calculateCMatrix()
+                bulk_modulus, g_shear, youngs_modulus = self.calculateModuli(C_matrix)
+                labels.append("B")
+                labels.append("G")
+                labels.append("E")
+                quantities.extend([bulk_modulus, g_shear, youngs_modulus])
 
             case "NPT":
                 pass
 
-        #self.writeQuantities(labels,quantities) # Write to txt file
+        self.writeQuantities(labels,quantities) # Write to txt file
 
 
     def writeQuantities(self,labels,quantities):
@@ -98,17 +112,18 @@ class QuantityCalculator:
         The return value is the mean of this over all snapshots
         Unit: ev/atom
         """
-
-        calc = EMT() #TODO NEED TO BE SAME AS ACTUAL MD RUN
+        calc = Potential().getPotential(self.settings.potential)
         number = self.traj[0].get_global_number_of_atoms()
         e_atoms = 0
         for j in range(len(self.traj[0])):
             atom = Atoms(self.traj[0].get_chemical_symbols()[j], positions=[[0, 0, 0]], cell=[10, 10, 10], pbc=False)
-            atom.calc = calc
+
+            atom.calc = calc(atom)
             e_atoms += atom.get_potential_energy()
+
         e_coh_list = []
         for frame in self.traj:
-            e_bulk = frame.get_potential_energy()
+            e_bulk = _get(frame, "E_pot")
             e_coh_list.append((e_atoms - e_bulk)/number)
 
         e_coh_mean = np.mean(e_coh_list)
@@ -121,8 +136,8 @@ class QuantityCalculator:
         over all frames.
         Unit: ev/(amu*K) (amu = atomic mass unit)
         """
-        energy = np.array([atom_frame.get_total_energy() for atom_frame in self.traj])
-        temperature = np.mean([atom_frame.get_temperature() for atom_frame in self.traj])
+        energy = np.array([_get(frame, "E_tot") for frame in self.traj])
+        temperature = np.mean([_get(frame, "T") for frame in self.traj])
 
         e_mean = np.mean(energy)
         e_2_mean = np.mean(energy**2)
@@ -138,8 +153,9 @@ class QuantityCalculator:
         over all frames. 
         Unit: ev/(amu*K) (amu = atomic mass units)
         """
-        e_kin = np.array([atom_frame.get_kinetic_energy() for atom_frame in self.traj])
-        T = np.mean([atom_frame.get_temperature() for atom_frame in self.traj])
+        e_kin = np.array([_get(fr, "E_kin") for fr in self.traj])
+        T = float(np.nanmean([_get(fr, "T") for fr in self.traj]))
+
         e_kin_mean = np.mean(e_kin)
         e_kin_2_mean = np.mean(e_kin**2)
         total_mass_amu = float(sum(self.traj[0].get_masses()))
@@ -147,14 +163,12 @@ class QuantityCalculator:
         logger.debug(f"Cv: {specificHeatAuToSI(specific_heat)} J/(kg*K)")
         return specific_heat
 
-
     def computeLatticeConstant(self):# Need to test
         lattice_frames = [atoms.get_cell().cellpar() for atoms in self.traj]
         lattice_mean = np.mean(lattice_frames,axis = 0)
         lattice_mean[:3] /= np.array(self.settings.supercells)
         logger.debug(f"Lattice constant: {lattice_mean}")
         return lattice_mean
-
 
     def computeInternalPressure(self):
         """
@@ -165,19 +179,19 @@ class QuantityCalculator:
         """
         internal_pressures_eVA3 = []
         N = len(self.traj[0])
+
         for atoms in self.traj:
-            e_kin_eV = atoms.get_kinetic_energy()
-            V_A3 = atoms.get_volume()
-            forces_eVA = atoms.get_forces()
+            e_kin_eV = _get(atoms, "E_kin")
+            V_A3 = _get(atoms, "V")
+            forces_eVA = _get(atoms, "F")
             positions_A = atoms.get_positions()
             sum_rf = np.sum(forces_eVA * positions_A)
             P_eVA3 = (1.0 / (3.0 * V_A3)) * (2.0 * e_kin_eV + sum_rf)
             internal_pressures_eVA3.append(P_eVA3)
 
         avg_P = np.mean(internal_pressures_eVA3) if internal_pressures_eVA3 else float('nan')
-        logger.debug(f"\n Average internal pressure: {avg_P} eV/å³; {auToGPascal(avg_P)} GPa")
+        logger.debug(f"Average internal pressure: {avg_P} eV/Å^3")
         return avg_P
-
 
     def computeMSD(self, frame, reference=0):
         """
@@ -191,7 +205,6 @@ class QuantityCalculator:
         msd = np.mean((r_0 - r_n) ** 2)
         logger.debug(f"MSD: {msd} å²")
         return msd
-
 
     def computeSelfDiffusionCoefficient(self):  # Needs constant temperature, for current implementation.
         """
@@ -262,7 +275,6 @@ class QuantityCalculator:
         NN_mean_distance = np.mean(NN_list)
         logger.debug(f"Mean value of nearest neighbor : {NN_mean_distance} å")
         return NN_mean_distance
-
 
     def computeLindemannIndex(self, start:int = -25, end:int = 0):
         """Returns the global Lindemann index for the given interval
@@ -442,3 +454,124 @@ class QuantityCalculator:
         E = 9 * K * G / (3 * K + G)
         logger.debug(f"K = {auToGPascal(K)} GPa \n G = {auToGPascal(G)} GPa \n E = {auToGPascal(E)} GPa")
         return {"K": K, "G": G, "E": E}
+
+
+    def calculateCMatrix(self):
+        stretch_trajectory = Trajectory(self.settings.output_file + "_stretch_data.traj")
+        betas = [[],[],[],[],[],[]]
+        for frame in stretch_trajectory:
+            # Add the corresponding values to the right beta (strain direction)
+            betas[frame.info["beta"]].append([frame.info["strain"], frame.info["stress"]])
+        beta_arrays = [np.array(beta, dtype=object) for beta in betas]
+
+        # Create dictionaries, one for each beta, and store the arrays of matrices with epsilon as key
+        beta_dicts = [defaultdict(list) for i in range(6)]
+        for i in range(6):
+            for epsilon, matrix in beta_arrays[i]:
+                beta_dicts[i][epsilon].append(matrix)
+
+        averages = []
+        for beta in beta_dicts:
+            avg_data = []
+
+            for epsilon, matrices in beta.items():
+                # Take elementwise average over all the matrices for each epsilon
+                stacked = np.stack(matrices)
+                avg_matrix = stacked.mean(axis=0)
+                avg_data.append(np.array((epsilon, avg_matrix),dtype=object))
+
+            avg_data = sorted(avg_data, key=lambda x: x[0])
+            averages.append(avg_data)
+        C = np.zeros((6,6))
+        for i in range(6):
+            # Line fit epsilon vs sigma to find each c_ij
+            epsilons = np.array([x[0] for x in averages[i]], dtype=float)
+            for j in range(6):
+                sigmas = np.array([x[1][j] for x in averages[i]], dtype=float)
+                C[j, i] = np.polyfit(epsilons, sigmas, 1)[0]
+        C *= 160.21766208 # Convert to GPa
+        return C
+    def calculateModuli(self, C_matrix):
+        bulk_modulus = (C_matrix[0,0] + 2*C_matrix[0,1])/3
+        G_shear = (C_matrix[3,3] + C_matrix[4,4] + C_matrix[5,5] + C_matrix[1,1] - C_matrix[0,1]) /5
+        youngs_modulus = 9* bulk_modulus* G_shear /(3*bulk_modulus + G_shear)
+        return bulk_modulus, G_shear, youngs_modulus
+
+
+
+    def computeBulkModulus(self, stretched_traj):
+        import matplotlib.pyplot as plt
+        stretch_trajectory = Trajectory(stretched_traj)
+        energies = []
+        cells = []
+        for frame in stretch_trajectory:
+            energies.append(_get(frame, "E_pot"))
+            cells.append(_get(frame, "V"))
+
+        V = np.array(cells)
+        E = np.array(energies)
+        order = np.argsort(V)
+        E, V = E[order], V[order]
+
+        """
+        plt.figure(figsize=(6, 4))
+        plt.scatter(V, E, s=28)
+        plt.xlabel('volume [Å³]')
+        plt.ylabel('energy [eV]')
+        plt.title('E(V) – stretch trajectory')
+        plt.tight_layout()
+        plt.savefig('e_vs_v_points.png', dpi=200)
+        plt.close()
+        """
+        eos = EquationOfState(V, E, eos='birchmurnaghan')
+        v0, e0, B0_eVa3 = eos.fit()
+        B0_GPa = B0_eVa3 * 160.21766208
+        eos.plot('Ag-eos.png')
+        return B0_GPa
+
+
+
+
+
+
+def _get(frame, name):
+    """Read from info/arrays first (traj-safe), else fall back to get_* (requires calc)."""
+    try:
+        if name == "E_pot":
+            E_pot = frame.info.get("E_pot")
+            return float(E_pot) if E_pot is not None else frame.get_potential_energy()
+
+        if name == "E_kin":
+            E_kin = frame.info.get("E_kin")
+            return float(E_kin) if E_kin is not None else frame.get_kinetic_energy()
+
+        if name == "E_tot":
+            E_tot = frame.info.get("E_tot")
+            return float(E_tot) if E_tot is not None else frame.get_total_energy()
+
+        if name == "V":
+            v = frame.info.get("V")
+            return float(v) if v is not None else frame.get_volume()
+
+        if name == "T":
+            T = frame.info.get("T")
+            return float(T) if T is not None else frame.get_temperature()
+
+        if name == "F":
+            #1) arrays['F']
+            F = frame.arrays.get("F")
+            if F is not None:
+                return np.asarray(F, float)
+            #2) info['F']
+            Fi = frame.info.get("F", frame.info.get("forces"))
+            if Fi is not None:
+                return np.asarray(Fi, float)
+            #3) fallback
+            try:
+                return np.asarray(frame.get_forces(), float)
+            except Exception:
+                return None
+
+
+    except Exception:
+        return None

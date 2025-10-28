@@ -21,9 +21,27 @@ class Potential:
         elif potential_lower in ["lj", "lennardjones", "lennard_jones"]:
             log.info("Potential: Lennard Jones")
             return self.setupLJCalculator
+
+        elif potential_lower in ["mace", "MACE"]:
+            return self.setUpMACE
+
         else:
             log.error("Invalid potential function: %s", potential)
             raise ValueError(f"Invalid potential function: {potential}")
+
+    def setUpMACE(self, atoms):
+        import os, warnings
+        os.environ["TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD"] = "1"
+        warnings.filterwarnings(
+            "ignore",
+            message="Environment variable TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD detected",
+        )
+
+        from mace.calculators import MACECalculator
+        import torch
+        model_path = "MACEModels/mace-mpa-0-medium.model" #just to try
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+        return MACECalculator(model_paths= model_path, device=device, default_dtype="float64",head="default")
 
     def setupEMT(self, atoms):
         from asap3 import EMT as asap_EMT

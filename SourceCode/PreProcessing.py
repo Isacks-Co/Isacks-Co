@@ -1,6 +1,8 @@
 from simulationInput import NPTSettings,NVESettings,NVTSettings
 from inputParser import InputParser
 from MDBase import MDBase
+from simulationInput import NPTSettings,NVESettings,NVTSettings
+from inputParser import InputParser
 
 import json
 import sys
@@ -32,7 +34,7 @@ class PreProcessing:
         #Physical check of the input
         self.sanityCheckAtomicStructure()
         self.sanityCheckSettings()
-        
+
 
     def readSettings(self, input_settings):
         """Reads settings from json file, checks all expected settings present. Overwrite settings file if a terminal flag is set."""
@@ -52,17 +54,17 @@ class PreProcessing:
 
         log.debug("Settings loaded: %r", temp_settings)
         return temp_settings
-    
+
 
     def readAtomicStructure(self, input_structure):
         """Reads atomic structure from a file, and extend cell according to supercell setting"""
 
         try:
-            
+
             log.info("Reading atomic structure from: %s", input_structure)
             atoms = read(input_structure) * tuple(self.settings["Supercells"])
             atoms.pbc = True #TODO, Hard coded pbc always true for now.
-    
+
             with open(input_structure, "r") as file: # Manually read the first line and add as a comment.
                 structure_name = file.readline().strip()
                 atoms.info["comment"] = structure_name
@@ -80,20 +82,20 @@ class PreProcessing:
         log.debug("Creating Settings object for ensemble: %s", self.settings["Ensemble"])
         match self.settings["Ensemble"]:
             case "NVE":
-                
+
                 return NVESettings(init_temp=self.settings["Temperature"], potential=self.settings["Potential"],
                                       timestep=self.settings["Timestep"], num_steps=self.settings["Number_of_steps"],
                                       interval=self.settings["Sample_interval"], output_file=self.settings["Output_file"],
                                       supercells= self.settings["Supercells"])
             case "NVT":
-                
+
                 return NVTSettings(temperature=self.settings["Temperature"], potential=self.settings["Potential"],
                                       timestep=self.settings["Timestep"], num_steps=self.settings["Number_of_steps"],
                                       interval=self.settings["Sample_interval"], output_file=self.settings["Output_file"],
                                       friction=self.settings["Friction"],
                                       supercells= self.settings["Supercells"])
             case "NPT":
-                
+
                 return NPTSettings(temperature=self.settings["Temperature"], potential=self.settings["Potential"],
                                       timestep=self.settings["Timestep"], num_steps=self.settings["Number_of_steps"],
                                       interval=self.settings["Sample_interval"], output_file=self.settings["Output_file"],

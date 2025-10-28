@@ -1,8 +1,7 @@
 from simulationInput import SimulationSettings
 import functools
-
 import numpy as np
-import functools
+from ase import Atoms
 from ase.io.trajectory import Trajectory
 from ase.md.velocitydistribution import MaxwellBoltzmannDistribution, Stationary, ZeroRotation
 from ase.units import fs, GPa
@@ -22,8 +21,8 @@ class MDBase:  # TODO Look at unit conversions
 
     def __init__(self, settings: SimulationSettings):
         """
-        Create a MD runner from the settings specified in the 
-        SimulationSettings object. 
+        Create a MD runner from the settings specified in the
+        SimulationSettings object.
         In:
             SimulationSettings object of type NVE,NVT or NPT
         """
@@ -115,9 +114,6 @@ class MDBase:  # TODO Look at unit conversions
         except RuntimeWarning as err:
             log.error(f"Equilibrium aborted due to instability: {err}")
             quit()
-
-        # finally:
-        #    self.quantity_list = []
 
     def runMD(self, atoms):  # TODO Needs better comments
         """
