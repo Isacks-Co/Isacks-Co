@@ -4,7 +4,7 @@ import functools
 import numpy as np
 import functools
 from ase.io.trajectory import Trajectory
-from ase.md.velocitydistribution import MaxwellBoltzmannDistribution,Stationary, ZeroRotation
+from ase.md.velocitydistribution import MaxwellBoltzmannDistribution, Stationary, ZeroRotation
 from ase.units import fs, GPa
 import logging
 from simulationInput import SimulationSettings
@@ -13,7 +13,7 @@ from potentialSetUp import Potential
 log = logging.getLogger(__name__)
 
 
-class MDBase: #TODO Look at unit conversions
+class MDBase:  # TODO Look at unit conversions
     """
     basic MD class
     When initialized it represents a MD-simulation with prefilled settings that can be used for multiple runs with
@@ -46,9 +46,7 @@ class MDBase: #TODO Look at unit conversions
         elif settings.ensemble == "NPT":
             self.temperature_k = settings.temperature
             self.pressure = settings.pressure * GPa * 1e-9  # Pa to Au
-            self.tdamp = settings.tdamp
-            self.pdamp = settings.pdamp
-
+            self.compressibility = settings.compressibility / (GPa * 1e-9)  # Pa^-1 to Au
 
         # Integrator and potential
         self.integrator = self.getIntegrator(self.ensemble)
@@ -76,19 +74,17 @@ class MDBase: #TODO Look at unit conversions
             return functools.partial(Langevin, timestep=self.timestep, temperature_K=self.temperature_k,
                                      friction=self.friction)
 
-        elif integrator_lower in ["MKT", "npt"]:
-            from asap3.md.nose_hoover_chain import IsotropicMTKNPT
-            log.info("Integrator: Isotropic Martyna-Tobias-klein dynamics")
-            return functools.partial(IsotropicMTKNPT, timestep=self.timestep, temperature_K=self.temperature_k,
-                                     pressure_au=self.pressure, tdamp=self.tdamp, pdamp=self.pdamp)
+        elif integrator_lower in ["berendsen", "npt"]:
+            from asap3.md.nptberendsen import NPTBerendsen
+            log.info("Integrator: Berendsen")
+            return functools.partial(NPTBerendsen, timestep=self.timestep, temperature_K=self.temperature_k,
+                                     pressure_au=self.pressure, compressibility_au=self.compressibility)
 
         else:
             log.error("Invalid Integrator function: %s", integrator)  ##
             raise ValueError(f"Invalid integrator: {integrator}")
 
-
-
-    def equilibriumRun(self, atoms, equilibrium_steps = 40000):
+    def equilibriumRun(self, atoms, equilibrium_steps=40000):
         """
         Function that runs certain amount of steps 'equilibrium_steps', to make the system reach equilibrium,
         before the 'real' production simulation is run.
@@ -98,7 +94,7 @@ class MDBase: #TODO Look at unit conversions
         """
 
         dyn_eq = self.integrator(atoms=atoms)
-        dyn_eq.attach(lambda: self._checkDivergence(atoms), interval=max(1, int(1 / self.timestep) ))
+        dyn_eq.attach(lambda: self._checkDivergence(atoms), interval=max(1, int(1 / self.timestep)))
 
         try:
             dyn_eq.run(equilibrium_steps)
@@ -120,124 +116,68 @@ class MDBase: #TODO Look at unit conversions
             log.error(f"Equilibrium aborted due to instability: {err}")
             quit()
 
-        #finally:
+        # finally:
         #    self.quantity_list = []
 
-    
-
-    def runMD(self, atoms): #TODO Needs better comments
+    def runMD(self, atoms):  # TODO Needs better comments
         """
-        In: 
+        In:
             Atoms: ase Atoms object representing the crystal structure
 
         Runs a MD simulation with the setting specified in __init__
         Depending on attachments will possibly print some data.
-        Will always save a trajectory and log file.        
+        Will always save a trajectory and log file.
         """
-        atoms.calc = self.potential(atoms) # Still dont like this
+        atoms.calc = self.potential(atoms)  # Still dont like this
+
+        # Precompute static 2D stretch on the initial (cold) lattice before assigning velocities
+        try:
+            fast_strains = np.array([-0.005, 0.0, 0.005], dtype=float)
+            fast_pairs = [(0, 0), (1, 1), (2, 2), (0, 1), (0, 2), (3, 3)]
+            self._stretchCell2D(atoms, pairs=fast_pairs, strains=fast_strains, hold_steps=0)
+        except Exception as e:
+            log.info(f"2D static stretch failed or skipped: {e}")
 
         MaxwellBoltzmannDistribution(atoms, temperature_K=self.temperature_k,
                                      force_temp=True)  # Initialize velocity according to temperature_k
-        Stationary(atoms) # Make sure center of mass has no linear momentum
-        ZeroRotation(atoms) # Make sure center of mass has no angular momentum, might not be needed
-        self.equilibriumRun(atoms=atoms) # TODO BREAKS TO EARLY
+        Stationary(atoms)  # Make sure center of mass has no linear momentum
+        ZeroRotation(atoms)  # Make sure center of mass has no angular momentum, might not be needed
+        self.equilibriumRun(atoms=atoms, equilibrium_steps=40000)  # shorter equilibration
 
         log.info("MD run starts with: %i steps", self.steps)
+
         dyn = self.integrator(atoms=atoms)
-        #dyn.attach(lambda: self._checkDivergence(atoms), interval=max(1, int(1 / self.timestep) ))
+        # dyn.attach(lambda: self._checkDivergence(atoms), interval=max(1, int(1 / self.timestep) ))
 
-        traj = Trajectory(filename=f"{self.output_file}.traj", mode="w", atoms=atoms) ## currently have .. before
+        traj = Trajectory(filename=f"{self.output_file}.traj", mode="w", atoms=atoms)  ## currently have .. before
 
-        dyn.attach(lambda: self.save_data(atoms,traj),
+        dyn.attach(lambda: self.save_data(atoms, traj),
                    interval=self.interval)
 
-        #dyn.attach(lambda: self._checkDivergence(atoms),
-                 #  interval=self.interval)
+        # dyn.attach(lambda: self._checkDivergence(atoms),
+        #  interval=self.interval)
 
         # Continue with the main MD run
         dyn.run(self.steps)  # RUN
         traj.close()  # Explicitly close the trajectory
 
-        # Run stretch sequence for elastic constants
-        self._stretchCell(atoms)
-
-
-    def save_data(self, atoms,traj):
+    def save_data(self, atoms, traj):
         atoms.get_potential_energy()
         atoms.get_kinetic_energy()
         atoms.get_total_energy()
         atoms.get_forces()
         atoms.get_volume()
         atoms.get_positions()
-        atoms.info["stress"] = atoms.get_stress()
         traj.write()
 
-    def _runStretchSequence(self, atoms):
-
-        # Small strain amplitude
-        stretch_constant = 1e-2  # 1%
-        # Number of MD steps to run at each strained state
-        hold_steps = 1000
-        stretch_steps = 5
-        I = np.eye(3)
-        # Symmetric small-strain deformation gradients (F ≈ I + eps for small strains)
-        stretch_matrix_list = np.zeros((4*stretch_steps, 3, 3), dtype=float)
-        type_list = np.empty(4*stretch_steps, dtype='<U10')
-        count = 0
-
-        for current_stretch in (np.linspace(-stretch_constant, stretch_constant, stretch_steps)):
-
-            # Stretch in x direction
-            stretch_xx = I
-            stretch_xx[0,0] = 1 + current_stretch
-            stretch_matrix_list[count] =stretch_xx
-            type_list[count] = "stretch_xx"
-
-            # Symmetric shears: xy, xz, yz (F = I + eps, eps_ij = eps_ji = eta)
-            stretch_xy = I.copy()
-            stretch_xy[0, 1] = stretch_xy[1, 0] = current_stretch
-            stretch_matrix_list[stretch_steps + count] = stretch_xy
-            type_list[stretch_steps + count] = "shears_xy"
-
-            stretch_xz = I.copy()
-            stretch_xz[0, 2] = stretch_xz[2, 0] = current_stretch
-            stretch_matrix_list[2*stretch_steps + count] = stretch_xz
-            type_list[2*stretch_steps + count] = "shears_xz"
-
-            stretch_yz = I.copy()
-            stretch_yz[1, 2] = stretch_yz[2, 1] = current_stretch
-            stretch_matrix_list[3*stretch_steps + count] = stretch_yz
-            type_list[3*stretch_steps + count] = "shears_yz"
-
-            count += 1
-
-
-        traj = Trajectory(filename=f"{self.output_file}_stretch_data.traj", mode="w", atoms=atoms)
-        dyn = self.integrator(atoms=atoms)
-        index  = 0
-        dyn.attach(lambda: getStress(traj=traj,atoms=atoms, index=index), 1)
-
-        def getStress(traj, atoms, index):
-            atoms.info["stress"] = atoms.get_stress(voigt = True)
-            atoms.info["stretch_matrix"]  = stretch_matrix_list[index]
-            atoms.info["measurement"] = type_list[index]
-            atoms.info["potential_energy"] = atoms.get_potential_energy()
-            traj.write()
-
-        dyn.run(1)
-
-        for i in range(len(stretch_matrix_list)):
-            index = i
-            A = atoms.cell.array.T
-            A_new = (stretch_matrix_list[i] @ A).T
-            atoms.set_cell(A_new, scale_atoms=True)
-            dyn.run(hold_steps)
-            atoms.set_cell(A, scale_atoms=True)
 
     def elasticData(self, traj, atoms, strain, stress0, beta):
         atoms.info["strain"] = strain
         atoms.info["stress"] = atoms.get_stress(voigt=True) - stress0
         atoms.info["beta"] = beta
+        atoms.info["total_energy"] = atoms.get_total_energy()
+        atoms.info["kinetic_energy"] = atoms.get_kinetic_energy()
+        atoms.info["potential_energy"] = atoms.get_potential_energy()
         traj.write()
 
     def _stretchCell(self, atoms):
@@ -265,11 +205,72 @@ class MDBase: #TODO Look at unit conversions
                 new_cell = np.dot(cell0, np.eye(3) + eps)
                 atoms.set_cell(new_cell, scale_atoms=True)
                 dyn = self.integrator(atoms=atoms)
-                dyn.attach(lambda : self.elasticData(traj, atoms, e, stress0, beta))
+                dyn.attach(lambda: self.elasticData(traj, atoms, e, stress0, beta))
                 dyn.run(hold_steps)
 
+    def _set_voigt_component(self, eps, beta, value):
+        if beta == 0:
+            eps[0, 0] = value
+        elif beta == 1:
+            eps[1, 1] = value
+        elif beta == 2:
+            eps[2, 2] = value
+        elif beta == 3:
+            eps[1, 2] = eps[2, 1] = value / 2.0
+        elif beta == 4:
+            eps[0, 2] = eps[2, 0] = value / 2.0
+        elif beta == 5:
+            eps[0, 1] = eps[1, 0] = value / 2.0
 
+    def elasticData2D(self, traj, atoms, strain1, strain2, stress0, beta1, beta2):
+        atoms.info["strain1"] = strain1
+        atoms.info["strain2"] = strain2
+        atoms.info["beta1"] = beta1
+        atoms.info["beta2"] = beta2
+        atoms.info["stress"] = atoms.get_stress(voigt=True) - stress0
+        atoms.info["total_energy"] = atoms.get_total_energy()
+        atoms.info["kinetic_energy"] = atoms.get_kinetic_energy()
+        atoms.info["potential_energy"] = atoms.get_potential_energy()
+        traj.write()
 
+    def _stretchCell2D(self, atoms, pairs=None, strains=None, hold_steps=500):
+        """
+        Generate energies on a 2D grid of simultaneous strains and write to
+        f"{self.output_file}_stretch2D_data.traj". Added mainly for calculation of mixed partials,
+        but seems to give more accurate elastic constants than before.
+
+        pairs: iterable of (beta1, beta2) with 0<=beta<=5. Default: all i<=j.
+        strains: 1D array of strain magnitudes (same grid for both axes). Default linspace(-0.01,0.01,5).
+        hold_steps: MD steps to hold per grid point. If 0, compute statically without MD.
+        """
+        if strains is None:
+            strains = np.linspace(-0.01, 0.01, 5)
+        if pairs is None:
+            pairs = [(i, j) for i in range(6) for j in range(i, 6)]
+
+        cell0 = atoms.get_cell()
+        stress0 = atoms.get_stress(voigt=True)
+        traj2d = Trajectory(filename=f"{self.output_file}_stretch2D_data.traj", mode="w", atoms=atoms)
+
+        for (b1, b2) in pairs:
+            for e1 in strains:
+                for e2 in strains:
+                    # Reset to original unstrained cell and positions before each strain
+                    atoms.set_cell(cell0, scale_atoms=True)
+                    eps = np.zeros((3, 3))
+                    self._set_voigt_component(eps, b1, float(e1))
+                    self._set_voigt_component(eps, b2, float(e2))
+                    new_cell = np.dot(cell0, np.eye(3) + eps)
+                    atoms.set_cell(new_cell, scale_atoms=True)
+                    if hold_steps and hold_steps > 0:
+                        dyn = self.integrator(atoms=atoms)
+                        dyn.attach(lambda e1=e1, e2=e2, b1=b1, b2=b2: self.elasticData2D(traj2d, atoms, float(e1), float(e2), stress0, b1, b2))
+                        dyn.run(hold_steps)
+                    else:
+                        # Static evaluation: compute energies/stresses immediately
+                        self.elasticData2D(traj2d, atoms, float(e1), float(e2), stress0, b1, b2)
+        # Restore original cell at end
+        atoms.set_cell(cell0, scale_atoms=True)
 
     def checkConvergence(self, atoms):
         """
@@ -282,13 +283,13 @@ class MDBase: #TODO Look at unit conversions
             return
 
         last = np.asarray(self.quantity_list[-window:], dtype=float)
-        mean_diff = abs(last[int(window/2):].mean() - last[:int(window/2)].mean())
+        mean_diff = abs(last[int(window / 2):].mean() - last[:int(window / 2)].mean())
         last_diff = abs(self.quantity_list[-1] - self.quantity_list[-2])
         match self.ensemble:
             case "NVT":
-                error_per_atom = error*len(atoms)
+                error_per_atom = error * len(atoms)
                 if last_diff <= error_per_atom and mean_diff <= error_per_atom:
-                        raise StopIteration(f"Converged at E_pot = {last[-1]} eV.")
+                    raise StopIteration(f"Converged at E_pot = {last[-1]} eV.")
 
             case "NVE":
                 pass
@@ -317,13 +318,12 @@ class MDBase: #TODO Look at unit conversions
             raise RuntimeError(f"Divergence: T={current_T:.1f} K >  {div_factor * self.temperature_k:.1f} K, "
                                f"(div_factor * desired temp).")
 
-
     def _updateQuantityList(self, atoms):
         """
         Help function that appends quantities depending on the ensemble into quantity_list.
         """
         if not hasattr(self, "quantity_list"):
-            self.quantity_list = [] #TODO Should not be class variable
+            self.quantity_list = []  # TODO Should not be class variable
         match self.ensemble:
             case "NPT":
                 self.quantity_list.append(atoms.get_volume())

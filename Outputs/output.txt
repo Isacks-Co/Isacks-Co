@@ -1,5 +1,4 @@
-FCC Al
+Cu_fcc
 Ensemble: NVT
 
-D                   E_coh               P_i                 L_crit              T_D                 Cv                  
-0.000               3.284               0.010               0.006               0.000               805.758             
+D                   E_coh               P_i                 Lat_const           L_crit              T_D                 Elast_mod           Cv                  
