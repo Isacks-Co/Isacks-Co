@@ -11,11 +11,12 @@ if __name__ == "__main__":
         PP = PreProcessing(sys.argv)
         settings = PP.createSettings()
         log.info(f"Settings loaded :\n{settings}")
+        Postviz = PostProcessing(settings)
         
     except Exception as err:
         log.error(f"Preprocessing failed: {err}") #should probably add the err, here instead
         exit(1)
-
+    """
     try:
         MD = MDBase(settings)
         MD.runMD(PP.atoms)
@@ -30,3 +31,4 @@ if __name__ == "__main__":
         log.error(f"Calculating quantities failed: {err}") #should probably add the err, here instead
         exit(1)
     log.info("Simulation done")
+    """

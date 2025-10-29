@@ -143,15 +143,11 @@ class MDBase:  # TODO Look at unit conversions
         log.info("MD run starts with: %i steps", self.steps)
 
         dyn = self.integrator(atoms=atoms)
-        # dyn.attach(lambda: self._checkDivergence(atoms), interval=max(1, int(1 / self.timestep) ))
 
         traj = Trajectory(filename=f"{self.output_file}.traj", mode="w", atoms=atoms)  ## currently have .. before
 
         dyn.attach(lambda: self.save_data(atoms, traj),
                    interval=self.interval)
-
-        # dyn.attach(lambda: self._checkDivergence(atoms),
-        #  interval=self.interval)
 
         # Continue with the main MD run
         dyn.run(self.steps)  # RUN

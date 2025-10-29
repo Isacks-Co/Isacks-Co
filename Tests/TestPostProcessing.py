@@ -2,7 +2,7 @@ import sys
 
 sys.path.append("..")
 from Tests.TestBase import TestBase
-from SourceCode.PostProcessing import PostProcessing
+from SourceCode.newPostProcessing import PostProcessing
 
 class TestPostProcessing(TestBase):
     """Tests for the class PostProcessing"""

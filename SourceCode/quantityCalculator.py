@@ -43,7 +43,7 @@ class QuantityCalculator:
         # Compute all general quantities
 
         #MSD = self.computeMSD() # Å  Should we output average over late frames ?
-        bulk_modulus = self.computeBulkModulus("../Outputs/isotropic_stretch.traj")
+        #bulk_modulus = self.computeBulkModulus("../Outputs/isotropic_stretch.traj")
         self_diffusion_coeff = selfDiffusionCoeffAuToSI(self.computeSelfDiffusionCoefficient())# m^2/s
         coh_energy = self.computeCohesiveEnergy() # ev
         internal_pressure = auToGPascal(self.computeInternalPressure()) #GPa
@@ -62,19 +62,19 @@ class QuantityCalculator:
 
             case "NVT":
                 print("NVT")
-                internal_pressure = AuToGPascal(self.computeInternalPressure())  # GPa
-                bulk_modulus = self.computeBulkModulus("../Outputs/isotropic_stretch.traj")
+                internal_pressure = auToGPascal(self.computeInternalPressure())  # GPa
+                #bulk_modulus = self.computeBulkModulus("../Outputs/isotropic_stretch.traj")
                 Cv = specificHeatAuToSI(self.computeSpecificHeatNVT()) # J/K per atom
                 labels.extend(["P_i[GPa]", "B[GPa]", "Cv[J/kgK]"])
-                quantities.extend([internal_pressure, bulk_modulus, Cv])
+                #quantities.extend([internal_pressure, bulk_modulus, Cv])
 
 
-                C_matrix = self.calculateCMatrix()
-                bulk_modulus, g_shear, youngs_modulus = self.calculateModuli(C_matrix)
+                #C_matrix = self.calculateCMatrix()
+                #bulk_modulus, g_shear, youngs_modulus = self.calculateModuli(C_matrix)
                 labels.append("B")
                 labels.append("G")
                 labels.append("E")
-                quantities.extend([bulk_modulus, g_shear, youngs_modulus])
+                #quantities.extend([bulk_modulus, g_shear, youngs_modulus])
 
             case "NPT":
                 pass
@@ -447,18 +447,18 @@ class QuantityCalculator:
         return C_from_U
 
 
-    def calcElasticModuli(self):
-        C = self.elastic_properties
+    def calcNumericElasticModuli(self):
+        C = self.numeric_elastic_properties
         K = (C[0,0] + 2 * C[0,1]) / 3
         G = (3 * C[3,3] + C[0,0] - C[0,1]) / 5
         E = 9 * K * G / (3 * K + G)
-        logger.debug(f"K = {auToGPascal(K)} GPa \n G = {auToGPascal(G)} GPa \n E = {auToGPascal(E)} GPa")
+        logger.debug(f" \n K = {auToGPascal(K)} GPa \n G = {auToGPascal(G)} GPa \n E = {auToGPascal(E)} GPa")
         return {"K": K, "G": G, "E": E}
 
 
     def calculateCMatrix(self):
         stretch_trajectory = Trajectory(self.settings.output_file + "_stretch_data.traj")
-        betas = [[],[],[],[],[],[]]
+        betas = [[], [], [], [], [], []]
         for frame in stretch_trajectory:
             # Add the corresponding values to the right beta (strain direction)
             betas[frame.info["beta"]].append([frame.info["strain"], frame.info["stress"]])
@@ -478,26 +478,25 @@ class QuantityCalculator:
                 # Take elementwise average over all the matrices for each epsilon
                 stacked = np.stack(matrices)
                 avg_matrix = stacked.mean(axis=0)
-                avg_data.append(np.array((epsilon, avg_matrix),dtype=object))
+                avg_data.append(np.array((epsilon, avg_matrix), dtype=object))
 
             avg_data = sorted(avg_data, key=lambda x: x[0])
             averages.append(avg_data)
-        C = np.zeros((6,6))
+        C = np.zeros((6, 6))
         for i in range(6):
             # Line fit epsilon vs sigma to find each c_ij
             epsilons = np.array([x[0] for x in averages[i]], dtype=float)
             for j in range(6):
                 sigmas = np.array([x[1][j] for x in averages[i]], dtype=float)
                 C[j, i] = np.polyfit(epsilons, sigmas, 1)[0]
-        C *= 160.21766208 # Convert to GPa
+        C *= 160.21766208  # Convert to GPa
         return C
+
     def calculateModuli(self, C_matrix):
-        bulk_modulus = (C_matrix[0,0] + 2*C_matrix[0,1])/3
-        G_shear = (C_matrix[3,3] + C_matrix[4,4] + C_matrix[5,5] + C_matrix[1,1] - C_matrix[0,1]) /5
-        youngs_modulus = 9* bulk_modulus* G_shear /(3*bulk_modulus + G_shear)
+        bulk_modulus = (C_matrix[0, 0] + 2 * C_matrix[0, 1]) / 3
+        G_shear = (C_matrix[3, 3] + C_matrix[4, 4] + C_matrix[5, 5] + C_matrix[1, 1] - C_matrix[0, 1]) / 5
+        youngs_modulus = 9 * bulk_modulus * G_shear / (3 * bulk_modulus + G_shear)
         return bulk_modulus, G_shear, youngs_modulus
-
-
 
     def computeBulkModulus(self, stretched_traj):
         import matplotlib.pyplot as plt
@@ -530,10 +529,6 @@ class QuantityCalculator:
         return B0_GPa
 
 
-
-
-
-
 def _get(frame, name):
     """Read from info/arrays first (traj-safe), else fall back to get_* (requires calc)."""
     try:
@@ -558,15 +553,15 @@ def _get(frame, name):
             return float(T) if T is not None else frame.get_temperature()
 
         if name == "F":
-            #1) arrays['F']
+            # 1) arrays['F']
             F = frame.arrays.get("F")
             if F is not None:
                 return np.asarray(F, float)
-            #2) info['F']
+            # 2) info['F']
             Fi = frame.info.get("F", frame.info.get("forces"))
             if Fi is not None:
                 return np.asarray(Fi, float)
-            #3) fallback
+            # 3) fallback
             try:
                 return np.asarray(frame.get_forces(), float)
             except Exception:

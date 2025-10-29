@@ -3,7 +3,7 @@
 
   "Temperature": 300,
   "Timestep": 1,
-  "Number_of_steps": 10000,
+  "Number_of_steps": 15000,
   "Sample_interval": 1,
   "Potential": "EMT",
 
@@ -12,6 +12,6 @@
   "Tdamp": 10,
   "Pdamp": 100,
 
-  "Supercells": [3,3,3],
+  "Supercells": [6,6,6],
   "Output_file" : "../Outputs/output"
 }
