@@ -69,10 +69,8 @@ class QuantityCalculator:
                 
                 C_matrix = self.calculateCMatrix()
                 bulk_modulus, g_shear, youngs_modulus = self.calculateModuli(C_matrix)
-                labels.append("B")
-                labels.append("G")
-                labels.append("E")
-                quantities.extend([bulk_modulus, g_shear, youngs_modulus])
+                labels.extend(["B", "G"])
+                quantities.extend([bulk_modulus, g_shear])
 
             case "NPT":
                 pass

@@ -185,6 +185,7 @@ class MDBase:
         else:
             atoms.new_array('F', np.asarray(F, float))
         atoms.info['F'] = np.asarray(F, float).tolist()
+        traj.write()
 
         
 
@@ -202,7 +203,7 @@ class MDBase:
         strains = np.linspace(-0.01, 0.01, 5)
         cell0 = atoms.get_cell()
         stress0 = atoms.get_stress(voigt=True)
-        hold_steps = 1000
+        hold_steps = 500
         
         traj = Trajectory(filename=f"{self.output_file}_stretch_data.traj", mode="w", atoms=atoms)
         
