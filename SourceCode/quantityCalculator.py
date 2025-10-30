@@ -1,6 +1,6 @@
 from simulationInput import SimulationSettings
 from unitConversions import auToGPascal,specificHeatAuToSI,selfDiffusionCoeffAuToSI, evToJ
-from Utils import secondOrderNumericalDerivative, load_energy_grid_2d
+from Utils import secondOrderNumericalDerivative, numericalDerivative
 
 from scipy.constants import physical_constants
 from ase.io.trajectory import Trajectory
@@ -41,7 +41,7 @@ class QuantityCalculator:
         and write them to a txt file
         """
         # Compute all general quantities
-
+        """
         #MSD = self.computeMSD() # Å  Should we output average over late frames ?
         #bulk_modulus = self.computeBulkModulus("../Outputs/isotropic_stretch.traj")
         self_diffusion_coeff = selfDiffusionCoeffAuToSI(self.computeSelfDiffusionCoefficient())# m^2/s
@@ -49,8 +49,13 @@ class QuantityCalculator:
         internal_pressure = auToGPascal(self.computeInternalPressure()) #GPa
         lattice_constant = self.computeLatticeConstant()
         lindemann_crit = self.computeLindemannIndex() # Unitless
-
+        """
+        elastic_constants = self._numericalC()
         elastic_moduli = self.calcNumericElasticModuli()
+        """
+        logger.debug(f"Elastic moduli: {elastic_moduli}")
+        debye_temperature = self.computeDebyeTemperature()
+        logger.debug(f"Debye temperature: {debye_temperature} K")
 
         labels = ["D[m^2/s]","E_coh[eV]","L_crit[1]"] #, "T_D"
         quantities = [self_diffusion_coeff,coh_energy,lindemann_crit] # TODO Maybe nicer way to handle this ? , debye_temperature
@@ -80,6 +85,7 @@ class QuantityCalculator:
                 pass
 
         self.writeQuantities(labels,quantities) # Write to txt file
+        """
 
 
     def writeQuantities(self,labels,quantities):
@@ -127,7 +133,7 @@ class QuantityCalculator:
             e_coh_list.append((e_atoms - e_bulk)/number)
 
         e_coh_mean = np.mean(e_coh_list)
-        logger.debug(f"Cohesive energy: {e_coh_mean} eV")
+        logger.info(f"Cohesive energy: {e_coh_mean} eV")
         return e_coh_mean
 
     def computeSpecificHeatNVT(self):
@@ -144,7 +150,7 @@ class QuantityCalculator:
         prefactor = 1/(kB*temperature**2)
         total_mass_amu = float(sum(self.traj[0].get_masses()))
         specific_heat =  prefactor * (e_2_mean-e_mean**2)/total_mass_amu # Specific heat in ev/amu*K
-        logger.debug(f"Cv: {specificHeatAuToSI(specific_heat)} J/(kg*K)")
+        logger.info(f"Cv: {specificHeatAuToSI(specific_heat)} J/(kg*K)")
         return specific_heat
 
     def computeSpecificHeatNVE(self):
@@ -160,14 +166,14 @@ class QuantityCalculator:
         e_kin_2_mean = np.mean(e_kin**2)
         total_mass_amu = float(sum(self.traj[0].get_masses()))
         specific_heat =  (3*kB/2)*1/(1-(2/(3*(kB*T)**2)*(e_kin_2_mean - e_kin_mean**2)))/total_mass_amu # Should verify
-        logger.debug(f"Cv: {specificHeatAuToSI(specific_heat)} J/(kg*K)")
+        logger.info(f"Cv: {specificHeatAuToSI(specific_heat)} J/(kg*K)")
         return specific_heat
 
     def computeLatticeConstant(self):# Need to test
         lattice_frames = [atoms.get_cell().cellpar() for atoms in self.traj]
         lattice_mean = np.mean(lattice_frames,axis = 0)
         lattice_mean[:3] /= np.array(self.settings.supercells)
-        logger.debug(f"Lattice constant: {lattice_mean}")
+        logger.info(f"Lattice constant: {lattice_mean}")
         return lattice_mean
 
     def computeInternalPressure(self):
@@ -190,7 +196,7 @@ class QuantityCalculator:
             internal_pressures_eVA3.append(P_eVA3)
 
         avg_P = np.mean(internal_pressures_eVA3) if internal_pressures_eVA3 else float('nan')
-        logger.debug(f"Average internal pressure: {avg_P} eV/Å^3")
+        logger.info(f"Average internal pressure: {avg_P} eV/Å^3")
         return avg_P
 
     def computeMSD(self, frame, reference=0):
@@ -203,7 +209,7 @@ class QuantityCalculator:
         r_n = self.traj[frame].get_positions()  # Å
 
         msd = np.mean((r_0 - r_n) ** 2)
-        logger.debug(f"MSD: {msd} å²")
+        logger.info(f"MSD: {msd} å²")
         return msd
 
     def computeSelfDiffusionCoefficient(self):  # Needs constant temperature, for current implementation.
@@ -224,7 +230,7 @@ class QuantityCalculator:
             t_0 = timestep_list[50][0]
             t_end = timestep_list[-1][0]
             D = (msd_final-msd0)/(t_end - t_0)
-            logger.debug(f"Self-diffusion coefficent: {selfDiffusionCoeffAuToSI(D)} m²/s")
+            logger.info(f"Self-diffusion coefficent: {selfDiffusionCoeffAuToSI(D)} m²/s")
         else:
             logger.error("Too small sample size to calculate self-diffusion coefficient")
             D = None
@@ -273,7 +279,7 @@ class QuantityCalculator:
 
                 NN_list.append(nearest_distance)
         NN_mean_distance = np.mean(NN_list)
-        logger.debug(f"Mean value of nearest neighbor : {NN_mean_distance} å")
+        logger.info(f"Mean value of nearest neighbor : {NN_mean_distance} å")
         return NN_mean_distance
 
     def computeLindemannIndex(self, start:int = -25, end:int = 0):
@@ -286,7 +292,7 @@ class QuantityCalculator:
             lindemann_array.append(np.sqrt(self.computeMSD(frame = state)) / self.nearestNeighborsMean(state))
         lindemann = np.mean(lindemann_array)
 
-        logger.debug(f"Global Lindemann index for the intervals [{start}, {end}] : {lindemann}")
+        logger.info(f"Global Lindemann index for the intervals [{start}, {end}] : {lindemann}")
         return lindemann
 
 
@@ -307,12 +313,12 @@ class QuantityCalculator:
             N = self.traj[0].get_global_number_of_atoms()
             # Here we keep the classical constant form but ensure SI at the end
             debye = (234 * N * kB * evToJ(1) * temperature ** 3 / C_v) ** (1 / 3)
-            logger.debug(f"Debye temperature: {debye} K")
+            logger.info(f"Debye temperature: {debye} K")
             return float(debye)
 
         else:
             # Θ_D = (ħ/kB) (6π^2 n)^(1/3) vm
-            out = self.calcElasticModuli()  # SI Pa
+            out = self.calcNumericElasticModuli()  # SI Pa
             G = out['G']
             K = out['K']
 
@@ -337,7 +343,7 @@ class QuantityCalculator:
             n = (N / V_A3)
 
             Theta_D = (hbar / kB) * ((6.0 * np.pi ** 2 * n) ** (1.0 / 3.0)) * sound_velocity / 10.18 # NEED TO DO SQRT(ev/u) to fs/Å
-            logger.debug(f"Debye temperature: {Theta_D} K")
+            logger.info(f"Debye temperature: {Theta_D} K")
             return Theta_D
 
     def _numericalC(self):
@@ -406,43 +412,29 @@ class QuantityCalculator:
             averages.append(avg_data)
 
         second_deriv = np.zeros((6,6))
-        path2d = self.settings.output_file + "_stretch2D_data.traj"
-        for i in range(6):
-            epsilons = np.array([x[0] for x in averages[i]], dtype=float)
+        stretch_2D_trajectory = Trajectory(self.settings.output_file + "_stretch2D_data.traj")
+
+        twoD_energies = stretch_2D_trajectory[-1].info["2D Energies"]
+        strains_axis = stretch_2D_trajectory[-1].info["Strains axis"]
+        number_of_pairs = stretch_2D_trajectory[-1].info["Number of pairs"]         # Should usually be 6
+
+        for i in range(int(np.sqrt(number_of_pairs))):
             energy_1 = np.array([x[2] for x in averages[i]], dtype=float)
-            for j in range(6):
+            for j in range(int(np.sqrt(number_of_pairs))):
                 energy_2 = np.array([x[2] for x in averages[j]], dtype=float)
-                if len(epsilons) > 1:
-                    # Prefer 2D mixed-partial when available
-                    if i != j:
-                        try:
-                            eps_grid, U_grid = load_energy_grid_2d(path2d, i, j)
-                        except Exception as e:
-                            logger.info(f"Failed loading 2D grid for pair ({i},{j}): {e}")
-                            eps_grid, U_grid = None, None
-                        if eps_grid is not None and not isinstance(eps_grid, tuple):
-                            try:
-                                second_deriv[i, j] = secondOrderNumericalDerivative(eps_grid, U_grid)
-                            except Exception as e:
-                                logger.info(f"2D mixed partial calc failed for ({i},{j}), falling back: {e}")
-                                # fall back to axis-only approximation if shapes allow; otherwise 0.0
-                                if len(energy_2) == len(epsilons) and len(epsilons) > 1:
-                                    second_deriv[i, j] = secondOrderNumericalDerivative(epsilons, [energy_1, energy_2])
-                                else:
-                                    second_deriv[i, j] = 0.0
-                        else:
-                            # No 2D grid available; only safe value for mixed partial is 0.0 unless we have two traces of equal length
-                            if len(energy_2) == len(epsilons) and len(epsilons) > 1:
-                                second_deriv[i, j] = secondOrderNumericalDerivative(epsilons, [energy_1, energy_2])
-                            else:
-                                second_deriv[i, j] = 0.0
-                    else:
-                        # Diagonals: use 1D second derivative path (handled in Utils)
-                        second_deriv[i, j] = secondOrderNumericalDerivative(epsilons, [energy_1, energy_2])
+                if i == j:
+                    second_deriv[i, j] = secondOrderNumericalDerivative(strains_axis, [energy_1, energy_2])
+                    continue
+                else:
+                    try:
+                        second_deriv[i, j] = secondOrderNumericalDerivative(strains_axis, twoD_energies[i][j])
+                    except Exception as e:
+                        logger.info(f"2D stretch calc failed for ({i},{j}), WHY THE FRICK???!: {e}")
+                        second_deriv[i, j] = 0.0
 
         C_from_U = second_deriv / self.traj[0].get_volume()
         logger.debug(f"C_from_U = \n {C_from_U * auToGPascal(1)} \n")
-        logger.debug(f" \n C_11 = {auToGPascal(C_from_U[0,0])} \n C_12 = {auToGPascal(C_from_U[0,1])} \n C_44 = {auToGPascal(C_from_U[3,3])}")
+        logger.info(f" \n C_11 = {auToGPascal(C_from_U[0,0])} \n C_12 = {auToGPascal(C_from_U[0,1])} \n C_44 = {auToGPascal(C_from_U[3,3])}")
 
         return C_from_U
 
@@ -452,7 +444,7 @@ class QuantityCalculator:
         K = (C[0,0] + 2 * C[0,1]) / 3
         G = (3 * C[3,3] + C[0,0] - C[0,1]) / 5
         E = 9 * K * G / (3 * K + G)
-        logger.debug(f" \n K = {auToGPascal(K)} GPa \n G = {auToGPascal(G)} GPa \n E = {auToGPascal(E)} GPa")
+        logger.info(f" \n K = {auToGPascal(K)} GPa \n G = {auToGPascal(G)} GPa \n E = {auToGPascal(E)} GPa")
         return {"K": K, "G": G, "E": E}
 
 
