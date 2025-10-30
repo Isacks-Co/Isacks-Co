@@ -9,7 +9,7 @@ LJ_DB = {
     "al" : {"epsilon_eV": 0.10, "sigma": 2.61},
     "au": {"epsilon_eV": 0.23,   "sigma": 2.57},
     "pt": {"epsilon_eV": 0.28,   "sigma": 2.47},
-} 
+}
 
 def LJParams(material: str = None, *, epsilon_eV=None, sigma_A=None, rc_A=None, ro_A=None): # So you can call this function without any argument? What happens? Should probably remove None on material
 
@@ -21,7 +21,7 @@ def LJParams(material: str = None, *, epsilon_eV=None, sigma_A=None, rc_A=None, 
                              f"{', '.join(LJ_DB.keys())}"
 )
     else:
-        base = {} 
+        base = {}
 
     eps = epsilon_eV if epsilon_eV is not None else base.get("epsilon_eV")
     sig = sigma_A   if sigma_A   is not None else base.get("sigma")

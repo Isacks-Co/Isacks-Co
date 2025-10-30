@@ -1,5 +1,8 @@
 from simulationInput import NPTSettings,NVESettings,NVTSettings
 from inputParser import InputParser
+from MDBase import MDBase
+from simulationInput import NPTSettings,NVESettings,NVTSettings
+from inputParser import InputParser
 
 import json
 import sys
@@ -79,25 +82,24 @@ class PreProcessing:
         log.debug("Creating Settings object for ensemble: %s", self.settings["Ensemble"])
         match self.settings["Ensemble"]:
             case "NVE":
-                
+
                 return NVESettings(init_temp=self.settings["Temperature"], potential=self.settings["Potential"],
                                       timestep=self.settings["Timestep"], num_steps=self.settings["Number_of_steps"],
                                       interval=self.settings["Sample_interval"], output_file=self.settings["Output_file"],
                                       supercells= self.settings["Supercells"])
             case "NVT":
-                
+
                 return NVTSettings(temperature=self.settings["Temperature"], potential=self.settings["Potential"],
                                       timestep=self.settings["Timestep"], num_steps=self.settings["Number_of_steps"],
                                       interval=self.settings["Sample_interval"], output_file=self.settings["Output_file"],
                                       friction=self.settings["Friction"],
                                       supercells= self.settings["Supercells"])
             case "NPT":
-                
+
                 return NPTSettings(temperature=self.settings["Temperature"], potential=self.settings["Potential"],
                                       timestep=self.settings["Timestep"], num_steps=self.settings["Number_of_steps"],
                                       interval=self.settings["Sample_interval"], output_file=self.settings["Output_file"],
-                                      pressure=self.settings["Pressure"], compressibility=self.settings["Compressibility"],
-                                      supercells= self.settings["Supercells"])
+                                      pressure=self.settings["Pressure"],tdamp=self.settings["Tdamp"], pdamp=self.settings["Pdamp"], supercells= self.settings["Supercells"])
             case _:
                 log.error("Invalid ensemble setting: %s", self.settings["Ensemble"])
                 raise ValueError(f"Invalid ensemble setting: {self.settings['Ensemble']}")
@@ -119,11 +121,9 @@ class PreProcessing:
             raise ValueError(f"Invalid temperature: Negative temperature")
         elif self.settings["Pressure"] < 0:
             raise ValueError(f"Invalid pressure: Pressure has to be non-negative")
-        elif self.settings["Compressibility"] < 0:
-            raise ValueError(f"Invalid compressibility: Compressibility has to be non-negative")
-        elif self.settings["Friction"] < 0:
-            raise ValueError(f"Invalid timestep: timestep has to be non-negative")
         elif self.settings["Timestep"] < 0:
+            raise ValueError(f"Invalid timestep: timestep has to be non-negative")
+        elif self.settings["Friction"] < 0:
             raise ValueError(f"Invalid friction: Friction has to be non-negative")
         elif self.settings["Number_of_steps"] < 0 or not isinstance(self.settings["Number_of_steps"], int):
             raise ValueError(f"Invalid number of steps: Has to be a positive integer")

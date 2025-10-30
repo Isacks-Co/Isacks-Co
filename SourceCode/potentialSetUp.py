@@ -15,14 +15,15 @@ class Potential:
         """
         potential_lower = potential.lower()
         if potential_lower in ["emt"]:
+            log.info("Potential: EMT")
             return self.setupEMT
 
         elif potential_lower in ["lj", "lennardjones", "lennard_jones"]:
+            log.info("Potential: Lennard Jones")
             return self.setupLJCalculator
 
         elif potential_lower in ["mace", "MACE"]:
             return self.setUpMACE
-
 
         else:
             log.error("Invalid potential function: %s", potential)
@@ -41,7 +42,6 @@ class Potential:
         model_path = "MACEModels/mace-mpa-0-medium.model" #just to try
         device = "cuda" if torch.cuda.is_available() else "cpu"
         return MACECalculator(model_paths= model_path, device=device, default_dtype="float64",head="default")
-
 
     def setupEMT(self, atoms):
         from asap3 import EMT as asap_EMT
@@ -82,10 +82,10 @@ class Potential:
                 modified=True
             )
 
-            atoms.calc = calc_asap
-            _ = atoms.get_potential_energy()
-            #log.info("Using asap3 LJ | element=%s (Z=%s) | ε=%.4g eV | σ=%.4g Å | rc=%.4g Å ",
-             #        material_key, atomic_number[0], eps, sig, rc)
+            # atoms.calc = calc_asap
+            # _ = atoms.get_potential_energy()
+            log.info("Using asap3 LJ | element=%s (Z=%s) | ε=%.4g eV | σ=%.4g Å | rc=%.4g Å ",
+                     material_key, atomic_number[0], eps, sig, rc)
             return calc_asap
 
 
@@ -101,4 +101,3 @@ class Potential:
                 f"Falling back to ASE LJ | Reason: {e}"
             )
             return calc_ase
-

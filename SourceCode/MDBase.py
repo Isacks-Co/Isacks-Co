@@ -1,3 +1,4 @@
+from simulationInput import SimulationSettings
 import functools
 
 import numpy as np
@@ -8,6 +9,7 @@ from ase.units import fs, GPa
 import logging
 from simulationInput import SimulationSettings
 from potentialSetUp import Potential
+from collections import defaultdict
 
 log = logging.getLogger(__name__)
 
@@ -119,23 +121,16 @@ class MDBase:
             log.error(f"Equilibrium aborted due to instability: {err}")
             quit()
 
-        #finally:
-        #    self.quantity_list = []
-
-
-
-
-
-    def runMD(self, atoms): #TODO Needs better comments
+    def runMD(self, atoms):  # TODO Needs better comments
         """
         In: 
             Atoms: ase Atoms object representing the crystal structure
 
         Runs a MD simulation with the setting specified in __init__
         Depending on attachments will possibly print some data.
-        Will always save a trajectory and log file.        
+        Will always save a trajectory and log file.
         """
-        atoms.calc = self.potential(atoms) # Still dont like this
+        atoms.calc = self.potential(atoms)  # Still dont like this
 
         MaxwellBoltzmannDistribution(atoms, temperature_K=self.temperature_k,
                                      force_temp=True)  # Initialize velocity according to temperature_k
@@ -151,18 +146,34 @@ class MDBase:
         dyn.attach(lambda: self.save_data(atoms,traj),
                    interval=self.interval)
 
-            # Add any other custom calculations here
-
         # Continue with the main MD run
         dyn.run(self.steps)  # RUN
         traj.close()  # Explicitly close the trajectory
 
+        eos_stretch = True
+        oneD_stretch = True
+        twoD_stretch = True
 
 
         # Run stretch sequence for elastic constants
         if self.ensemble == "NVT":
-            self._make_eos_traj(atoms)
-            self._stretchCell(atoms)
+            if eos_stretch is True:
+                self._make_eos_traj(atoms)
+
+            if oneD_stretch is True:
+                self._stretchCell(atoms)
+
+            if twoD_stretch is True:
+                try:
+                    strain = 5e-3       # 0.5% strain
+                    checkpoints = 5
+                    number_of_independent_configurations = 6
+                    strains = np.linspace(-strain, strain, checkpoints)
+                    hold_steps = 0
+                    pairs = [(i, j) for i in range(number_of_independent_configurations) for j in range(number_of_independent_configurations)]
+                    self._stretchCell2D(atoms, pairs=pairs, strains=strains, hold_steps=hold_steps)
+                except Exception as e:
+                    log.info(f"2D static stretch failed or skipped: {e}")
 
 
     def save_data(self, atoms,traj):
@@ -187,12 +198,12 @@ class MDBase:
         atoms.info['F'] = np.asarray(F, float).tolist()
         traj.write()
 
-        
 
 
 
 
-    
+
+
     def elasticData(self, traj, atoms, strain, stress0, beta):
         atoms.info["strain"] = strain
         atoms.info["stress"] = atoms.get_stress(voigt=True) - stress0
@@ -204,9 +215,9 @@ class MDBase:
         cell0 = atoms.get_cell()
         stress0 = atoms.get_stress(voigt=True)
         hold_steps = 500
-        
+
         traj = Trajectory(filename=f"{self.output_file}_stretch_data.traj", mode="w", atoms=atoms)
-        
+
         for beta in range(6):
             for e in strains:
                 # Strain tensor in Voigt form
@@ -226,10 +237,88 @@ class MDBase:
                 dyn = self.integrator(atoms=atoms)
                 dyn.attach(lambda : self.elasticData(traj, atoms, e, stress0, beta))
                 dyn.run(hold_steps)
-            
 
-    
-         
+    def _set_voigt_component(self, eps, beta, value):
+        if beta == 0:
+            eps[0, 0] = value
+        elif beta == 1:
+            eps[1, 1] = value
+        elif beta == 2:
+            eps[2, 2] = value
+        elif beta == 3:
+            eps[1, 2] = eps[2, 1] = value / 2.0
+        elif beta == 4:
+            eps[0, 2] = eps[2, 0] = value / 2.0
+        elif beta == 5:
+            eps[0, 1] = eps[1, 0] = value / 2.0
+
+    def elasticData2D(self, traj, atoms, strain1, strain2, stress0, beta1, beta2, twoD_energies=None, strains_axis=None, number_of_pairs=None):
+        atoms.info["strain1"] = strain1
+        atoms.info["strain2"] = strain2
+        atoms.info["beta1"] = beta1
+        atoms.info["beta2"] = beta2
+        atoms.info["stress"] = atoms.get_stress(voigt=True) - stress0
+        atoms.info["total_energy"] = atoms.get_total_energy()
+        if twoD_energies is not None and strains_axis is not None and number_of_pairs is not None:
+            atoms.info["2D Energies"] = twoD_energies
+            atoms.info["Strains axis"] = strains_axis
+            atoms.info["Number of pairs"] = number_of_pairs
+        traj.write()
+
+    def _stretchCell2D(self, atoms, pairs=None, strains=None, hold_steps=0):
+        """
+        Performs the same type of stretching sequence as _stretchCell, but in 2D.
+        Currently operates under the assumption that the same strain percentage is used for every type of strain.
+        """
+        if strains is None:
+            strains = np.linspace(-0.01, 0.01, 5)
+        if pairs is None:
+            pairs = [(i, j) for i in range(6) for j in range(i, 6)]
+
+        cell0 = atoms.get_cell()
+        stress0 = atoms.get_stress(voigt=True)
+        traj2d = Trajectory(filename=f"{self.output_file}_stretch2D_data.traj", mode="w", atoms=atoms)
+        full_U_grid = [[[] for col in range(6)] for row in range(6)]
+        for (b1, b2) in pairs:
+            idx1 = {e: i for i, e in enumerate(strains)}
+            idx2 = {e: j for j, e in enumerate(strains)}
+            U_grid = np.full((len(strains), len(strains)), np.nan, dtype=float)
+            buckets = defaultdict(list)
+            for e1 in strains:
+                for e2 in strains:
+                    # Reset to original unstrained cell and positions before each strain
+                    atoms.set_cell(cell0, scale_atoms=True)
+                    eps = np.zeros((3, 3))
+                    self._set_voigt_component(eps, b1, float(e1))
+                    self._set_voigt_component(eps, b2, float(e2))
+                    new_cell = np.dot(cell0, np.eye(3) + eps)
+                    atoms.set_cell(new_cell, scale_atoms=True)
+
+                    buckets[(e1, e2)].append(atoms.get_total_energy())
+                    i, j = idx1[e1], idx2[e2]
+                    U_grid[i, j] = float(np.nanmean(buckets[(e1, e2)]))
+
+                    if e1 == e2 and e1 == strains[-1]:
+                        full_U_grid[b1][b2] = U_grid
+                        if hold_steps and hold_steps > 0:
+                            dyn = self.integrator(atoms=atoms)
+                            dyn.attach(lambda: self.elasticData2D(traj2d, atoms, float(e1), float(e2), stress0, b1, b2, twoD_energies=full_U_grid, strains_axis=strains, number_of_pairs=len(pairs)))
+                            dyn.run(hold_steps)
+                        else:
+                            # Static evaluation: compute energies/stresses immediately
+                            self.elasticData2D(traj2d, atoms, float(e1), float(e2), stress0, b1, b2, twoD_energies=full_U_grid, strains_axis=strains, number_of_pairs=len(pairs))
+                    else:
+                        if hold_steps and hold_steps > 0:
+                            dyn = self.integrator(atoms=atoms)
+                            dyn.attach(lambda: self.elasticData2D(traj2d, atoms, float(e1), float(e2), stress0, b1, b2))
+                            dyn.run(hold_steps)
+                        else:
+                            # Static evaluation: compute energies/stresses immediately
+                            self.elasticData2D(traj2d, atoms, float(e1), float(e2), stress0, b1, b2)
+
+        # Restore original cell at end
+        atoms.set_cell(cell0, scale_atoms=True)
+
     def checkConvergence(self, atoms):
         """
 

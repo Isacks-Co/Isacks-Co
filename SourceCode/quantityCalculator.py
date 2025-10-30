@@ -1,5 +1,6 @@
 from simulationInput import SimulationSettings
-from unitConversions import AuToGPascal,specificHeatAuToSI,selfDiffusionCoeffAuToSI
+from unitConversions import auToGPascal,specificHeatAuToSI,selfDiffusionCoeffAuToSI, evToJ
+from Utils import secondOrderNumericalDerivative, numericalDerivative
 
 from scipy.constants import physical_constants
 from ase.io.trajectory import Trajectory
@@ -32,6 +33,7 @@ class QuantityCalculator:
         self.traj = traj
         self.settings = settings
         self.structure_name = self.traj[0].info["comment"]
+        self.numeric_elastic_properties = self._numericalC()
 
     def getQuantities(self):
         """
@@ -44,7 +46,7 @@ class QuantityCalculator:
         bulk_modulus = self.computeBulkModulus("../Outputs/isotropic_stretch.traj")
         self_diffusion_coeff = selfDiffusionCoeffAuToSI(self.computeSelfDiffusionCoefficient())# m^2/s
         coh_energy = self.computeCohesiveEnergy() # ev
-        internal_pressure = AuToGPascal(self.computeInternalPressure()) #GPa
+        internal_pressure = auToGPascal(self.computeInternalPressure()) #GPa
         lindemann_crit = self.computeLindemannIndex() # Unitless
         #debye_temperature = self.computeDebyeTemperature()
 
@@ -60,13 +62,13 @@ class QuantityCalculator:
 
             case "NVT":
                 print("NVT")
-                internal_pressure = AuToGPascal(self.computeInternalPressure())  # GPa
+                internal_pressure = auToGPascal(self.computeInternalPressure())  # GPa
                 bulk_modulus = self.computeBulkModulus("../Outputs/isotropic_stretch.traj")
                 Cv = specificHeatAuToSI(self.computeSpecificHeatNVT()) # J/K per atom
                 labels.extend(["P_i[GPa]", "B[GPa]", "Cv[J/kgK]"])
                 quantities.extend([internal_pressure, bulk_modulus, Cv])
 
-                
+
                 C_matrix = self.calculateCMatrix()
                 bulk_modulus, g_shear, youngs_modulus = self.calculateModuli(C_matrix)
                 labels.extend(["B", "G"])
@@ -109,7 +111,6 @@ class QuantityCalculator:
         Unit: ev/atom
         """
         calc = Potential().getPotential(self.settings.potential)
-        #calc = EMT() #TODO NEED TO BE SAME AS ACTUAL MD RUN
         number = self.traj[0].get_global_number_of_atoms()
         e_atoms = 0
         for j in range(len(self.traj[0])):
@@ -120,12 +121,11 @@ class QuantityCalculator:
 
         e_coh_list = []
         for frame in self.traj:
-            #e_bulk = frame.get_potential_energy()
             e_bulk = _get(frame, "E_pot")
             e_coh_list.append((e_atoms - e_bulk)/number)
 
         e_coh_mean = np.mean(e_coh_list)
-        logger.debug(f"Cohesive energy: {e_coh_mean} eV")
+        logger.info(f"Cohesive energy: {e_coh_mean} eV")
         return e_coh_mean
 
     def computeSpecificHeatNVT(self):
@@ -144,7 +144,7 @@ class QuantityCalculator:
         prefactor = 1/(kB*temperature**2)
         total_mass_amu = float(sum(self.traj[0].get_masses()))
         specific_heat =  prefactor * (e_2_mean-e_mean**2)/total_mass_amu # Specific heat in ev/amu*K
-        logger.debug(f"Cv: {specific_heat} eV/(amu*K)")
+        logger.info(f"Cv: {specificHeatAuToSI(specific_heat)} J/(kg*K)")
         return specific_heat
 
     def computeSpecificHeatNVE(self):
@@ -153,8 +153,6 @@ class QuantityCalculator:
         over all frames. 
         Unit: ev/(amu*K) (amu = atomic mass units)
         """
-        #e_kin = np.array([atom_frame.get_kinetic_energy() for atom_frame in self.traj])
-        #T = np.mean([atom_frame.get_temperature() for atom_frame in self.traj])
         e_kin = np.array([_get(fr, "E_kin") for fr in self.traj])
         T = float(np.nanmean([_get(fr, "T") for fr in self.traj]))
 
@@ -162,14 +160,14 @@ class QuantityCalculator:
         e_kin_2_mean = np.mean(e_kin**2)
         total_mass_amu = float(sum(self.traj[0].get_masses()))
         specific_heat =  (3*kB/2)*1/(1-(2/(3*(kB*T)**2)*(e_kin_2_mean - e_kin_mean**2)))/total_mass_amu # Should verify
-        logger.debug(f"Cv: {specific_heat} eV/(amu*K)")
+        logger.info(f"Cv: {specificHeatAuToSI(specific_heat)} J/(kg*K)")
         return specific_heat
 
     def computeLatticeConstant(self):# Need to test
         lattice_frames = [atoms.get_cell().cellpar() for atoms in self.traj]
         lattice_mean = np.mean(lattice_frames,axis = 0)
         lattice_mean[:3] /= np.array(self.settings.supercells)
-        logger.debug(f"Lattice constant: {lattice_mean}")
+        logger.info(f"Lattice constant: {lattice_mean}")
         return lattice_mean
 
     def computeInternalPressure(self):
@@ -187,12 +185,12 @@ class QuantityCalculator:
             V_A3 = _get(atoms, "V")
             forces_eVA = _get(atoms, "F")
             positions_A = atoms.get_positions()
-            sum_rf_Eh = np.sum(forces_eVA * positions_A)
-            P_eVA3 = (1.0 / (3.0 * V_A3)) * (2.0 * e_kin_eV + sum_rf_Eh)
+            sum_rf = np.sum(forces_eVA * positions_A)
+            P_eVA3 = (1.0 / (3.0 * V_A3)) * (2.0 * e_kin_eV + sum_rf)
             internal_pressures_eVA3.append(P_eVA3)
 
         avg_P = np.mean(internal_pressures_eVA3) if internal_pressures_eVA3 else float('nan')
-        logger.debug(f"Average internal pressure: {avg_P} eV/Å^3")
+        logger.info(f"Average internal pressure: {avg_P} eV/Å^3")
         return avg_P
 
     def computeMSD(self, frame, reference=0):
@@ -205,10 +203,10 @@ class QuantityCalculator:
         r_n = self.traj[frame].get_positions()  # Å
 
         msd = np.mean((r_0 - r_n) ** 2)
-        logger.debug(f"MSD: {msd} Å^2")
+        logger.info(f"MSD: {msd} å²")
         return msd
 
-    def computeSelfDiffusionCoefficient(self):  # Needs constant temperature, for current implementation. 
+    def computeSelfDiffusionCoefficient(self):  # Needs constant temperature, for current implementation.
         """
         Compute self diffusion coefficient from the slope of MSD over a large timeperiod
         Unit: Å^2/fs
@@ -226,7 +224,7 @@ class QuantityCalculator:
             t_0 = timestep_list[50][0]
             t_end = timestep_list[-1][0]
             D = (msd_final-msd0)/(t_end - t_0)
-            logger.debug(f"Self-diffusion coefficent:{D}")
+            logger.info(f"Self-diffusion coefficent: {selfDiffusionCoeffAuToSI(D)} m²/s")
         else:
             logger.error("Too small sample size to calculate self-diffusion coefficient")
             D = None
@@ -275,7 +273,7 @@ class QuantityCalculator:
 
                 NN_list.append(nearest_distance)
         NN_mean_distance = np.mean(NN_list)
-        logger.debug(f"Mean value of nearest neighbor : {NN_mean_distance}")
+        logger.info(f"Mean value of nearest neighbor : {NN_mean_distance} å")
         return NN_mean_distance
 
     def computeLindemannIndex(self, start:int = -25, end:int = 0):
@@ -288,7 +286,7 @@ class QuantityCalculator:
             lindemann_array.append(np.sqrt(self.computeMSD(frame = state)) / self.nearestNeighborsMean(state))
         lindemann = np.mean(lindemann_array)
 
-        logger.debug(f"Global Lindemann index for the intervals [{start}, {end}] : {lindemann}")
+        logger.info(f"Global Lindemann index for the intervals [{start}, {end}] : {lindemann}")
         return lindemann
 
 
@@ -298,66 +296,168 @@ class QuantityCalculator:
         Returns Theta_D in Kelvin (SI).
         """
 
-        """if self.settings.temperature < 1:
+        if self.settings.temperature < 50:
             # Low-temperature Debye from heat capacity; use a.u. for kB
-            C_v = self.computeSpecificHeat()  # [J kg-1 K-1]
+            if self.settings.ensemble == "NVT":
+                C_v = self.computeSpecificHeatNVT()  # [J kg-1 K-1]
+            elif self.settings.ensemble == "NVE":
+                C_v = self.computeSpecificHeatNVE()  # [J kg-1 K-1]
+
             temperature = float(np.mean([atom_frame.get_temperature() for atom_frame in self.traj]))
             N = self.traj[0].get_global_number_of_atoms()
             # Here we keep the classical constant form but ensure SI at the end
-            debye = (234 * N * kB * EV_TO_JOULE * temperature ** 3 / C_v) ** (1 / 3)
+            debye = (234 * N * kB * evToJ(1) * temperature ** 3 / C_v) ** (1 / 3)
             logger.info(f"Debye temperature: {debye} K")
-            return float(debye)"""
-    
-        # Θ_D = (ħ/kB) (6π^2 n)^(1/3) vm
-        out = self.elastic_properties  # SI Pa
-        G = out['G']
-        K = out['K']
-        EV_PER_A3_TO_GPA = 160.21766208
-        logger.info(f"Bulk modulus = {K * EV_PER_A3_TO_GPA} GPa")
-        logger.info(f" modulus = {G * EV_PER_A3_TO_GPA} GPa")
+            return float(debye)
 
-        if K < 0 or G < 0:
-            error_log = "Negative pressure during calulation of Debye temperature"
-            logger.error(error_log)
-            raise ValueError(error_log)
+        else:
+            # Θ_D = (ħ/kB) (6π^2 n)^(1/3) vm
+            out = self.calcNumericElasticModuli()  # SI Pa
+            G = out['G']
+            K = out['K']
 
-        if not (np.isfinite(G) and np.isfinite(K)):
-            logger.info("Elastic constants not reliable from traj; Debye temperature cannot be computed.")
-            return float('nan')
+            if K < 0 or G < 0:
+                error_log = "Negative pressure during calulation of Debye temperature"
+                logger.error(error_log)
+                raise ValueError(error_log)
 
-        #V_A3 = np.mean([fr.get_volume() for fr in self.traj])
-        V_A3 = float(np.nanmean([_get(fr, "V") for fr in self.traj]))
-        mass_u = float(sum(self.traj[0].get_masses()))
-        rho = (mass_u / V_A3)
+            if not (np.isfinite(G) and np.isfinite(K)):
+                logger.info("Elastic constants not reliable from traj; Debye temperature cannot be computed.")
+                return float('nan')
 
-        transversal_sound_velocity = np.sqrt(G / rho)
-        longitudinal_sound_velocity = np.sqrt((K + 4.0 * G / 3.0) / rho)
-        sound_velocity = ((1.0 / 3.0) * (1.0 / (longitudinal_sound_velocity ** 3) + 2.0 / (transversal_sound_velocity ** 3))) ** (-1.0 / 3.0)
+            V_A3 = np.mean([fr.get_volume() for fr in self.traj])
+            mass_u = float(sum(self.traj[0].get_masses()))
+            rho = (mass_u / V_A3)
 
-        logger.info(f"Sound Velociy : {sound_velocity}")
-        N = len(self.traj[0])
-        n = (N / V_A3)
+            transversal_sound_velocity = np.sqrt(G / rho)
+            longitudinal_sound_velocity = np.sqrt((K + 4.0 * G / 3.0) / rho)
+            sound_velocity = ((1.0 / 3.0) * (1.0 / (longitudinal_sound_velocity ** 3) + 2.0 / (transversal_sound_velocity ** 3))) ** (-1.0 / 3.0)
 
-        logger.info(f"N = {N} : V_A3 = {V_A3}")
+            N = len(self.traj[0])
+            n = (N / V_A3)
 
-        Theta_D = (hbar / kB) * ((6.0 * np.pi ** 2 * n) ** (1.0 / 3.0)) * sound_velocity / 10.18 # NEED TO DO SQRT(ev/u) to fs/Å
-        logger.info(f"Debye temperature: {Theta_D} K")
-        return Theta_D
-    
+            Theta_D = (hbar / kB) * ((6.0 * np.pi ** 2 * n) ** (1.0 / 3.0)) * sound_velocity / 10.18 # NEED TO DO SQRT(ev/u) to fs/Å
+            logger.info(f"Debye temperature: {Theta_D} K")
+            return Theta_D
+
+
+
+    def _numericalC(self):
+        """
+        Calculates the elastic constants C11, C22, C33, C12, C44
+
+        Input
+            ---
+
+        Output
+            C_from_U: matrix, where C11, C12, C44 = C[0,0], C[0,1], C[3,3]
+        """
+        betas = [[], [], [], [], [], []]
+        # Prefer reconstructing 1D slices from 2D trajectory to avoid stale 1D data
+        path2d = self.settings.output_file + "_stretch2D_data.traj"
+        used_2d = False
+        try:
+            traj2d = Trajectory(path2d)
+            tol = 1e-12
+            for frame in traj2d:
+                info = getattr(frame, 'info', {})
+                b1 = info.get('beta1')
+                b2 = info.get('beta2')
+                if b1 is None or b2 is None:
+                    continue
+                if int(b1) == int(b2) and np.isclose(float(info.get('strain1', 0.0)), 0.0, atol=tol):                   #Looks at difference between strains when creating 2D data
+                    i = int(b1)
+                    eps = float(info.get('strain2', 0.0))
+                    energy = float(info.get('total_energy', np.nan))
+                    stress = np.array(info.get('stress'), dtype=float)
+                    betas[i].append([eps, stress, energy])
+            used_2d = any(len(b) > 0 for b in betas)
+        except Exception as e2:
+            logger.info(f"Failed to read 2D stretch trajectory at {path2d}: {e2}")
+        if not used_2d:
+            # Fallback to legacy 1D if available
+            try:
+                stretch_trajectory = Trajectory(self.settings.output_file + "_stretch_data.traj")
+                for frame in stretch_trajectory:
+                    energy = frame.info.get('total_energy')
+                    betas[int(frame.info['beta'])].append([float(frame.info['strain']), np.array(frame.info['stress'],
+                                                                                        dtype=float), float(energy)])
+                logger.info("Used legacy 1D stretch trajectory to compute elastic constants.")
+            except Exception as e:
+                logger.info(f"No usable stretch data found (2D or 1D): {e}")
+        beta_arrays = [np.array(beta, dtype=object) for beta in betas]
+        beta_dicts = [defaultdict(list) for i in range(6)]
+        averages = []
+
+        for i in range(6):
+            for eps, matrix, energy in beta_arrays[i]:
+                beta_dicts[i][eps].append((matrix, energy))
+
+        for beta in beta_dicts:
+            avg_data = []
+
+            for eps, matrices_and_energies in beta.items():
+                # Take elementwise average for each epsilon
+                matrices = np.stack([me[0] for me in matrices_and_energies])
+                energies = np.array([me[1] for me in matrices_and_energies], dtype=float)
+                avg_matrix = matrices.mean(axis=0)
+                avg_energy = np.nanmean(energies)  # ignore possible NaNs
+                avg_data.append(np.array((eps, avg_matrix, avg_energy), dtype=object))
+
+            avg_data = sorted(avg_data, key=lambda x: x[0])
+            averages.append(avg_data)
+
+        second_deriv = np.zeros((6,6))
+        stretch_2D_trajectory = Trajectory(self.settings.output_file + "_stretch2D_data.traj")
+
+        twoD_energies = stretch_2D_trajectory[-1].info["2D Energies"]
+        strains_axis = stretch_2D_trajectory[-1].info["Strains axis"]
+        number_of_pairs = stretch_2D_trajectory[-1].info["Number of pairs"]         # Should usually be 6
+
+        for i in range(int(np.sqrt(number_of_pairs))):
+            energy_1 = np.array([x[2] for x in averages[i]], dtype=float)
+            for j in range(int(np.sqrt(number_of_pairs))):
+                energy_2 = np.array([x[2] for x in averages[j]], dtype=float)
+                if i == j:
+                    second_deriv[i, j] = secondOrderNumericalDerivative(strains_axis, [energy_1, energy_2])
+                    continue
+                else:
+                    try:
+                        second_deriv[i, j] = secondOrderNumericalDerivative(strains_axis, twoD_energies[i][j])
+                    except Exception as e:
+                        logger.info(f"2D stretch calc failed for ({i},{j}), WHY THE FRICK???!: {e}")
+                        second_deriv[i, j] = 0.0
+
+        C_from_U = second_deriv / self.traj[0].get_volume()
+        logger.debug(f"C_from_U = \n {C_from_U * auToGPascal(1)} \n")
+        logger.info(f" \n C_11 = {auToGPascal(C_from_U[0,0])} \n C_12 = {auToGPascal(C_from_U[0,1])} \n C_44 = {auToGPascal(C_from_U[3,3])}")
+
+        return C_from_U
+
+
+    def calcNumericElasticModuli(self):
+        C = self.numeric_elastic_properties
+        K = (C[0,0] + 2 * C[0,1]) / 3
+        G = (3 * C[3,3] + C[0,0] - C[0,1]) / 5
+        E = 9 * K * G / (3 * K + G)
+        logger.info(f" \n K = {auToGPascal(K)} GPa \n G = {auToGPascal(G)} GPa \n E = {auToGPascal(E)} GPa")
+        return {"K": K, "G": G, "E": E}
+
+
     def calculateCMatrix(self):
         stretch_trajectory = Trajectory(self.settings.output_file + "_stretch_data.traj")
-        betas = [[],[],[],[],[],[]]
+        betas = [[], [], [], [], [], []]
         for frame in stretch_trajectory:
             # Add the corresponding values to the right beta (strain direction)
             betas[frame.info["beta"]].append([frame.info["strain"], frame.info["stress"]])
         beta_arrays = [np.array(beta, dtype=object) for beta in betas]
-        
+
         # Create dictionaries, one for each beta, and store the arrays of matrices with epsilon as key
         beta_dicts = [defaultdict(list) for i in range(6)]
         for i in range(6):
             for epsilon, matrix in beta_arrays[i]:
                 beta_dicts[i][epsilon].append(matrix)
-        
+
         averages = []
         for beta in beta_dicts:
             avg_data = []
@@ -366,26 +466,25 @@ class QuantityCalculator:
                 # Take elementwise average over all the matrices for each epsilon
                 stacked = np.stack(matrices)
                 avg_matrix = stacked.mean(axis=0)
-                avg_data.append(np.array((epsilon, avg_matrix),dtype=object))
+                avg_data.append(np.array((epsilon, avg_matrix), dtype=object))
 
             avg_data = sorted(avg_data, key=lambda x: x[0])
             averages.append(avg_data)
-        C = np.zeros((6,6))
+        C = np.zeros((6, 6))
         for i in range(6):
             # Line fit epsilon vs sigma to find each c_ij
             epsilons = np.array([x[0] for x in averages[i]], dtype=float)
             for j in range(6):
                 sigmas = np.array([x[1][j] for x in averages[i]], dtype=float)
                 C[j, i] = np.polyfit(epsilons, sigmas, 1)[0]
-        C *= 160.21766208 # Convert to GPa
+        C *= 160.21766208  # Convert to GPa
         return C
-    def calculateModuli(self, C_matrix):
-        bulk_modulus = (C_matrix[0,0] + 2*C_matrix[0,1])/3
-        G_shear = (C_matrix[3,3] + C_matrix[4,4] + C_matrix[5,5] + C_matrix[1,1] - C_matrix[0,1]) /5
-        youngs_modulus = 9* bulk_modulus* G_shear /(3*bulk_modulus + G_shear)
-        return bulk_modulus, G_shear, youngs_modulus
 
-        
+    def calculateModuli(self, C_matrix):
+        bulk_modulus = (C_matrix[0, 0] + 2 * C_matrix[0, 1]) / 3
+        G_shear = (C_matrix[3, 3] + C_matrix[4, 4] + C_matrix[5, 5] + C_matrix[1, 1] - C_matrix[0, 1]) / 5
+        youngs_modulus = 9 * bulk_modulus * G_shear / (3 * bulk_modulus + G_shear)
+        return bulk_modulus, G_shear, youngs_modulus
 
     def computeBulkModulus(self, stretched_traj):
         import matplotlib.pyplot as plt
@@ -401,25 +500,11 @@ class QuantityCalculator:
         order = np.argsort(V)
         E, V = E[order], V[order]
 
-        """
-        plt.figure(figsize=(6, 4))
-        plt.scatter(V, E, s=28)
-        plt.xlabel('volume [Å³]')
-        plt.ylabel('energy [eV]')
-        plt.title('E(V) – stretch trajectory')
-        plt.tight_layout()
-        plt.savefig('e_vs_v_points.png', dpi=200)
-        plt.close()
-        """
         eos = EquationOfState(V, E, eos='birchmurnaghan')
         v0, e0, B0_eVa3 = eos.fit()
-        B0_GPa = B0_eVa3 * 160.21766208
+        B0_GPa = auToGPascal(B0_eVa3)
         eos.plot('Ag-eos.png')
         return B0_GPa
-
-
-
-
 
 
 def _get(frame, name):

@@ -117,14 +117,16 @@ class NPTSettings(SimulationSettings):
         float temperature:  Temperature to simulate the structure at in Kelvin. Note difference between this and init_temperature.
                             Here we want to keep this temperature constant. Where in NVE we let it change and only needed a starting point.
         float pressure: Pressure to simulate the structure at in Pa 
-        float compressibility: Compressibility for the NPT simulation in units Pa^-1. Large comp -> box volume fluctuates easily
+        float tdamp: Time constant for temperature damping
+        float pdamp: Time constant for pressure damping
 
     """
-    def __init__(self,timestep: float, num_steps: int, potential: str, interval: int, temperature: float,pressure: float, compressibility: float, supercells: list, output_file: str = "output.traj"):
+    def __init__(self,timestep: float, num_steps: int, potential: str, interval: int, temperature: float,pressure: float, tdamp: float, pdamp: float, supercells: list, output_file: str = "output.traj"):
         super().__init__(timestep, num_steps, potential, output_file, supercells, interval)
         self.temperature = temperature
         self.pressure = pressure
-        self.compressibility = compressibility
+        self.tdamp = tdamp
+        self.pdamp = pdamp
 
     @property
     def ensemble(self):
@@ -134,7 +136,6 @@ class NPTSettings(SimulationSettings):
         parent_string = super().__str__()
         return (
             f"Ensemble: {self.ensemble} \n"
-            f"Compressibility : {self.compressibility} \n"
             f"Temperature: {self.temperature} K\n"
             f"Pressure: {self.pressure} Pa \n"
             f"{parent_string} \n"
