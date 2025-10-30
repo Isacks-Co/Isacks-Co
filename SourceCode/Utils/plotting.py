@@ -29,6 +29,17 @@ import os
 
 logger = logging.getLogger(__name__)
 
+def flattenDict(dict):
+
+    flat = {}
+    for key, value in dict.items():
+        if isinstance(value, type(dict)):
+            flat.update(flattenDict(value))
+        else:
+            flat[key] = value
+    return flat
+
+
 
 def plot(x, y, x_label="x", y_label="y", save_as=None):
     # Fit once
