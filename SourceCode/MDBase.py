@@ -1,9 +1,10 @@
 from simulationInput import SimulationSettings
 import functools
+
 import numpy as np
 from ase import Atoms
 from ase.io.trajectory import Trajectory
-from ase.md.velocitydistribution import MaxwellBoltzmannDistribution, Stationary, ZeroRotation
+from ase.md.velocitydistribution import MaxwellBoltzmannDistribution,Stationary, ZeroRotation
 from ase.units import fs, GPa
 import logging
 from simulationInput import SimulationSettings
@@ -13,7 +14,8 @@ from collections import defaultdict
 log = logging.getLogger(__name__)
 
 
-class MDBase:  # TODO Look at unit conversions
+
+class MDBase:
     """
     basic MD class
     When initialized it represents a MD-simulation with prefilled settings that can be used for multiple runs with
@@ -26,6 +28,7 @@ class MDBase:  # TODO Look at unit conversions
         SimulationSettings object.
         In:
             SimulationSettings object of type NVE,NVT or NPT
+
         """
 
         # General parameters
@@ -84,7 +87,9 @@ class MDBase:  # TODO Look at unit conversions
             log.error("Invalid Integrator function: %s", integrator)  ##
             raise ValueError(f"Invalid integrator: {integrator}")
 
-    def equilibriumRun(self, atoms, equilibrium_steps=40000):
+
+
+    def equilibriumRun(self, atoms, equilibrium_steps = 40000):
         """
         Function that runs certain amount of steps 'equilibrium_steps', to make the system reach equilibrium,
         before the 'real' production simulation is run.
@@ -94,7 +99,7 @@ class MDBase:  # TODO Look at unit conversions
         """
 
         dyn_eq = self.integrator(atoms=atoms)
-        dyn_eq.attach(lambda: self._checkDivergence(atoms), interval=max(1, int(1 / self.timestep)))
+        dyn_eq.attach(lambda: self._checkDivergence(atoms), interval=max(1, int(1 / self.timestep) ))
 
         try:
             dyn_eq.run(equilibrium_steps)
@@ -118,7 +123,7 @@ class MDBase:  # TODO Look at unit conversions
 
     def runMD(self, atoms):  # TODO Needs better comments
         """
-        In:
+        In: 
             Atoms: ase Atoms object representing the crystal structure
 
         Runs a MD simulation with the setting specified in __init__
@@ -129,51 +134,80 @@ class MDBase:  # TODO Look at unit conversions
 
         MaxwellBoltzmannDistribution(atoms, temperature_K=self.temperature_k,
                                      force_temp=True)  # Initialize velocity according to temperature_k
-        Stationary(atoms)  # Make sure center of mass has no linear momentum
-        ZeroRotation(atoms)  # Make sure center of mass has no angular momentum, might not be needed
-        self.equilibriumRun(atoms=atoms, equilibrium_steps=20000)  # shorter equilibration
+        Stationary(atoms) # Make sure center of mass has no linear momentum
+        ZeroRotation(atoms) # Make sure center of mass has no angular momentum, might not be needed
+        self.equilibriumRun(atoms=atoms) # TODO BREAKS TO EARLY
 
         log.info("MD run starts with: %i steps", self.steps)
-
         dyn = self.integrator(atoms=atoms)
 
-        traj = Trajectory(filename=f"{self.output_file}.traj", mode="w", atoms=atoms)  ## currently have .. before
+        traj = Trajectory(filename=f"{self.output_file}.traj", mode="w", atoms=atoms) ## currently have .. before
 
-        dyn.attach(lambda: self.save_data(atoms, traj),
+        dyn.attach(lambda: self.save_data(atoms,traj),
                    interval=self.interval)
 
         # Continue with the main MD run
         dyn.run(self.steps)  # RUN
         traj.close()  # Explicitly close the trajectory
 
-        try:
-            strain = 5e-3       # 0.5% strain
-            checkpoints = 5
-            number_of_independent_configurations = 6
-            strains = np.linspace(-strain, strain, checkpoints)
-            hold_steps = 0
-            pairs = [(i, j) for i in range(number_of_independent_configurations) for j in range(number_of_independent_configurations)]
-            self._stretchCell2D(atoms, pairs=pairs, strains=strains, hold_steps=hold_steps)
-        except Exception as e:
-            log.info(f"2D static stretch failed or skipped: {e}")
+        eos_stretch = True
+        oneD_stretch = True
+        twoD_stretch = True
 
-    def save_data(self, atoms, traj):
-        atoms.get_potential_energy()
-        atoms.get_kinetic_energy()
-        atoms.get_total_energy()
-        atoms.get_forces()
-        atoms.get_volume()
-        atoms.get_positions()
+
+        # Run stretch sequence for elastic constants
+        if self.ensemble == "NVT":
+            if eos_stretch is True:
+                self._make_eos_traj(atoms)
+
+            if oneD_stretch is True:
+                self._stretchCell(atoms)
+
+            if twoD_stretch is True:
+                try:
+                    strain = 5e-3       # 0.5% strain
+                    checkpoints = 5
+                    number_of_independent_configurations = 6
+                    strains = np.linspace(-strain, strain, checkpoints)
+                    hold_steps = 0
+                    pairs = [(i, j) for i in range(number_of_independent_configurations) for j in range(number_of_independent_configurations)]
+                    self._stretchCell2D(atoms, pairs=pairs, strains=strains, hold_steps=hold_steps)
+                except Exception as e:
+                    log.info(f"2D static stretch failed or skipped: {e}")
+
+
+    def save_data(self, atoms,traj):
+
+        Ep = atoms.get_potential_energy()
+        Ek = atoms.get_kinetic_energy()
+        Et = atoms.get_total_energy()
+        F = atoms.get_forces()
+        V = atoms.get_volume()
+        T = atoms.get_temperature()
+
+        atoms.info['E_pot'] = float(Ep)
+        atoms.info['E_kin'] = float(Ek)
+        atoms.info['E_tot'] = float(Et)
+        atoms.info['V'] = float(V)
+        atoms.info['T'] = float(T)
+        #atoms.arrays['F'] = F
+        if 'F' in atoms.arrays:
+            atoms.arrays['F'][:] = np.asarray(F, float)
+        else:
+            atoms.new_array('F', np.asarray(F, float))
+        atoms.info['F'] = np.asarray(F, float).tolist()
         traj.write()
+
+
+
+
+
 
 
     def elasticData(self, traj, atoms, strain, stress0, beta):
         atoms.info["strain"] = strain
         atoms.info["stress"] = atoms.get_stress(voigt=True) - stress0
         atoms.info["beta"] = beta
-        atoms.info["total_energy"] = atoms.get_total_energy()
-        atoms.info["kinetic_energy"] = atoms.get_kinetic_energy()
-        atoms.info["potential_energy"] = atoms.get_potential_energy()
         traj.write()
 
     def _stretchCell(self, atoms):
@@ -201,7 +235,7 @@ class MDBase:  # TODO Look at unit conversions
                 new_cell = np.dot(cell0, np.eye(3) + eps)
                 atoms.set_cell(new_cell, scale_atoms=True)
                 dyn = self.integrator(atoms=atoms)
-                dyn.attach(lambda: self.elasticData(traj, atoms, e, stress0, beta))
+                dyn.attach(lambda : self.elasticData(traj, atoms, e, stress0, beta))
                 dyn.run(hold_steps)
 
     def _set_voigt_component(self, eps, beta, value):
@@ -296,13 +330,13 @@ class MDBase:  # TODO Look at unit conversions
             return
 
         last = np.asarray(self.quantity_list[-window:], dtype=float)
-        mean_diff = abs(last[int(window / 2):].mean() - last[:int(window / 2)].mean())
+        mean_diff = abs(last[int(window/2):].mean() - last[:int(window/2)].mean())
         last_diff = abs(self.quantity_list[-1] - self.quantity_list[-2])
         match self.ensemble:
             case "NVT":
-                error_per_atom = error * len(atoms)
+                error_per_atom = error*len(atoms)
                 if last_diff <= error_per_atom and mean_diff <= error_per_atom:
-                    raise StopIteration(f"Converged at E_pot = {last[-1]} eV.")
+                        raise StopIteration(f"Converged at E_pot = {last[-1]} eV.")
 
             case "NVE":
                 pass
@@ -331,12 +365,13 @@ class MDBase:  # TODO Look at unit conversions
             raise RuntimeError(f"Divergence: T={current_T:.1f} K >  {div_factor * self.temperature_k:.1f} K, "
                                f"(div_factor * desired temp).")
 
+
     def _updateQuantityList(self, atoms):
         """
         Help function that appends quantities depending on the ensemble into quantity_list.
         """
         if not hasattr(self, "quantity_list"):
-            self.quantity_list = []  # TODO Should not be class variable
+            self.quantity_list = [] #TODO Should not be class variable
         match self.ensemble:
             case "NPT":
                 self.quantity_list.append(atoms.get_volume())
@@ -344,3 +379,45 @@ class MDBase:  # TODO Look at unit conversions
                 self.quantity_list.append(atoms.get_potential_energy())
             case "NVE":
                 self.quantity_list.append(atoms.get_temperature())
+
+    def _make_eos_traj(self, atoms, eta=0.12, npoints=20, relax=False, fmax=0.02,
+                       traj_path=f"../Outputs/isotropic_stretch.traj"):
+        """
+        Creates isotrophic scaling of cell
+            eta: max scaling factor
+            npoints: nbr of points between (1-eta) och (1+eta)
+            relax: if True, relax only inrternal positions at everyt volume
+            fmax: force criteria for relax
+            traj_path:
+        Return: traj_path
+        """
+        from ase.optimize import BFGS
+        from ase.md.langevin import Langevin
+
+
+        if traj_path is None:
+            traj_path = f"{self.output_file}_eos.traj"
+
+
+
+        scales = np.linspace(1.0 - eta, 1.0 + eta, npoints)
+        A0 = atoms.cell.array.copy()
+        traj = Trajectory(traj_path, mode="w", )
+
+        for s in scales:
+            a = atoms.copy()
+            a.set_cell(A0 * s, scale_atoms=True)  # isotrop scaling
+            a.calc = self.potential(a)
+
+            if hasattr(a.calc, "set_atoms"):
+                a.calc.set_atoms(a)
+
+            if relax:
+                BFGS(a, logfile=None).run(fmax=fmax)  # relax internal coordi
+            E_pot = a.get_potential_energy()
+            V = a.get_volume()
+            a.info['E_pot'] = float(E_pot)
+            a.info['V'] = float(V)
+
+
+            traj.write(a)

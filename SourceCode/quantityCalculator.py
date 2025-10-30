@@ -41,21 +41,16 @@ class QuantityCalculator:
         and write them to a txt file
         """
         # Compute all general quantities
-        """
+
         #MSD = self.computeMSD() # Å  Should we output average over late frames ?
-        #bulk_modulus = self.computeBulkModulus("../Outputs/isotropic_stretch.traj")
+        bulk_modulus = self.computeBulkModulus("../Outputs/isotropic_stretch.traj")
         self_diffusion_coeff = selfDiffusionCoeffAuToSI(self.computeSelfDiffusionCoefficient())# m^2/s
         coh_energy = self.computeCohesiveEnergy() # ev
         internal_pressure = auToGPascal(self.computeInternalPressure()) #GPa
-        lattice_constant = self.computeLatticeConstant()
         lindemann_crit = self.computeLindemannIndex() # Unitless
-        """
-        elastic_constants = self._numericalC()
-        elastic_moduli = self.calcNumericElasticModuli()
-        """
-        logger.debug(f"Elastic moduli: {elastic_moduli}")
-        debye_temperature = self.computeDebyeTemperature()
-        logger.debug(f"Debye temperature: {debye_temperature} K")
+        #debye_temperature = self.computeDebyeTemperature()
+
+        #logger.info(self.elastic_properties)
 
         labels = ["D[m^2/s]","E_coh[eV]","L_crit[1]"] #, "T_D"
         quantities = [self_diffusion_coeff,coh_energy,lindemann_crit] # TODO Maybe nicer way to handle this ? , debye_temperature
@@ -68,24 +63,21 @@ class QuantityCalculator:
             case "NVT":
                 print("NVT")
                 internal_pressure = auToGPascal(self.computeInternalPressure())  # GPa
-                #bulk_modulus = self.computeBulkModulus("../Outputs/isotropic_stretch.traj")
+                bulk_modulus = self.computeBulkModulus("../Outputs/isotropic_stretch.traj")
                 Cv = specificHeatAuToSI(self.computeSpecificHeatNVT()) # J/K per atom
                 labels.extend(["P_i[GPa]", "B[GPa]", "Cv[J/kgK]"])
-                #quantities.extend([internal_pressure, bulk_modulus, Cv])
+                quantities.extend([internal_pressure, bulk_modulus, Cv])
 
 
-                #C_matrix = self.calculateCMatrix()
-                #bulk_modulus, g_shear, youngs_modulus = self.calculateModuli(C_matrix)
-                labels.append("B")
-                labels.append("G")
-                labels.append("E")
-                #quantities.extend([bulk_modulus, g_shear, youngs_modulus])
+                C_matrix = self.calculateCMatrix()
+                bulk_modulus, g_shear, youngs_modulus = self.calculateModuli(C_matrix)
+                labels.extend(["B", "G"])
+                quantities.extend([bulk_modulus, g_shear])
 
             case "NPT":
                 pass
 
         self.writeQuantities(labels,quantities) # Write to txt file
-        """
 
 
     def writeQuantities(self,labels,quantities):
@@ -142,6 +134,8 @@ class QuantityCalculator:
         over all frames.
         Unit: ev/(amu*K) (amu = atomic mass unit)
         """
+        #energy = np.array([atom_frame.get_total_energy() for atom_frame in self.traj])
+        #temperature = np.mean([atom_frame.get_temperature() for atom_frame in self.traj])
         energy = np.array([_get(frame, "E_tot") for frame in self.traj])
         temperature = np.mean([_get(frame, "T") for frame in self.traj])
 
@@ -346,6 +340,8 @@ class QuantityCalculator:
             logger.info(f"Debye temperature: {Theta_D} K")
             return Theta_D
 
+
+
     def _numericalC(self):
         """
         Calculates the elastic constants C11, C22, C33, C12, C44
@@ -504,19 +500,9 @@ class QuantityCalculator:
         order = np.argsort(V)
         E, V = E[order], V[order]
 
-        """
-        plt.figure(figsize=(6, 4))
-        plt.scatter(V, E, s=28)
-        plt.xlabel('volume [Å³]')
-        plt.ylabel('energy [eV]')
-        plt.title('E(V) – stretch trajectory')
-        plt.tight_layout()
-        plt.savefig('e_vs_v_points.png', dpi=200)
-        plt.close()
-        """
         eos = EquationOfState(V, E, eos='birchmurnaghan')
         v0, e0, B0_eVa3 = eos.fit()
-        B0_GPa = B0_eVa3 * 160.21766208
+        B0_GPa = auToGPascal(B0_eVa3)
         eos.plot('Ag-eos.png')
         return B0_GPa
 
@@ -545,15 +531,15 @@ def _get(frame, name):
             return float(T) if T is not None else frame.get_temperature()
 
         if name == "F":
-            # 1) arrays['F']
+            #1) arrays['F']
             F = frame.arrays.get("F")
             if F is not None:
                 return np.asarray(F, float)
-            # 2) info['F']
+            #2) info['F']
             Fi = frame.info.get("F", frame.info.get("forces"))
             if Fi is not None:
                 return np.asarray(Fi, float)
-            # 3) fallback
+            #3) fallback
             try:
                 return np.asarray(frame.get_forces(), float)
             except Exception:
