@@ -1,0 +1,12 @@
+{
+  "Physical_environment" : {"Temperature": 300, "Pressure": 0 },
+  "Simulations_config" : {"Timestep": 1,  "Number_of_steps": 15000,  "PBC" : [true, true, true],
+                "Potential": "EMT", "Supercells": [3,3,3]},
+
+  "Input_structure" : "../FCC_Cu_UnitCell.vasp",
+
+
+  "Find_equilibrium" : true,
+  "Compute" : ["B", "E_coh"]
+
+}
