@@ -199,28 +199,28 @@ class MDBase:
         traj.write()
 
 
-
-
-
-
-
-    def elasticData(self, traj, atoms, strain, stress0, beta):
-        atoms.info["strain"] = strain
-        atoms.info["stress"] = atoms.get_stress(voigt=True) - stress0
-        atoms.info["beta"] = beta
-        traj.write()
+    
+    def appendStress(self, atoms, stress_list, stress0):
+        # Help function for appending stresses during _stretchCell runs
+        stress = atoms.get_stress(voigt=True) - stress0
+        stress_list.append(stress)
 
     def _stretchCell(self, atoms):
-        strains = np.linspace(-0.01, 0.01, 5)
+        strains = np.linspace(-0.005, 0.005, 5)
         cell0 = atoms.get_cell()
         stress0 = atoms.get_stress(voigt=True)
         hold_steps = 500
-
-        traj = Trajectory(filename=f"{self.output_file}_stretch_data.traj", mode="w", atoms=atoms)
-
+        equil_atoms = atoms.copy()
+        calculator = atoms.calc
+        dyn = self.integrator(atoms=atoms)
+        dyn.attach(lambda : self.appendStress(atoms, stress_list, stress0))
+        C = np.zeros((6, 6))
         for beta in range(6):
+            # list for storing the average matrix of stresses for each strain.
+            average_stress = []
             for e in strains:
                 # Strain tensor in Voigt form
+                stress_list = []
                 eps = np.zeros((3, 3))
                 if beta < 3:
                     eps[beta, beta] = e
@@ -231,12 +231,20 @@ class MDBase:
                 elif beta == 5:
                     eps[0, 1] = eps[1, 0] = e / 2.0
 
-                # Apply the strain to the cell
+                # Apply the strain to the cell and perform the number of steps specified with hold_steps
                 new_cell = np.dot(cell0, np.eye(3) + eps)
+                atoms = equil_atoms.copy()
+                atoms.calc = calculator
                 atoms.set_cell(new_cell, scale_atoms=True)
-                dyn = self.integrator(atoms=atoms)
-                dyn.attach(lambda : self.elasticData(traj, atoms, e, stress0, beta))
                 dyn.run(hold_steps)
+                stacked = np.stack(stress_list)
+                avg_matrix = stacked.mean(axis=0)
+                average_stress.append(avg_matrix)
+            sigmas = np.array(average_stress)
+            for alpha in range(6):
+                C[alpha, beta] = np.polyfit(strains, sigmas[:, alpha], 1)[0]
+        C *= 160.21766208
+        
 
     def _set_voigt_component(self, eps, beta, value):
         if beta == 0:
