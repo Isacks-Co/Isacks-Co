@@ -50,7 +50,6 @@ class QuantityCalculator:
         lindemann_crit = self.computeLindemannIndex() # Unitless
         #debye_temperature = self.computeDebyeTemperature()
 
-        #logger.info(self.elastic_properties)
 
         labels = ["D[m^2/s]","E_coh[eV]","L_crit[1]"] #, "T_D"
         quantities = [self_diffusion_coeff,coh_energy,lindemann_crit] # TODO Maybe nicer way to handle this ? , debye_temperature
@@ -69,7 +68,7 @@ class QuantityCalculator:
                 quantities.extend([internal_pressure, bulk_modulus, Cv])
 
 
-                C_matrix = self.calculateCMatrix()
+                C_matrix = self.readCMatrix()
                 bulk_modulus, g_shear, youngs_modulus = self.calculateModuli(C_matrix)
                 labels.extend(["B", "G"])
                 quantities.extend([bulk_modulus, g_shear])
@@ -125,7 +124,7 @@ class QuantityCalculator:
             e_coh_list.append((e_atoms - e_bulk)/number)
 
         e_coh_mean = np.mean(e_coh_list)
-        logger.info(f"Cohesive energy: {e_coh_mean} eV")
+        logger.debug(f"Cohesive energy: {e_coh_mean} eV")
         return e_coh_mean
 
     def computeSpecificHeatNVT(self):
@@ -144,7 +143,7 @@ class QuantityCalculator:
         prefactor = 1/(kB*temperature**2)
         total_mass_amu = float(sum(self.traj[0].get_masses()))
         specific_heat =  prefactor * (e_2_mean-e_mean**2)/total_mass_amu # Specific heat in ev/amu*K
-        logger.info(f"Cv: {specificHeatAuToSI(specific_heat)} J/(kg*K)")
+        logger.debug(f"Cv: {specificHeatAuToSI(specific_heat)} J/(kg*K)")
         return specific_heat
 
     def computeSpecificHeatNVE(self):
@@ -160,14 +159,14 @@ class QuantityCalculator:
         e_kin_2_mean = np.mean(e_kin**2)
         total_mass_amu = float(sum(self.traj[0].get_masses()))
         specific_heat =  (3*kB/2)*1/(1-(2/(3*(kB*T)**2)*(e_kin_2_mean - e_kin_mean**2)))/total_mass_amu # Should verify
-        logger.info(f"Cv: {specificHeatAuToSI(specific_heat)} J/(kg*K)")
+        logger.debug(f"Cv: {specificHeatAuToSI(specific_heat)} J/(kg*K)")
         return specific_heat
 
     def computeLatticeConstant(self):# Need to test
         lattice_frames = [atoms.get_cell().cellpar() for atoms in self.traj]
         lattice_mean = np.mean(lattice_frames,axis = 0)
         lattice_mean[:3] /= np.array(self.settings.supercells)
-        logger.info(f"Lattice constant: {lattice_mean}")
+        logger.debug(f"Lattice constant: {lattice_mean}")
         return lattice_mean
 
     def computeInternalPressure(self):
@@ -190,7 +189,7 @@ class QuantityCalculator:
             internal_pressures_eVA3.append(P_eVA3)
 
         avg_P = np.mean(internal_pressures_eVA3) if internal_pressures_eVA3 else float('nan')
-        logger.info(f"Average internal pressure: {avg_P} eV/Å^3")
+        logger.debug(f"Average internal pressure: {avg_P} eV/Å^3")
         return avg_P
 
     def computeMSD(self, frame, reference=0):
@@ -203,7 +202,7 @@ class QuantityCalculator:
         r_n = self.traj[frame].get_positions()  # Å
 
         msd = np.mean((r_0 - r_n) ** 2)
-        logger.info(f"MSD: {msd} å²")
+        logger.debug(f"MSD: {msd} å²")
         return msd
 
     def computeSelfDiffusionCoefficient(self):  # Needs constant temperature, for current implementation.
@@ -224,7 +223,7 @@ class QuantityCalculator:
             t_0 = timestep_list[50][0]
             t_end = timestep_list[-1][0]
             D = (msd_final-msd0)/(t_end - t_0)
-            logger.info(f"Self-diffusion coefficent: {selfDiffusionCoeffAuToSI(D)} m²/s")
+            logger.debug(f"Self-diffusion coefficent: {selfDiffusionCoeffAuToSI(D)} m²/s")
         else:
             logger.error("Too small sample size to calculate self-diffusion coefficient")
             D = None
@@ -273,7 +272,7 @@ class QuantityCalculator:
 
                 NN_list.append(nearest_distance)
         NN_mean_distance = np.mean(NN_list)
-        logger.info(f"Mean value of nearest neighbor : {NN_mean_distance} å")
+        logger.debug(f"Mean value of nearest neighbor : {NN_mean_distance} å")
         return NN_mean_distance
 
     def computeLindemannIndex(self, start:int = -25, end:int = 0):
@@ -286,7 +285,7 @@ class QuantityCalculator:
             lindemann_array.append(np.sqrt(self.computeMSD(frame = state)) / self.nearestNeighborsMean(state))
         lindemann = np.mean(lindemann_array)
 
-        logger.info(f"Global Lindemann index for the intervals [{start}, {end}] : {lindemann}")
+        logger.debug(f"Global Lindemann index for the intervals [{start}, {end}] : {lindemann}")
         return lindemann
 
 
@@ -307,7 +306,7 @@ class QuantityCalculator:
             N = self.traj[0].get_global_number_of_atoms()
             # Here we keep the classical constant form but ensure SI at the end
             debye = (234 * N * kB * evToJ(1) * temperature ** 3 / C_v) ** (1 / 3)
-            logger.info(f"Debye temperature: {debye} K")
+            logger.debug(f"Debye temperature: {debye} K")
             return float(debye)
 
         else:
@@ -337,7 +336,7 @@ class QuantityCalculator:
             n = (N / V_A3)
 
             Theta_D = (hbar / kB) * ((6.0 * np.pi ** 2 * n) ** (1.0 / 3.0)) * sound_velocity / 10.18 # NEED TO DO SQRT(ev/u) to fs/Å
-            logger.info(f"Debye temperature: {Theta_D} K")
+            logger.debug(f"Debye temperature: {Theta_D} K")
             return Theta_D
 
 
@@ -373,7 +372,7 @@ class QuantityCalculator:
                     betas[i].append([eps, stress, energy])
             used_2d = any(len(b) > 0 for b in betas)
         except Exception as e2:
-            logger.info(f"Failed to read 2D stretch trajectory at {path2d}: {e2}")
+            logger.warning(f"Failed to read 2D stretch trajectory at {path2d}: {e2}")
         if not used_2d:
             # Fallback to legacy 1D if available
             try:
@@ -382,9 +381,9 @@ class QuantityCalculator:
                     energy = frame.info.get('total_energy')
                     betas[int(frame.info['beta'])].append([float(frame.info['strain']), np.array(frame.info['stress'],
                                                                                         dtype=float), float(energy)])
-                logger.info("Used legacy 1D stretch trajectory to compute elastic constants.")
+                logger.warning("Used legacy 1D stretch trajectory to compute elastic constants.")
             except Exception as e:
-                logger.info(f"No usable stretch data found (2D or 1D): {e}")
+                logger.warning(f"No usable stretch data found (2D or 1D): {e}")
         beta_arrays = [np.array(beta, dtype=object) for beta in betas]
         beta_dicts = [defaultdict(list) for i in range(6)]
         averages = []
@@ -425,12 +424,12 @@ class QuantityCalculator:
                     try:
                         second_deriv[i, j] = secondOrderNumericalDerivative(strains_axis, twoD_energies[i][j])
                     except Exception as e:
-                        logger.info(f"2D stretch calc failed for ({i},{j}), WHY THE FRICK???!: {e}")
+                        logger.warning(f"2D stretch calc failed for ({i},{j}), WHY THE FRICK???!: {e}")
                         second_deriv[i, j] = 0.0
 
         C_from_U = second_deriv / self.traj[0].get_volume()
         logger.debug(f"C_from_U = \n {C_from_U * auToGPascal(1)} \n")
-        logger.info(f" \n C_11 = {auToGPascal(C_from_U[0,0])} \n C_12 = {auToGPascal(C_from_U[0,1])} \n C_44 = {auToGPascal(C_from_U[3,3])}")
+        logger.debug(f" \n C_11 = {auToGPascal(C_from_U[0,0])} \n C_12 = {auToGPascal(C_from_U[0,1])} \n C_44 = {auToGPascal(C_from_U[3,3])}")
 
         return C_from_U
 
@@ -440,47 +439,16 @@ class QuantityCalculator:
         K = (C[0,0] + 2 * C[0,1]) / 3
         G = (3 * C[3,3] + C[0,0] - C[0,1]) / 5
         E = 9 * K * G / (3 * K + G)
-        logger.info(f" \n K = {auToGPascal(K)} GPa \n G = {auToGPascal(G)} GPa \n E = {auToGPascal(E)} GPa")
+        logger.debug(f" \n K = {auToGPascal(K)} GPa \n G = {auToGPascal(G)} GPa \n E = {auToGPascal(E)} GPa")
         return {"K": K, "G": G, "E": E}
 
 
-    def calculateCMatrix(self):
-        stretch_trajectory = Trajectory(self.settings.output_file + "_stretch_data.traj")
-        betas = [[], [], [], [], [], []]
-        for frame in stretch_trajectory:
-            # Add the corresponding values to the right beta (strain direction)
-            betas[frame.info["beta"]].append([frame.info["strain"], frame.info["stress"]])
-        beta_arrays = [np.array(beta, dtype=object) for beta in betas]
-
-        # Create dictionaries, one for each beta, and store the arrays of matrices with epsilon as key
-        beta_dicts = [defaultdict(list) for i in range(6)]
-        for i in range(6):
-            for epsilon, matrix in beta_arrays[i]:
-                beta_dicts[i][epsilon].append(matrix)
-
-        averages = []
-        for beta in beta_dicts:
-            avg_data = []
-
-            for epsilon, matrices in beta.items():
-                # Take elementwise average over all the matrices for each epsilon
-                stacked = np.stack(matrices)
-                avg_matrix = stacked.mean(axis=0)
-                avg_data.append(np.array((epsilon, avg_matrix), dtype=object))
-
-            avg_data = sorted(avg_data, key=lambda x: x[0])
-            averages.append(avg_data)
-        C = np.zeros((6, 6))
-        for i in range(6):
-            # Line fit epsilon vs sigma to find each c_ij
-            epsilons = np.array([x[0] for x in averages[i]], dtype=float)
-            for j in range(6):
-                sigmas = np.array([x[1][j] for x in averages[i]], dtype=float)
-                C[j, i] = np.polyfit(epsilons, sigmas, 1)[0]
-        C *= 160.21766208  # Convert to GPa
+    def readCMatrix(self):
+        C = np.load(f"{self.settings.output_file}_cmatrix.npy")
         return C
 
     def calculateModuli(self, C_matrix):
+        C_matrix *= auToGPascal(1)
         bulk_modulus = (C_matrix[0, 0] + 2 * C_matrix[0, 1]) / 3
         G_shear = (C_matrix[3, 3] + C_matrix[4, 4] + C_matrix[5, 5] + C_matrix[1, 1] - C_matrix[0, 1]) / 5
         youngs_modulus = 9 * bulk_modulus * G_shear / (3 * bulk_modulus + G_shear)
