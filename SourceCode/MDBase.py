@@ -243,7 +243,7 @@ class MDBase:
             sigmas = np.array(average_stress)
             for alpha in range(6):
                 C[alpha, beta] = np.polyfit(strains, sigmas[:, alpha], 1)[0]
-        C *= 160.21766208
+        np.save(f"{self.output_file}_cmatrix", C)
         
 
     def _set_voigt_component(self, eps, beta, value):
