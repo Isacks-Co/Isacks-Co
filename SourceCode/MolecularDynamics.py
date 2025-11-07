@@ -1,7 +1,11 @@
 import sys
 from PreProcessing import PreProcessing
 from MDBase import MDBase
+<<<<<<< HEAD
 from PostProcessing import PostProcessing
+=======
+from SourceCode.PostProcessing import PostProcessing
+>>>>>>> ae14402 ( Moved some of the writing of quantuities to psotprocessing and changed QC to only contain functions)
 import logging
 
 def main():
