@@ -1,7 +1,7 @@
 {
-  "Ensemble": "NVT",
+  "Ensemble": "NPT",
 
-  "Temperature": 5,
+  "Temperature": 300,
   "Timestep": 1,
   "Number_of_steps": 10000,
   "Sample_interval": 1,
@@ -13,5 +13,5 @@
   "Pdamp": 100,
 
   "Supercells": [5,5,5],
-  "Output_file" : "TestOutputs/testNearZeroOutput"
+  "Output_file" : "TestOutputs/testNPTCopperOutput"
 }

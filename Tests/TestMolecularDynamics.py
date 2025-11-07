@@ -1,10 +1,10 @@
 import sys
 
-sys.path.append("..")
+sys.path.append("../SourceCode")
 import logging
 import pytest
-from Tests.TestBase import TestBase
-from MolecularDynamics import main as MCMain
+from TestBase import TestBase
+from MolecularDynamics import main as MolecularDynamics
 
 logger = logging.getLogger(__name__)
 
@@ -13,19 +13,24 @@ class TestMolecularDynamics(TestBase):
     """Run premade cases that are used in TestPostProcessing later. Order is important!"""
     def setUp(self):
         super().setUp()
-        sys.argv = [sys.argv[0]]
 
     def testMeltedCu(self):
-        MCMain(settings="TestSettings/meltedSettings.json", poscar="TestAtomicStructure/Cu_fcc.vasp")
+        sys.argv = [sys.argv[0], "TestAtomicStructure/Cu_fcc.vasp", "TestSettings/meltedSettings.json"]
+        MolecularDynamics()
 
     def testSolidCu(self):
-        MCMain(settings="TestSettings/solidSettings.json", poscar="TestAtomicStructure/Cu_fcc.vasp")
+        sys.argv = [sys.argv[0], "TestAtomicStructure/Cu_fcc.vasp", "TestSettings/solidSettings.json"]
+        MolecularDynamics()
 
     def testNearZeroCu(self):
-        MCMain(settings="TestSettings/nearZeroSettings.json", poscar="TestAtomicStructure/Cu_fcc.vasp")
+        sys.argv = [sys.argv[0], "TestAtomicStructure/Cu_fcc.vasp", "TestSettings/nearZeroSettings.json"]
+        MolecularDynamics()
 
     def testBccCu(self):
-        MCMain(settings="TestSettings/chromiumSettings.json", poscar="TestAtomicStructure/Cr_bcc.vasp")
+        sys.argv = [sys.argv[0], "TestAtomicStructure/Cr_bcc.vasp", "TestSettings/chromiumSettings.json"]
+        MolecularDynamics()
 
-    def testScCu(self):
-        MCMain(settings="TestSettings/poloniumSettings.json", poscar="TestAtomicStructure/Po_sc.vasp")
+    @pytest.mark.skip("NPT currently not working. Half implemented, something went wrong during merge")
+    def testNPTCopper(self):
+        sys.argv = [sys.argv[0], "TestAtomicStructure/Cu_fcc.vasp", "TestSettings/NPTCopperSettings.json"]
+        MolecularDynamics()

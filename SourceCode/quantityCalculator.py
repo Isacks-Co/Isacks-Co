@@ -33,7 +33,6 @@ class QuantityCalculator:
         self.traj = traj
         self.settings = settings
         self.structure_name = self.traj[0].info["comment"]
-        self.numeric_elastic_properties = self._numericalC()
 
     def getQuantities(self):
         """
@@ -42,13 +41,11 @@ class QuantityCalculator:
         """
         # Compute all general quantities
 
-        #MSD = self.computeMSD() # Å  Should we output average over late frames ?
-        bulk_modulus = self.computeBulkModulus("../Outputs/isotropic_stretch.traj")
+        # MSD = self.computeMSD() # Å  Should we output average over late frames ?
         self_diffusion_coeff = selfDiffusionCoeffAuToSI(self.computeSelfDiffusionCoefficient())# m^2/s
         coh_energy = self.computeCohesiveEnergy() # ev
         internal_pressure = auToGPascal(self.computeInternalPressure()) #GPa
-        lindemann_crit = self.computeLindemannIndex() # Unitless
-        #debye_temperature = self.computeDebyeTemperature()
+        lindemann_crit = self.computeLindemannIndex() # Unitless)
 
 
         labels = ["D[m^2/s]","E_coh[eV]","L_crit[1]"] #, "T_D"
@@ -60,13 +57,13 @@ class QuantityCalculator:
                 quantities.append(Cv)
 
             case "NVT":
-                print("NVT")
+                self.numeric_elastic_properties = self._numericalC()
+                debye_temperature = self.computeDebyeTemperature()
                 internal_pressure = auToGPascal(self.computeInternalPressure())  # GPa
-                bulk_modulus = self.computeBulkModulus("../Outputs/isotropic_stretch.traj")
+                bulk_modulus = self.computeBulkModulus()
                 Cv = specificHeatAuToSI(self.computeSpecificHeatNVT()) # J/K per atom
-                labels.extend(["P_i[GPa]", "B[GPa]", "Cv[J/kgK]"])
-                quantities.extend([internal_pressure, bulk_modulus, Cv])
-
+                labels.extend(["Debye[K]", "P_i[GPa]", "B[GPa]", "Cv[J/kgK]"])
+                quantities.extend([debye_temperature, bulk_modulus, Cv])
 
                 C_matrix = self.readCMatrix()
                 bulk_modulus, g_shear, youngs_modulus = self.calculateModuli(C_matrix)
@@ -435,7 +432,7 @@ class QuantityCalculator:
 
 
     def calcNumericElasticModuli(self):
-        C = self.numeric_elastic_properties
+        C = self._numericalC()
         K = (C[0,0] + 2 * C[0,1]) / 3
         G = (3 * C[3,3] + C[0,0] - C[0,1]) / 5
         E = 9 * K * G / (3 * K + G)
@@ -454,9 +451,8 @@ class QuantityCalculator:
         youngs_modulus = 9 * bulk_modulus * G_shear / (3 * bulk_modulus + G_shear)
         return bulk_modulus, G_shear, youngs_modulus
 
-    def computeBulkModulus(self, stretched_traj):
-        import matplotlib.pyplot as plt
-        stretch_trajectory = Trajectory(stretched_traj)
+    def computeBulkModulus(self):
+        stretch_trajectory = Trajectory(f"{self.settings.output_file}_eos.traj")
         energies = []
         cells = []
         for frame in stretch_trajectory:
