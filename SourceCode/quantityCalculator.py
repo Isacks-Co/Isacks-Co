@@ -1,6 +1,6 @@
-from simulationInput import SimulationSettings
-from unitConversions import auToGPascal,specificHeatAuToSI,selfDiffusionCoeffAuToSI, evToJ
-from Utils import secondOrderNumericalDerivative, numericalDerivative
+from SourceCode.simulationInput import SimulationSettings
+from SourceCode.Utils.unitConversions import auToGPascal,specificHeatAuToSI,selfDiffusionCoeffAuToSI, evToJ
+from SourceCode.Utils.Utils import secondOrderNumericalDerivative, numericalDerivative
 
 from scipy.constants import physical_constants
 from ase.io.trajectory import Trajectory
@@ -23,11 +23,6 @@ logger = logging.getLogger(__name__)
 class QuantityCalculator: 
     """
     Object for handling computation of quantities. 
-    In:
-    settings: A SimulationSettings object containing information regarding the relevan MD run
-                such as ensemble, temperature ....
-    traj: Trajectory object with the data from each frame in the MD run. Each frame has data such as temperatures, energies and forces. 
-    
     """
     
 
@@ -172,8 +167,8 @@ class QuantityCalculator:
     #TODO Still need to look at the stuf below this
     
 
-
-    def nearestNeighborsMean(self, start: int, end: int = None): # TODO Look at this and make work without traj
+    @staticmethod
+    def nearestNeighborsMean( atoms_sequence, start: int, end: int = None): # TODO Look at this and make work without traj
         """Calculate the mean distance of nearest neighbor in the structure for the last ten states of the simulation
         Loop structure: Last ten states -> Each atom -> neighbors to current atom
 
@@ -187,7 +182,7 @@ class QuantityCalculator:
 
         for state in range(start, end):
             # Load neighbor list for the current state
-            atoms = self.traj[state]
+            atoms = atoms_sequence[state]
             cutoff = natural_cutoffs(atoms)
             neighbor_list = NeighborList(cutoff, bothways=True)
             neighbor_list.update(atoms)
@@ -216,19 +211,218 @@ class QuantityCalculator:
         NN_mean_distance = np.mean(NN_list)
         logger.debug(f"Mean value of nearest neighbor : {NN_mean_distance} å")
         return NN_mean_distance
-
-    def computeLindemannIndex(self, start:int = -25, end:int = 0):
+    
+    @staticmethod
+    def computeLindemannIndex( atoms_sequence, start:int = -25, end:int = 0):
         """Returns the global Lindemann index for the given interval
         (int) start : index for the start of the interval that should be checked
         (int) end  : index for the end of the interval that should be checked
         """
         lindemann_array = []
         for state in range(start, end):
-            lindemann_array.append(np.sqrt(self.computeMSD(frame = state)) / self.nearestNeighborsMean(state))
+            lindemann_array.append(np.sqrt(QuantityCalculator.computeMSD(atoms_sequence,frame = state)) / QuantityCalculator.nearestNeighborsMean(atoms_sequence,state))
         lindemann = np.mean(lindemann_array)
 
         logger.debug(f"Global Lindemann index for the intervals [{start}, {end}] : {lindemann}")
         return lindemann
+
+
+
+    @staticmethod
+    def computeDebyeTemperature(atoms, G, K):
+        V_A3 =atoms.get_volume()
+        mass_u = float(sum(atoms.get_masses()))
+        rho = (mass_u / V_A3)
+
+        transversal_sound_velocity = np.sqrt(G / rho)
+        longitudinal_sound_velocity = np.sqrt((K + 4.0 * G / 3.0) / rho)
+        sound_velocity = ((1.0 / 3.0) * (1.0 / (longitudinal_sound_velocity ** 3) + 2.0 / (transversal_sound_velocity ** 3))) ** (-1.0 / 3.0)
+
+        N = len(atoms)
+        n = (N / V_A3)
+
+        Theta_D = (hbar / kB) * ((6.0 * np.pi ** 2 * n) ** (1.0 / 3.0)) * sound_velocity / 10.18 # NEED TO DO SQRT(ev/u) to fs/Å
+        logger.info(f"Debye temperature: {Theta_D} K")
+        return Theta_D
+
+    @staticmethod
+    def calculateModuli(C_matrix):
+        bulk_modulus = (C_matrix[0, 0] + 2 * C_matrix[0, 1]) / 3
+        G_shear = (C_matrix[3, 3] + C_matrix[4, 4] + C_matrix[5, 5] + C_matrix[1, 1] - C_matrix[0, 1]) / 5
+        youngs_modulus = 9 * bulk_modulus * G_shear / (3 * bulk_modulus + G_shear)
+        return bulk_modulus, G_shear, youngs_modulus
+
+
+
+
+
+    
+
+    @staticmethod
+    def computeBulkModulus( stretch_sequence):
+        energies = []
+        cells = []
+        for frame in stretch_sequence:
+            energies.append(_get(frame, "E_pot"))
+            cells.append(_get(frame, "V"))
+
+        V = np.array(cells)
+        E = np.array(energies)
+        order = np.argsort(V)
+        E, V = E[order], V[order]
+
+        eos = EquationOfState(V, E, eos='birchmurnaghan')
+        v0, e0, B0_eVa3 = eos.fit()
+        B0_GPa = auToGPascal(B0_eVa3)
+        eos.plot('Ag-eos.png')
+        return B0_GPa
+
+
+
+
+
+
+    @staticmethod
+    def calculateCMatrix(strech_sequence):
+        
+        betas = [[], [], [], [], [], []]
+        for frame in strech_sequence:
+            # Add the corresponding values to the right beta (strain direction)
+            betas[frame.info["beta"]].append([frame.info["strain"], frame.info["stress"]])
+        beta_arrays = [np.array(beta, dtype=object) for beta in betas]
+
+        # Create dictionaries, one for each beta, and store the arrays of matrices with epsilon as key
+        beta_dicts = [defaultdict(list) for i in range(6)]
+        for i in range(6):
+            for epsilon, matrix in beta_arrays[i]:
+                beta_dicts[i][epsilon].append(matrix)
+
+        averages = []
+        for beta in beta_dicts:
+            avg_data = []
+
+            for epsilon, matrices in beta.items():
+                # Take elementwise average over all the matrices for each epsilon
+                stacked = np.stack(matrices)
+                avg_matrix = stacked.mean(axis=0)
+                avg_data.append(np.array((epsilon, avg_matrix), dtype=object))
+
+            avg_data = sorted(avg_data, key=lambda x: x[0])
+            averages.append(avg_data)
+        C = np.zeros((6, 6))
+        for i in range(6):
+            # Line fit epsilon vs sigma to find each c_ij
+            epsilons = np.array([x[0] for x in averages[i]], dtype=float)
+            for j in range(6):
+                sigmas = np.array([x[1][j] for x in averages[i]], dtype=float)
+                C[j, i] = np.polyfit(epsilons, sigmas, 1)[0]
+        C *= 160.21766208  # Convert to GPa
+        return C
+    
+
+
+    @staticmethod
+    def _numericalC(stretch_sequence): # TODO Not sure if this will work with my changes
+        """
+        Calculates the elastic constants C11, C22, C33, C12, C44
+
+        Input
+            ---
+
+        Output
+            C_from_U: matrix, where C11, C12, C44 = C[0,0], C[0,1], C[3,3]
+        """
+        betas = [[], [], [], [], [], []]
+        # Prefer reconstructing 1D slices from 2D trajectory to avoid stale 1D data
+        
+        used_2d = False
+        try:
+            
+            tol = 1e-12
+            for frame in stretch_sequence:
+                info = getattr(frame, 'info', {})
+                b1 = info.get('beta1')
+                b2 = info.get('beta2')
+                if b1 is None or b2 is None:
+                    continue
+                if int(b1) == int(b2) and np.isclose(float(info.get('strain1', 0.0)), 0.0, atol=tol):                   #Looks at difference between strains when creating 2D data
+                    i = int(b1)
+                    eps = float(info.get('strain2', 0.0))
+                    energy = float(info.get('total_energy', np.nan))
+                    stress = np.array(info.get('stress'), dtype=float)
+                    betas[i].append([eps, stress, energy])
+            used_2d = any(len(b) > 0 for b in betas)
+        except Exception as e2:
+            logger.info(f"Failed")
+        if not used_2d:
+            # Fallback to legacy 1D if available
+            try:
+                stretch_trajectory = Trajectory(self.settings.output_file + "_stretch_data.traj")
+                for frame in stretch_trajectory:
+                    energy = frame.info.get('total_energy')
+                    betas[int(frame.info['beta'])].append([float(frame.info['strain']), np.array(frame.info['stress'],
+                                                                                        dtype=float), float(energy)])
+                logger.info("Used legacy 1D stretch trajectory to compute elastic constants.")
+            except Exception as e:
+                logger.info(f"No usable stretch data found (2D or 1D): {e}")
+        beta_arrays = [np.array(beta, dtype=object) for beta in betas]
+        beta_dicts = [defaultdict(list) for i in range(6)]
+        averages = []
+
+        for i in range(6):
+            for eps, matrix, energy in beta_arrays[i]:
+                beta_dicts[i][eps].append((matrix, energy))
+
+        for beta in beta_dicts:
+            avg_data = []
+
+            for eps, matrices_and_energies in beta.items():
+                # Take elementwise average for each epsilon
+                matrices = np.stack([me[0] for me in matrices_and_energies])
+                energies = np.array([me[1] for me in matrices_and_energies], dtype=float)
+                avg_matrix = matrices.mean(axis=0)
+                avg_energy = np.nanmean(energies)  # ignore possible NaNs
+                avg_data.append(np.array((eps, avg_matrix, avg_energy), dtype=object))
+
+            avg_data = sorted(avg_data, key=lambda x: x[0])
+            averages.append(avg_data)
+
+        second_deriv = np.zeros((6,6))
+        
+
+        twoD_energies = stretch_sequence[-1].info["2D Energies"]
+        strains_axis = stretch_sequence[-1].info["Strains axis"]
+        number_of_pairs = stretch_sequence[-1].info["Number of pairs"]         # Should usually be 6
+
+        for i in range(int(np.sqrt(number_of_pairs))):
+            energy_1 = np.array([x[2] for x in averages[i]], dtype=float)
+            for j in range(int(np.sqrt(number_of_pairs))):
+                energy_2 = np.array([x[2] for x in averages[j]], dtype=float)
+                if i == j:
+                    second_deriv[i, j] = secondOrderNumericalDerivative(strains_axis, [energy_1, energy_2])
+                    continue
+                else:
+                    try:
+                        second_deriv[i, j] = secondOrderNumericalDerivative(strains_axis, twoD_energies[i][j])
+                    except Exception as e:
+                        logger.info(f"2D stretch calc failed for ({i},{j}), WHY THE FRICK???!: {e}")
+                        second_deriv[i, j] = 0.0
+
+        C_from_U = second_deriv / stretch_sequence[0].get_volume()
+        logger.debug(f"C_from_U = \n {C_from_U * auToGPascal(1)} \n")
+        logger.info(f" \n C_11 = {auToGPascal(C_from_U[0,0])} \n C_12 = {auToGPascal(C_from_U[0,1])} \n C_44 = {auToGPascal(C_from_U[3,3])}")
+
+        return C_from_U
+
+
+
+
+
+
+
+
+
+
 
 
     def computeDebyeTemperature(self): # TODO Problematic
@@ -283,177 +477,12 @@ class QuantityCalculator:
 
 
 
-    def _numericalC(self):
-        """
-        Calculates the elastic constants C11, C22, C33, C12, C44
-
-        Input
-            ---
-
-        Output
-            C_from_U: matrix, where C11, C12, C44 = C[0,0], C[0,1], C[3,3]
-        """
-        betas = [[], [], [], [], [], []]
-        # Prefer reconstructing 1D slices from 2D trajectory to avoid stale 1D data
-        path2d = self.settings.output_file + "_stretch2D_data.traj"
-        used_2d = False
-        try:
-            traj2d = Trajectory(path2d)
-            tol = 1e-12
-            for frame in traj2d:
-                info = getattr(frame, 'info', {})
-                b1 = info.get('beta1')
-                b2 = info.get('beta2')
-                if b1 is None or b2 is None:
-                    continue
-                if int(b1) == int(b2) and np.isclose(float(info.get('strain1', 0.0)), 0.0, atol=tol):                   #Looks at difference between strains when creating 2D data
-                    i = int(b1)
-                    eps = float(info.get('strain2', 0.0))
-                    energy = float(info.get('total_energy', np.nan))
-                    stress = np.array(info.get('stress'), dtype=float)
-                    betas[i].append([eps, stress, energy])
-            used_2d = any(len(b) > 0 for b in betas)
-        except Exception as e2:
-            logger.warning(f"Failed to read 2D stretch trajectory at {path2d}: {e2}")
-        if not used_2d:
-            # Fallback to legacy 1D if available
-            try:
-                stretch_trajectory = Trajectory(self.settings.output_file + "_stretch_data.traj")
-                for frame in stretch_trajectory:
-                    energy = frame.info.get('total_energy')
-                    betas[int(frame.info['beta'])].append([float(frame.info['strain']), np.array(frame.info['stress'],
-                                                                                        dtype=float), float(energy)])
-                logger.warning("Used legacy 1D stretch trajectory to compute elastic constants.")
-            except Exception as e:
-                logger.warning(f"No usable stretch data found (2D or 1D): {e}")
-        beta_arrays = [np.array(beta, dtype=object) for beta in betas]
-        beta_dicts = [defaultdict(list) for i in range(6)]
-        averages = []
-
-        for i in range(6):
-            for eps, matrix, energy in beta_arrays[i]:
-                beta_dicts[i][eps].append((matrix, energy))
-
-        for beta in beta_dicts:
-            avg_data = []
-
-            for eps, matrices_and_energies in beta.items():
-                # Take elementwise average for each epsilon
-                matrices = np.stack([me[0] for me in matrices_and_energies])
-                energies = np.array([me[1] for me in matrices_and_energies], dtype=float)
-                avg_matrix = matrices.mean(axis=0)
-                avg_energy = np.nanmean(energies)  # ignore possible NaNs
-                avg_data.append(np.array((eps, avg_matrix, avg_energy), dtype=object))
-
-            avg_data = sorted(avg_data, key=lambda x: x[0])
-            averages.append(avg_data)
-
-        second_deriv = np.zeros((6,6))
-        stretch_2D_trajectory = Trajectory(self.settings.output_file + "_stretch2D_data.traj")
-
-        twoD_energies = stretch_2D_trajectory[-1].info["2D Energies"]
-        strains_axis = stretch_2D_trajectory[-1].info["Strains axis"]
-        number_of_pairs = stretch_2D_trajectory[-1].info["Number of pairs"]         # Should usually be 6
-
-        for i in range(int(np.sqrt(number_of_pairs))):
-            energy_1 = np.array([x[2] for x in averages[i]], dtype=float)
-            for j in range(int(np.sqrt(number_of_pairs))):
-                energy_2 = np.array([x[2] for x in averages[j]], dtype=float)
-                if i == j:
-                    second_deriv[i, j] = secondOrderNumericalDerivative(strains_axis, [energy_1, energy_2])
-                    continue
-                else:
-                    try:
-                        second_deriv[i, j] = secondOrderNumericalDerivative(strains_axis, twoD_energies[i][j])
-                    except Exception as e:
-                        logger.warning(f"2D stretch calc failed for ({i},{j}), WHY THE FRICK???!: {e}")
-                        second_deriv[i, j] = 0.0
-
-        C_from_U = second_deriv / self.traj[0].get_volume()
-        logger.debug(f"C_from_U = \n {C_from_U * auToGPascal(1)} \n")
-        logger.debug(f" \n C_11 = {auToGPascal(C_from_U[0,0])} \n C_12 = {auToGPascal(C_from_U[0,1])} \n C_44 = {auToGPascal(C_from_U[3,3])}")
-
-        return C_from_U
+   
 
 
-    def calcNumericElasticModuli(self):
-        C = self._numericalC()
-        K = (C[0,0] + 2 * C[0,1]) / 3
-        G = (3 * C[3,3] + C[0,0] - C[0,1]) / 5
-        E = 9 * K * G / (3 * K + G)
-        logger.debug(f" \n K = {auToGPascal(K)} GPa \n G = {auToGPascal(G)} GPa \n E = {auToGPascal(E)} GPa")
-        return {"K": K, "G": G, "E": E}
+
+    
+
+    
 
 
-    def readCMatrix(self):
-        C = np.load(f"{self.settings.output_file}_cmatrix.npy")
-        return C
-
-    def calculateModuli(self, C_matrix):
-        C_matrix *= auToGPascal(1)
-        bulk_modulus = (C_matrix[0, 0] + 2 * C_matrix[0, 1]) / 3
-        G_shear = (C_matrix[3, 3] + C_matrix[4, 4] + C_matrix[5, 5] + C_matrix[1, 1] - C_matrix[0, 1]) / 5
-        youngs_modulus = 9 * bulk_modulus * G_shear / (3 * bulk_modulus + G_shear)
-        return bulk_modulus, G_shear, youngs_modulus
-
-    def computeBulkModulus(self):
-        stretch_trajectory = Trajectory(f"{self.settings.output_file}_eos.traj")
-        energies = []
-        cells = []
-        for frame in stretch_trajectory:
-            energies.append(_get(frame, "E_pot"))
-            cells.append(_get(frame, "V"))
-
-        V = np.array(cells)
-        E = np.array(energies)
-        order = np.argsort(V)
-        E, V = E[order], V[order]
-
-        eos = EquationOfState(V, E, eos='birchmurnaghan')
-        v0, e0, B0_eVa3 = eos.fit()
-        B0_GPa = auToGPascal(B0_eVa3)
-        eos.plot('Ag-eos.png')
-        return B0_GPa
-
-
-def _get(frame, name):
-    """Read from info/arrays first (traj-safe), else fall back to get_* (requires calc)."""
-    try:
-        if name == "E_pot":
-            E_pot = frame.info.get("E_pot")
-            return float(E_pot) if E_pot is not None else frame.get_potential_energy()
-
-        if name == "E_kin":
-            E_kin = frame.info.get("E_kin")
-            return float(E_kin) if E_kin is not None else frame.get_kinetic_energy()
-
-        if name == "E_tot":
-            E_tot = frame.info.get("E_tot")
-            return float(E_tot) if E_tot is not None else frame.get_total_energy()
-
-        if name == "V":
-            v = frame.info.get("V")
-            return float(v) if v is not None else frame.get_volume()
-
-        if name == "T":
-            T = frame.info.get("T")
-            return float(T) if T is not None else frame.get_temperature()
-
-        if name == "F":
-            #1) arrays['F']
-            F = frame.arrays.get("F")
-            if F is not None:
-                return np.asarray(F, float)
-            #2) info['F']
-            Fi = frame.info.get("F", frame.info.get("forces"))
-            if Fi is not None:
-                return np.asarray(Fi, float)
-            #3) fallback
-            try:
-                return np.asarray(frame.get_forces(), float)
-            except Exception:
-                return None
-
-
-    except Exception:
-        return None

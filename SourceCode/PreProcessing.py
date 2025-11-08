@@ -9,7 +9,6 @@ import sys
 import logging
 
 from ase.io import read
-from ase.lattice.cubic import FaceCenteredCubic
 import numpy as np
 
 
