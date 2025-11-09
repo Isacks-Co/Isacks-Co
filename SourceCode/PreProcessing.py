@@ -1,8 +1,8 @@
-from simulationInput import NPTSettings,NVESettings,NVTSettings
-from inputParser import InputParser
-from MDBase import MDBase
-from simulationInput import NPTSettings,NVESettings,NVTSettings
-from inputParser import InputParser
+from SourceCode.simulationInput import NPTSettings,NVESettings,NVTSettings
+from SourceCode.Utils.inputParser import InputParser
+from SourceCode.Old.MDBase import MDBase
+from SourceCode.simulationInput import NPTSettings,NVESettings,NVTSettings
+from SourceCode.Utils.inputParser import InputParser
 
 import json
 import sys

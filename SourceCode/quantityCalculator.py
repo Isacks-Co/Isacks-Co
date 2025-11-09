@@ -1,6 +1,6 @@
 from SourceCode.simulationInput import SimulationSettings
 from SourceCode.Utils.unitConversions import auToGPascal,specificHeatAuToSI,selfDiffusionCoeffAuToSI, evToJ
-from SourceCode.Utils.Utils import secondOrderNumericalDerivative, numericalDerivative
+from SourceCode.Utils.plotting import secondOrderNumericalDerivative, numericalDerivative
 
 from scipy.constants import physical_constants
 from ase.io.trajectory import Trajectory
