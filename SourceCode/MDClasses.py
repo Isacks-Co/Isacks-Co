@@ -1,79 +1,108 @@
 from ase.units import fs
+from ase.io.trajectory import Trajectory
 
-from DataContainer import DataTrajectory,Frame
+from SourceCode.ASEWrappers import DataTrajectory,Frame
+from SourceCode.ASEWrappers import AtomicStructure
+from functools import partial
 
 class MDBase:
     def __init__(self,settings):
-
-        self.timestep = settings.timestep * fs
-        
+        self.integrator = settings.integrator
         self.sample_data = None
-        
+        self.run_type = None
 
         
-    def run(self,atoms,num_steps, store_traj, **kwargs):
+    def run(self,atomic_structure: AtomicStructure ,num_steps, store_traj, **kwargs):
         pass
 
 
-    def _storeFrame(self,atoms,data_traj: DataTrajectory):
-        data = {label: self._getAtomsData(atoms,label) for label in  self.sample_data }
+    def _storeFrame(self,atomic_strucuture: AtomicStructure,data_traj: DataTrajectory):
+        data = {label: self._getAtomsData(atomic_strucuture,label) for label in  self.sample_data }
         frame = Frame(data)
         data_traj.append(frame)
-    
-    def _getAtomsData(atoms, name):
+
+    def _SaveASETrajectory(self,atomic_structure: AtomicStructure,interval = 1):
+        traj = Trajectory(filename=f"{atomic_structure.label}_{self.run_type}.traj", mode="w")
+        self.integrator.attach(traj.write,interval)
+
+    @staticmethod
+    def _getAtomsData(atomic_structure: AtomicStructure, name):
         """
         Help function for getting specific data from the ASE atoms object.
         """
-        if atoms.calc is None:
-            raise RuntimeError("Atoms object has no calculator")
+        if atomic_structure.potential is None:
+            raise RuntimeError("Atoms object has no potential")
         
         if name == "E_pot":
-            E_pot = atoms.get_potential_energy()
+            E_pot = atomic_structure.potential_energy()
             return E_pot
 
         if name == "E_kin":
-            E_kin = atoms.get_kinetic_energy()
+            E_kin = atomic_structure.kinetic_energy()
             return E_kin
 
         if name == "E_tot":
-            E_tot = atoms.get_total_energy()
+            E_tot = atomic_structure.total_energy()
             return E_tot
 
         if name == "V":
-            vol = atoms.get_volume()
+            vol = atomic_structure.volume()
             return vol
         
         if name == "T":
-            T = atoms.get_temperature()
+            T = atomic_structure.temperature()
             return T
 
         if name == "F":
-            F = atoms.get_forces()
+            F = atomic_structure.forces()
             return F
             
 class EquilibriumRun(MDBase):
+    def __init__(self, settings):
+        super().__init__(settings)
+        self.run_type = "Equil"
     
-    def run(self,atomic_structure ,num_steps, init_vel = True,store_traj = True):
+    def run(self,atomic_structure: AtomicStructure ,num_steps,store_traj = True):
+
+        #TODO Should init_vel be here or is this "user responsibility" 
+
+        if store_traj:
+            self._SaveASETrajectory(atomic_structure)
+        
+        self.integrator.run(atomic_structure,num_steps) 
+        # TODO Add equil check / Fail check
+        return atomic_structure
+
+
+
+class SampleRun(MDBase):
+    def __init__(self, settings):
+        super().__init__(settings)
+        self.run_type = "Sample"
+        
+    def run(self,atomic_structure: AtomicStructure ,num_steps,store_traj = False):
+        
+        #TODO Should init_vel be here or is this "user responsibility" 
+        data_traj = DataTrajectory(atomic_structure)
+        if store_traj:
+            self._SaveASETrajectory(atomic_structure)
+
+        self.integrator.attach(self._storeFrame(atomic_strucuture=atomic_structure,data_traj = data_traj))
         
         
+        self.integrator.run(atomic_structure,num_steps) 
+        # TODO Add equil check / Fail check
+        return data_traj
+    
 
-        MaxwellBoltzmannDistribution(atoms, temperature_K=self.temperature_k,
-                                     force_temp=True)  # Initialize velocity according to temperature_k
-        Stationary(atoms) # Make sure center of mass has no linear momentum
-        ZeroRotation(atoms) # Make sure center of mass has no angular momentum, might not be needed
-        self.equilibriumRun(atoms=atoms) # TODO BREAKS TO EARLY
+class StrecthRun(MDBase): #TODO Finish this
+    def __init__(self, settings):
+        super().__init__(settings)
+        self.run_type = "Stretch"
+        
+    def run(self,atomic_structure: AtomicStructure ,num_steps,store_traj = True):
+        pass
+    
 
-        log.info("MD run starts with: %i steps", self.steps)
-        dyn = self.integrator(atoms=atoms)
-
-        traj = Trajectory(filename=f"{self.output_file}.traj", mode="w", atoms=atoms) ## currently have .. before
-
-        dyn.attach(lambda: self.save_data(atoms,traj),
-                   interval=self.interval)
-
-        # Continue with the main MD run
-        dyn.run(self.steps)  # RUN
-
-
-
+    
 

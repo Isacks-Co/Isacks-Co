@@ -11,7 +11,7 @@ class Frame:
 
 class DataTrajectory:
     def __init__(self, initial_atoms = None):
-        self.initial_atoms = initial_atoms
+        self.initial_atoms = initial_atoms.deepcopy()
         self._frames = []
 
     def append(self,frame: Frame):

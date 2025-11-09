@@ -19,13 +19,13 @@ class Integrator:
     def attach(self,attachment,interval):
         self.attachments.append( (attachment,interval))
 
-    def _addAttachments(self,integrator,atomic_structure):
+    def _addAttachments(self,integrator):
         for func,interval in self.attachments:
-            integrator.attach(lambda: func(atomic_structure),interval = interval)
-
+            integrator.attach(func,interval = interval)
+        
     def run(self,atomic_structure,steps):
         integrator_func = self.integrator_partial(atomic_structure.get_atoms())
-        integrator_func = self._addAttachments(integrator_func,atomic_structure)
+        self._addAttachments(integrator_func,atomic_structure)
         self.integrator_func.run(steps)
 
     def __str__(self):
