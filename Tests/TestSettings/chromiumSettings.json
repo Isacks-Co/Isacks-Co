@@ -1,0 +1,17 @@
+{
+  "Ensemble": "NVE",
+
+  "Temperature": 300,
+  "Timestep": 1,
+  "Number_of_steps": 1000,
+  "Sample_interval": 1,
+  "Potential": "LJ",
+
+  "Friction": 0.05,
+  "Pressure": 0,
+  "Tdamp": 10,
+  "Pdamp": 100,
+
+  "Supercells": [5,5,5],
+  "Output_file" : "TestOutputs/testChromiumOutput"
+}

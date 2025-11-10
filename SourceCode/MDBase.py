@@ -363,7 +363,7 @@ class MDBase:
 
         """
 
-        div_factor = 1.8
+        div_factor = 3
         current_T = atoms.get_temperature()
 
         if not np.isfinite(current_T):
@@ -388,23 +388,19 @@ class MDBase:
             case "NVE":
                 self.quantity_list.append(atoms.get_temperature())
 
-    def _make_eos_traj(self, atoms, eta=0.12, npoints=20, relax=False, fmax=0.02,
-                       traj_path=f"../Outputs/isotropic_stretch.traj"):
+    def _make_eos_traj(self, atoms, eta=0.12, npoints=20, relax=False, fmax=0.02):
         """
         Creates isotrophic scaling of cell
             eta: max scaling factor
             npoints: nbr of points between (1-eta) och (1+eta)
             relax: if True, relax only inrternal positions at everyt volume
             fmax: force criteria for relax
-            traj_path:
         Return: traj_path
         """
         from ase.optimize import BFGS
         from ase.md.langevin import Langevin
 
-
-        if traj_path is None:
-            traj_path = f"{self.output_file}_eos.traj"
+        traj_path = f"{self.output_file}_eos.traj"
 
 
 

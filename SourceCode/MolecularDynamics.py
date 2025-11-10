@@ -1,11 +1,10 @@
 import sys
 from PreProcessing import PreProcessing
 from MDBase import MDBase
-from newPostProcessing import PostProcessing
+from PostProcessing import PostProcessing
 import logging
 
-
-if __name__ == "__main__":
+def main():
     try:
         log = logging.getLogger(__name__)
         PP = PreProcessing(sys.argv)
@@ -28,3 +27,6 @@ if __name__ == "__main__":
         log.error(f"Calculating quantities failed: {err}") #should probably add the err, here instead
         exit(1)
     log.info("Simulation done")
+
+if __name__ == "__main__":
+    main()

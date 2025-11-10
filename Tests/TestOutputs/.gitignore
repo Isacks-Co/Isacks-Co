@@ -1,3 +1,4 @@
 *.traj
 *.log
 *.txt
+*.npy

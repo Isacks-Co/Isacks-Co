@@ -1,5 +1,0 @@
-Cu_fcc
-Ensemble: NVT
-
-D[m^2/s]            E_coh[eV]           L_crit[1]           P_i[GPa]            B[GPa]              Cv[J/kgK]           B                   G                   E                   
-0.000               3.471               0.045               

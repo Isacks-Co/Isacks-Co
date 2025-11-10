@@ -2,7 +2,7 @@ name: CI
 
 on:
   pull_request:
-    branches: [ "dev" ]
+    branches: [ "dev" , "main" ]
 
 permissions:
   contents: read
@@ -27,10 +27,15 @@ jobs:
     - name: CI-tests
       run: |
         cd Tests
-        pytest --junit-xml=report.xml --color=yes
+        pytest -k TestMolecularDynamics.py --junit-xml=TestMolecularDynamics.xml --color=yes
+        pytest -k "not TestMolecularDynamics.py" --junit-xml=TestReport.xml --color=yes
         cd ..
 
+  upload-reports:
     - name: Upload-results
-      uses: actions/upload-artifact@v4
+      uses: dorny/test-reporter@v2
+      if: ${{ !cancelled() }}
       with:
-        path: Tests\*.xml
+        name: Pytest results
+        path: Tests\Test*.xml
+        reporter: jest-junit

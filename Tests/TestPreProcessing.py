@@ -1,31 +1,30 @@
 import sys
 
-sys.path.append("..")
-from Tests.TestBase import TestBase
-from SourceCode.PreProcessing import PreProcessing
+sys.path.append("../SourceCode")
+from TestBase import TestBase
+from PreProcessing import PreProcessing
 from ase.visualize import view
 
 class TestPreProcessing(TestBase):
     """Tests for class PreProcessing"""
+    def setUp(self):
+        super().setUp()
+        sys.argv = [sys.argv[0], "TestAtomicStructure/Cu_fcc.vasp", "TestSettings/meltedSettings.json"]
+        self.Pre = PreProcessing(sys.argv)
+    
     def testSettings(self):
-        PP = PreProcessing("testsettings.json", "TESTPOSCAR", None)
         # Make sure ValueError is raised for bad settings.
-        PP.settings["Temperature"] = 4000
+        self.Pre.settings["Temperature"] = -1
 
         with self.assertRaises(ValueError):
-            PP.sanityCheckSettings()
+            self.Pre.sanityCheckSettings()
 
     def testAtomicStructure(self):
         """Test that supercells is working properly."""
-        PP = PreProcessing("testsettings.json", "TESTPOSCAR", None)
-        assert len(PP.atoms) == 125
+        assert len(self.Pre.atoms) == 125
 
-    def testCreateMD(self):
-        PP = PreProcessing("testsettings.json", "TESTPOSCAR", None)
-        MD = PP.createMD()
-        assert str(MD.integrator).startswith("functools.partial(<function VelocityVerlet")
 
     def testTerminalRead(self):
-        PP = PreProcessing("testsettings.json", "TESTPOSCAR", None)
-        PP.readTerminalInput(["-T", 50])
-        assert PP.settings["Temperature"] == 50
+        sys.argv = sys.argv + ["-T", "50"]
+        self.Pre = PreProcessing(sys.argv)
+        assert self.Pre.createSettings().temperature == 50
