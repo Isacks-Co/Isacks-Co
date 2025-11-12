@@ -1,3 +1,4 @@
+from ASEWrappers import Potential,Integrator
 class SimulationSettings:
     """
     Abstract class for simulation settings.
@@ -12,23 +13,26 @@ class SimulationSettings:
         str output_file: Path to write output --> output_file.traj
         
     """
-    def __init__(self, timestep: float, num_steps: int, potential: str, output_file: str , supercells: list, interval: int):
-        self.timestep = timestep
+    def __init__(self, num_steps: int, potential: Potential, integrator: Integrator ):
+        
         self.num_steps = num_steps
-        self.sample_interval = interval
+        self.integrator = integrator
         self.potential = potential
-        self.output_file = output_file
-        self.supercells = supercells
+
     def __str__(self):
         return (
-            f"Timestep: {self.timestep} fs \n"
-            f"Number of steps: {self.num_steps} \n"
-            f"Sample interval: {self.sample_interval}  \n"
-            f"Number potential: {self.potential} \n"
-            f"Output path: {self.output_file} \n"
-            f"Supercells: {self.supercells}\n"
+            f"Number of steps: {self.num_steps} fs \n"
+            f"Potential: {self.potential} \n"
+            f"Integrator: {self.integrator}\n"
         )
         
+
+
+
+
+
+#TODO Remove.  Ensemble is directly related to the choice of integrator
+
 
 class NVESettings(SimulationSettings):
     """

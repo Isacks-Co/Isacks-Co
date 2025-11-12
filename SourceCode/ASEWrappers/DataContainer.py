@@ -1,8 +1,9 @@
+from copy import copy
 class Frame:
     def __init__(self,data_dict):
         self.data_dict = data_dict
     
-    def __getattr__(self, name):
+    def __getitem__(self, name):
         try:
             return self.data_dict[name]
         except KeyError:
@@ -10,8 +11,8 @@ class Frame:
 
 
 class DataTrajectory:
-    def __init__(self, initial_atoms = None):
-        self.initial_atoms = initial_atoms.deepcopy()
+    def __init__(self, initial_atomic_structure):
+        self.initial_atoms = copy(initial_atomic_structure)
         self._frames = []
 
     def append(self,frame: Frame):
@@ -21,6 +22,7 @@ class DataTrajectory:
         return len(self._frames)
     
     def __iter__(self): 
+        
         return iter(self._frames)
     
     def __getitem__(self, idx):

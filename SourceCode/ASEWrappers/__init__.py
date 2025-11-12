@@ -8,4 +8,4 @@ from .DataContainer import Frame, DataTrajectory
 from .potential import Potential, LennardJonesPotential, EMTPotential
 
 # Expose Integrators
-from .integrator import Integrator, VelocityVerletIntegrator, VelocityVerletIntegrator, IsoTropicMTKNPTIntegrator,BerendsenNPTIntegrator
+from .integrator import Integrator, VelocityVerletIntegrator,LangevinIntegrator, VelocityVerletIntegrator, IsotropicMTKNPTIntegrator,BerendsenNPTIntegrator

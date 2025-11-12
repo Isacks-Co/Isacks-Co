@@ -4,7 +4,7 @@ from asap3.md.nose_hoover_chain import IsotropicMTKNPT
 from asap3.md.nptberendsen import NPTBerendsen
 from ase.units import fs,GPa
 from functools import partial
-
+from copy import deepcopy
 class Integrator:
     def __init__(self,timestep):
         self.timestep = timestep
@@ -21,20 +21,29 @@ class Integrator:
 
     def _addAttachments(self,integrator):
         for func,interval in self.attachments:
+
             integrator.attach(func,interval = interval)
         
     def run(self,atomic_structure,steps):
-        integrator_func = self.integrator_partial(atomic_structure.get_atoms())
-        self._addAttachments(integrator_func,atomic_structure)
-        self.integrator_func.run(steps)
 
-    def __str__(self):
+        integrator_func = deepcopy(self.integrator_partial)(atomic_structure.getAtoms())
+
+        self._addAttachments(integrator_func)
+
+        integrator_func.run(steps)
+        self.clearData()
+       
+
+    def clearData(self):
+        self.atoms = None
+        self.attachments = []
+    def __str__(self): # TODO Expand on this
         return self.ensemble
     
 class VelocityVerletIntegrator(Integrator):
     def __init__(self,timestep):
         super().__init__(timestep=timestep)
-        self.partial = partial(VelocityVerlet, timestep=self.timestep *fs)
+        self.integrator_partial = partial(VelocityVerlet, timestep=self.timestep *fs)
     
     @property
     def ensemble(self):
@@ -45,20 +54,20 @@ class LangevinIntegrator(Integrator):
         super().__init__(timestep=timestep)
         self.temperature_K = temperature_K
         self.friction = friction 
-        self.integrator_func = partial(Langevin, timestep=self.timestep*fs, temperature_K=self.temperature_K,
+        self.integrator_partial = partial(Langevin, timestep=self.timestep*fs, temperature_K=self.temperature_K,
                                      friction=self.friction/fs)
     @property
     def ensemble(self):
         return "NVT"
     
-class IsoTropicMTKNPTIntegrator(Integrator):
+class IsotropicMTKNPTIntegrator(Integrator):
     def __init__(self,timestep,temperature_K,pressure,tdamp,pdamp):
         super().__init__(timestep=timestep)
         self.temperature_K = temperature_K
         self.pressure = pressure
         self.tdamp = tdamp
         self.pdamp = pdamp
-        self.integrator_func = partial(IsotropicMTKNPT, timestep=self.timestep*fs, temperature_K=self.temperature_K,
+        self.integrator_partial = partial(IsotropicMTKNPT, timestep=self.timestep*fs, temperature_K=self.temperature_K,
                                      pressure_au=self.pressure * GPa, tdamp = self.tdamp,pdamp = self.pdamp)
         
     @property
@@ -72,7 +81,7 @@ class BerendsenNPTIntegrator(Integrator):
         self.temperature_K = temperature_K
         self.pressure = pressure
         self.compressibility = compressibility
-        self.integrator_func = partial(NPTBerendsen, timestep=self.timestep*fs, temperature_K=self.temperature_K,
+        self.integrator_partial = partial(NPTBerendsen, timestep=self.timestep*fs, temperature_K=self.temperature_K,
                                      pressure_au=self.pressure * GPa,compressibility = self.compressibility / GPa)
         
     @property

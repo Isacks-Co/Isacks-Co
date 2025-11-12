@@ -1,9 +1,11 @@
-from SourceCode.simulationInput import NPTSettings,NVESettings,NVTSettings
-from SourceCode.Utils.inputParser import InputParser
-from SourceCode.Old.MDBase import MDBase
-from SourceCode.simulationInput import NPTSettings,NVESettings,NVTSettings
-from SourceCode.Utils.inputParser import InputParser
 
+
+from ASEWrappers.potential import EMTPotential,LennardJonesPotential
+from Utils import LJParams
+from ASEWrappers import VelocityVerletIntegrator,LangevinIntegrator,BerendsenNPTIntegrator
+from simulationInput import SimulationSettings
+from Utils.inputParser import InputParser
+from ASEWrappers import AtomicStructure
 import json
 import sys
 import logging
@@ -27,12 +29,13 @@ class PreProcessing:
         self.argparser = InputParser(args)
 
         #Init settings and atomic structure
+        
         self.settings = self.readSettings(self.argparser.args["input_settings"])
-        self.atoms = self.readAtomicStructure(self.argparser.args["input_structure"])
+        self.atomic_structure = self.readAtomicStructure(self.argparser.args["input_structure"])
 
         #Physical check of the input
-        self.sanityCheckAtomicStructure()
-        self.sanityCheckSettings()
+        #self.sanityCheckAtomicStructure() #TODO Problems with new structure
+        #self.sanityCheckSettings()
 
 
     def readSettings(self, input_settings):
@@ -59,7 +62,10 @@ class PreProcessing:
         """Reads atomic structure from a file, and extend cell according to supercell setting"""
 
         try:
-
+            atomic_structure = AtomicStructure.fromFile(input_structure,pbc = True, supercells= self.settings["Supercells"],potential=self.getPotential())
+            return atomic_structure
+        
+        #TODO Add this again if needed
             log.info("Reading atomic structure from: %s", input_structure)
             atoms = read(input_structure) * tuple(self.settings["Supercells"])
             atoms.pbc = True #TODO, Hard coded pbc always true for now.
@@ -76,42 +82,46 @@ class PreProcessing:
             log.error(error_msg)
             raise RuntimeError(error_msg)
 
-
-    def createSettings(self):
-        log.debug("Creating Settings object for ensemble: %s", self.settings["Ensemble"])
+    def getPotential(self):
+        match self.settings["Potential"]:
+            case "LJ":
+                lj_params = LJParams(material=self.atoms.info["comment"].split()[-1]) #TODO Problem
+                return LennardJonesPotential(eps = lj_params["epsilon_ev"],sigma=lj_params["sigma_A"],rc=lj_params["rc_A"],ro = lj_params["ro_A"])
+            case "EMT":
+                return EMTPotential()
+            
+        
+    def getIntegrator(self):
         match self.settings["Ensemble"]:
             case "NVE":
-
-                return NVESettings(init_temp=self.settings["Temperature"], potential=self.settings["Potential"],
-                                      timestep=self.settings["Timestep"], num_steps=self.settings["Number_of_steps"],
-                                      interval=self.settings["Sample_interval"], output_file=self.settings["Output_file"],
-                                      supercells= self.settings["Supercells"])
+                
+                return VelocityVerletIntegrator(timestep=self.settings["Timestep"])
             case "NVT":
-
-                return NVTSettings(temperature=self.settings["Temperature"], potential=self.settings["Potential"],
-                                      timestep=self.settings["Timestep"], num_steps=self.settings["Number_of_steps"],
-                                      interval=self.settings["Sample_interval"], output_file=self.settings["Output_file"],
-                                      friction=self.settings["Friction"],
-                                      supercells= self.settings["Supercells"])
+                
+                return LangevinIntegrator(timestep= self.settings["Timestep"],temperature_K=self.settings["Temperature"],friction=self.settings["Friction"])
             case "NPT":
 
-                return NPTSettings(temperature=self.settings["Temperature"], potential=self.settings["Potential"],
-                                      timestep=self.settings["Timestep"], num_steps=self.settings["Number_of_steps"],
-                                      interval=self.settings["Sample_interval"], output_file=self.settings["Output_file"],
-                                      pressure=self.settings["Pressure"],tdamp=self.settings["Tdamp"], pdamp=self.settings["Pdamp"], supercells= self.settings["Supercells"])
-            case _:
-                log.error("Invalid ensemble setting: %s", self.settings["Ensemble"])
-                raise ValueError(f"Invalid ensemble setting: {self.settings['Ensemble']}")
+                return BerendsenNPTIntegrator(timestep=self.settings["Timestep"],temperature_K=self.settings["Temperature"],pressure=self.settings["Pressure"],compressibility=self.settings["Compressibility"])
+            
+    def createSettings(self):
+        log.debug("Creating Settings object for ensemble: %s", self.settings["Ensemble"])
+        
+        potential = self.getPotential()
+        integrator = self.getIntegrator()
+        
+        return SimulationSettings(self.settings["Number_of_steps"],potential=potential,integrator=integrator)
 
 
-    def sanityCheckSettings(self):
+
+
+    def sanityCheckSettings(self): #TODO Put in the respective classes like integrator and atomic structure
         """
         Sanity check for the settings.json file. Makes sure that we only use EMT for
         valid metals. Also checks that relevant values are non-negative.
         """
         if self.settings["Potential"] == "EMT":
             elements = self.atoms.get_atomic_numbers()
-            log.info(f"Elements: {elements}")
+            
             if not np.all(np.isin(elements,[13, 28, 29, 46, 47, 78, 79])): # Check if the elements are supported for EMT potential
                 raise ValueError(f"Invalid potential: EMT potential only available for Al, Cu, Ag, Au, Ni, Pd, Pt.")
         if self.settings["Temperature"] > 3000:

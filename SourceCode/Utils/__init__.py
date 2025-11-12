@@ -1,3 +1,3 @@
 from .inputParser import InputParser
 from .LJRegistry import LJParams
-from logger import loggerSetup
+from .logger import loggerSetup

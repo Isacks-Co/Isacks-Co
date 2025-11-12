@@ -1,20 +1,16 @@
-from SourceCode.simulationInput import SimulationSettings
-from SourceCode.Utils.unitConversions import auToGPascal,specificHeatAuToSI,selfDiffusionCoeffAuToSI, evToJ
-from SourceCode.Utils.plotting import secondOrderNumericalDerivative, numericalDerivative
-
 from scipy.constants import physical_constants
 from ase.io.trajectory import Trajectory
 from ase import Atoms
 from ase.neighborlist import NeighborList, natural_cutoffs
-from ase.calculators.emt import EMT
 from ase.units import kB
 from ase.eos import EquationOfState
-from matplotlib import pyplot as plt
 from collections import defaultdict
-
 import numpy as np
 import logging
-from potentialSetUp import Potential
+
+from Utils.unitConversions import auToGPascal, evToJ
+from Utils.plotting import secondOrderNumericalDerivative
+
 
 hbar = physical_constants['Planck constant over 2 pi in eV s'][0] * 1e15
 
@@ -22,119 +18,54 @@ logger = logging.getLogger(__name__)
 
 class QuantityCalculator: 
     """
-    Object for handling computation of quantities. 
+    Computes derived quantities from sequences of instantaneus data
     """
     
 
     @staticmethod
-    def computeCohesiveEnergy(atoms):
-        """
-        Calculate the cohesive energy per atom. 
-        This is done by computing the difference in energy between the separate atoms and the bulk structure 
-        
-        Unit: ev/atom
-        """
-        
-        number = atoms.get_global_number_of_atoms()
-        e_atoms = 0
-
-        for symbol in atoms.get_chemical_symbols():
-            atom = Atoms(symbol, positions=[[0, 0, 0]], cell=[10, 10, 10], pbc=False)
-
-            atom.calc = atoms.calc
-            e_atoms += atom.get_potential_energy()
-        
-        e_bulk = _get(atoms, "E_pot")
-        e_coh = (e_bulk-e_atoms) / number
-        logger.info(f"Cohesive energy: {e_coh} eV")
-        return e_coh
-
-    @staticmethod
-    def computeSpecificHeatNVT(atoms_sequence): # TODO Make decision on where to put this
+    def computeSpecificHeatNVT(E_tot_seq,total_mass_amu,T):
         """ 
         Compute specific heat capacity as a time average of the total energy fluctuations 
         over all frames.
         Unit: ev/(amu*K) (amu = atomic mass unit)
         """
-        #energy = np.array([atom_frame.get_total_energy() for atom_frame in self.traj])
-        #temperature = np.mean([atom_frame.get_temperature() for atom_frame in self.traj])
-        energy = np.array([_get(frame, "E_tot") for frame in atoms_sequence])
-        temperature = np.mean([_get(frame, "T") for frame in atoms_sequence])
+       
+        E_tot_seq = np.array(E_tot_seq)
 
-        e_mean = np.mean(energy)
-        e_2_mean = np.mean(energy**2)
-        prefactor = 1/(kB*temperature**2)
-        total_mass_amu = float(sum(atoms_sequence[0].get_masses()))
+        e_mean = np.mean(E_tot_seq)
+        e_2_mean = np.mean(E_tot_seq**2)
+        prefactor = 1/(kB*T**2)
         specific_heat =  prefactor * (e_2_mean-e_mean**2)/total_mass_amu # Specific heat in ev/amu*K
-        logger.debug(f"Cv: {specificHeatAuToSI(specific_heat)} J/(kg*K)")
+        
         return specific_heat
     
     @staticmethod
-    def computeSpecificHeatNVE(atoms_sequence): # TODO Make decision on where to put this
+    def computeSpecificHeatNVE(E_kin_seq,total_mass_amu,T): 
         """
         Compute specific heat capacity as a time average of the kinetic energy fluctuations 
         over all frames. 
         Unit: ev/(amu*K) (amu = atomic mass units)
         """
-        e_kin = np.array([_get(fr, "E_kin") for fr in atoms_sequence])
-        T = float(np.nanmean([_get(fr, "T") for fr in atoms_sequence]))
 
-        e_kin_mean = np.mean(e_kin)
-        e_kin_2_mean = np.mean(e_kin**2)
-        total_mass_amu = float(sum(atoms_sequence[0].get_masses()))
-        specific_heat =  (3*kB/2)*1/(1-(2/(3*(kB*T)**2)*(e_kin_2_mean - e_kin_mean**2)))/total_mass_amu # Should verify
-        logger.debug(f"Cv: {specificHeatAuToSI(specific_heat)} J/(kg*K)")
-        return specific_heat
-    
-    @staticmethod
-    def computeLatticeConstant(atoms): # Need to test
-        #lattice_frames = [atoms.get_cell().cellpar() for atoms in self.traj]
+        e_kin_mean = np.mean(E_kin_seq)
+        e_kin_2_mean = np.mean(E_kin_seq**2)
+
+        specific_heat =  (3*kB/2)*1/(1-(2/(3*(kB*T)**2)*(e_kin_2_mean - e_kin_mean**2)))/total_mass_amu
         
-        #lattice_mean = np.mean(lattice_frames,axis = 0)
+        return specific_heat
 
-        lattice_mat = atoms.get_cell().cellpar()
-        logger.info(f"Lattice constant: {lattice_mat}")
-        return lattice_mat
     
     @staticmethod
-    def computeInternalPressure(atoms_sequence): # TODO Currently only valid for NVT look into implementaions for other ensembles
-        """
-        Compute internal pressure using atomic units internally.
-        Instantaneous: P = (1/3V) [ 2 N E_kin + sum_i r_i · f_i ]
-        Returns a mean over the instantaneous frames in the trajectory
-        Unit: ev/Å^3
-        """
-        internal_pressures_eVA3 = []
-        N = len(atoms_sequence[0])
-
-        for atoms in atoms_sequence:
-            e_kin_eV = _get(atoms, "E_kin")
-            V_A3 = _get(atoms, "V")
-            forces_eVA = _get(atoms, "F")
-            positions_A = atoms.get_positions()
-            sum_rf = np.sum(forces_eVA * positions_A)
-            P_eVA3 = (1.0 / (3.0 * V_A3)) * (2.0 * e_kin_eV + sum_rf)
-            internal_pressures_eVA3.append(P_eVA3)
-
-        avg_P = np.mean(internal_pressures_eVA3) if internal_pressures_eVA3 else float('nan')
-        logger.debug(f"Average internal pressure: {avg_P} eV/Å^3")
-        return avg_P
-    @staticmethod
-    def computeMSD( atoms_sequence,frame, reference=0):
+    def computeMSD(r_0, r_n):
         """
         Compute MSD for a specific frame relatice the first frame in the trajectory. 
         Should not use data from the first 10 points since to close to reference
-        Unit: Å^2
         """
-        r_0 = atoms_sequence[reference].get_positions()  # Å
-        r_n = atoms_sequence[frame].get_positions()  # Å
 
-        msd = np.mean((r_0 - r_n) ** 2)
-        logger.debug(f"MSD: {msd} å²")
-        return msd
+        return np.mean((r_0 - r_n) ** 2)
     
     @staticmethod
-    def computeSelfDiffusionCoefficient(atoms_sequence,sample_spacing):  # Needs constant temperature, for current implementation. 
+    def computeSelfDiffusionCoefficient(msd_list,sample_spacing):  # Needs constant temperature, for current implementation. 
         
         """
         Compute self diffusion coefficient from the slope of MSD over a large timeperiod
@@ -143,17 +74,17 @@ class QuantityCalculator:
 
         # Find the actual elapsed time
         timestep_list = []
-        for i in range(len(atoms_sequence)):
+        for i in range(len(msd_list)):
             timestep = i * sample_spacing
             timestep_list.append([timestep, i])
 
         if len(timestep_list) > 100: # Since early values of MSD are inaccurate
-            msd0 = QuantityCalculator.computeMSD(atoms_sequence=atoms_sequence,frame=timestep_list[50][1])
-            msd_final = QuantityCalculator.computeMSD(atoms_sequence=atoms_sequence,frame=timestep_list[-1][1])
+            msd0 = msd_list[50]
+            msd_final = msd_list[-1]
             t_0 = timestep_list[50][0]
             t_end = timestep_list[-1][0]
             D = (msd_final-msd0)/(t_end - t_0)
-            logger.debug(f"Self-diffusion coefficent: {selfDiffusionCoeffAuToSI(D)} m²/s")
+            
         else:
             logger.error("Too small sample size to calculate self-diffusion coefficient")
             D = None
@@ -161,6 +92,34 @@ class QuantityCalculator:
         return D / 6 # Å^2/fs
 
 
+
+    @staticmethod
+    def computeDebyeTemperature(V_A3,mass_u,N, G, K):
+        
+        rho = (mass_u / V_A3)
+
+        transversal_sound_velocity = np.sqrt(G / rho)
+        longitudinal_sound_velocity = np.sqrt((K + 4.0 * G / 3.0) / rho)
+        sound_velocity = ((1.0 / 3.0) * (1.0 / (longitudinal_sound_velocity ** 3) + 2.0 / (transversal_sound_velocity ** 3))) ** (-1.0 / 3.0)
+
+        
+        n = (N / V_A3)
+
+        Theta_D = (hbar / kB) * ((6.0 * np.pi ** 2 * n) ** (1.0 / 3.0)) * sound_velocity / 10.18 #TODO move to unit conversion file  to fs/Å
+        
+        return Theta_D
+
+    @staticmethod
+    def computeLindemannIndex( msd,nearest_neighour_d):
+        
+        return np.sqrt(msd) / nearest_neighour_d
+
+    @staticmethod
+    def calculateModuli(C_matrix):
+        bulk_modulus = (C_matrix[0, 0] + 2 * C_matrix[0, 1]) / 3
+        G_shear = (C_matrix[3, 3] + C_matrix[4, 4] + C_matrix[5, 5] + C_matrix[1, 1] - C_matrix[0, 1]) / 5
+        youngs_modulus = 9 * bulk_modulus * G_shear / (3 * bulk_modulus + G_shear)
+        return bulk_modulus, G_shear, youngs_modulus
 
 
 
@@ -212,54 +171,13 @@ class QuantityCalculator:
         logger.debug(f"Mean value of nearest neighbor : {NN_mean_distance} å")
         return NN_mean_distance
     
-    @staticmethod
-    def computeLindemannIndex( atoms_sequence, start:int = -25, end:int = 0):
-        """Returns the global Lindemann index for the given interval
-        (int) start : index for the start of the interval that should be checked
-        (int) end  : index for the end of the interval that should be checked
-        """
-        lindemann_array = []
-        for state in range(start, end):
-            lindemann_array.append(np.sqrt(QuantityCalculator.computeMSD(atoms_sequence,frame = state)) / QuantityCalculator.nearestNeighborsMean(atoms_sequence,state))
-        lindemann = np.mean(lindemann_array)
-
-        logger.debug(f"Global Lindemann index for the intervals [{start}, {end}] : {lindemann}")
-        return lindemann
-
-
-
-    @staticmethod
-    def computeDebyeTemperature(atoms, G, K):
-        V_A3 =atoms.get_volume()
-        mass_u = float(sum(atoms.get_masses()))
-        rho = (mass_u / V_A3)
-
-        transversal_sound_velocity = np.sqrt(G / rho)
-        longitudinal_sound_velocity = np.sqrt((K + 4.0 * G / 3.0) / rho)
-        sound_velocity = ((1.0 / 3.0) * (1.0 / (longitudinal_sound_velocity ** 3) + 2.0 / (transversal_sound_velocity ** 3))) ** (-1.0 / 3.0)
-
-        N = len(atoms)
-        n = (N / V_A3)
-
-        Theta_D = (hbar / kB) * ((6.0 * np.pi ** 2 * n) ** (1.0 / 3.0)) * sound_velocity / 10.18 # NEED TO DO SQRT(ev/u) to fs/Å
-        logger.info(f"Debye temperature: {Theta_D} K")
-        return Theta_D
-
-    @staticmethod
-    def calculateModuli(C_matrix):
-        bulk_modulus = (C_matrix[0, 0] + 2 * C_matrix[0, 1]) / 3
-        G_shear = (C_matrix[3, 3] + C_matrix[4, 4] + C_matrix[5, 5] + C_matrix[1, 1] - C_matrix[0, 1]) / 5
-        youngs_modulus = 9 * bulk_modulus * G_shear / (3 * bulk_modulus + G_shear)
-        return bulk_modulus, G_shear, youngs_modulus
-
-
-
+    
 
 
     
 
     @staticmethod
-    def computeBulkModulus( stretch_sequence):
+    def computeBulkModulus( stretch_sequence): #TODO Move so it is computed on the fly.
         energies = []
         cells = []
         for frame in stretch_sequence:
@@ -283,7 +201,7 @@ class QuantityCalculator:
 
 
     @staticmethod
-    def calculateCMatrix(strech_sequence):
+    def calculateCMatrix(strech_sequence): #TODO Move so it is computed on the fly.
         
         betas = [[], [], [], [], [], []]
         for frame in strech_sequence:
@@ -322,7 +240,7 @@ class QuantityCalculator:
 
 
     @staticmethod
-    def _numericalC(stretch_sequence): # TODO Not sure if this will work with my changes
+    def _numericalC(stretch_sequence): # TODO Move to do on the fly
         """
         Calculates the elastic constants C11, C22, C33, C12, C44
 
@@ -425,7 +343,7 @@ class QuantityCalculator:
 
 
 
-    def computeDebyeTemperature(self): # TODO Problematic
+    def computeDebyeTemperature(self): # TODO OLD
         """
         Compute Debye temperature using atomic units internally.
         Returns Theta_D in Kelvin (SI).
