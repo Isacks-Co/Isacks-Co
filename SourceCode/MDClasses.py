@@ -17,20 +17,23 @@ class MDBase:
 
 
     def _storeFrame(self,atomic_strucuture: AtomicStructure,data_traj: DataTrajectory):
-        
+        if len(data_traj) == 0:
+            time = 0
+        else:
+            time = data_traj[-1].time + self.integrator.timestep
       
-        data = {label:  self._getAtomsData(atomic_strucuture,label) for label in  self.sample_data }
+        data = {label:  self._getAtomsData(atomic_strucuture,label,data_traj.initial_atoms) for label in  self.sample_data }
 
-        frame = Frame(data)
+        frame = Frame(time,data)
  
         data_traj.append(frame)
   
     def _SaveASETrajectory(self,atomic_structure: AtomicStructure,interval = 1):
-        traj = Trajectory(filename=f"{atomic_structure.label}_{self.run_type}.traj", mode="w",atoms = atomic_structure.getAtoms())
+        traj = Trajectory(filename=f"{self.run_type}.traj", mode="w",atoms = atomic_structure.getAtoms())
         self.integrator.attach(traj.write,interval)
 
     @staticmethod
-    def _getAtomsData(atomic_structure: AtomicStructure, name):
+    def _getAtomsData(atomic_structure: AtomicStructure, name,initial_atomic_structure:AtomicStructure):
         """
         Help function for getting specific data from the ASE atoms object.
         """
@@ -58,10 +61,9 @@ class MDBase:
             T = atomic_structure.temperature
             return T
 
-        if name == "F":
-            F = atomic_structure.forces
-            return F
-            
+        if name == "MSD":
+            MSD = atomic_structure.computeMSD(initial_atomic_structure)
+            return MSD
 class EquilibriumRun(MDBase):
     def __init__(self, settings):
         super().__init__(settings)
@@ -70,22 +72,22 @@ class EquilibriumRun(MDBase):
     def run(self,atomic_structure: AtomicStructure ,num_steps,store_traj = True):
 
         #TODO Should init_vel be here or is this "user responsibility" 
-
+        print(atomic_structure.label)
         if store_traj:
             self._SaveASETrajectory(atomic_structure)
-     
+        print(atomic_structure.label)
         self.integrator.run(atomic_structure,num_steps)
- 
+        print(atomic_structure.label)
         # TODO Add equil check / Fail check
         return atomic_structure
 
 
 
 class SampleRun(MDBase):
-    def __init__(self, settings):
+    def __init__(self, settings,sample_data = "all"):
         super().__init__(settings)
         self.run_type = "Sample"
-        self.sample_data = {"E_tot","T"}
+        self.sample_data = ["T","E_tot","E_kin","E_pot","V","MSD"] if sample_data =="all" else sample_data
     def run(self,atomic_structure: AtomicStructure ,num_steps,store_traj = False):
         
         #TODO Should init_vel be here or is this "user responsibility" 
@@ -107,7 +109,7 @@ class StrecthRun(MDBase): #TODO Finish this
         super().__init__(settings)
         self.run_type = "Stretch"
         
-    def run(self,atomic_structure: AtomicStructure ,num_steps,store_traj = True): # TODO Convert to use the ASEWrappers and make it return C_matrix
+    def run(self,atomic_structure: AtomicStructure ,num_steps,store_traj = True): 
             
         strains = np.linspace(-0.005, 0.005, 5) # TODO Not hardcoded ? 
         cell0 = atomic_structure.cell
@@ -149,7 +151,7 @@ class StrecthRun(MDBase): #TODO Finish this
             sigmas = np.array(average_stress)
             for alpha in range(6):
                 C[alpha, beta] = np.polyfit(strains, sigmas[:, alpha], 1)[0]
-        np.save(f"{atomic_structure.label}_cmatrix", C)
+        np.save(f"cmatrix", C)
         return C
     
 
@@ -160,5 +162,5 @@ class StrecthRun(MDBase): #TODO Finish this
         stress_list.append(stress)
 
 
-    
+
 

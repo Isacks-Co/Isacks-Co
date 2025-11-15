@@ -1,6 +1,6 @@
 import sys
 import numpy as np
-sys.path.append("..")
+sys.path.append("../SourceCode")
 from Tests.TestBase import TestBase
 from SourceCode.ASEWrappers import DataContainer
 from ase.lattice.cubic import FaceCenteredCubic
@@ -28,6 +28,8 @@ class TestDataContainer(TestBase):
         assert isinstance(self.traj[0],Frame) 
         for i,frame in enumerate(self.traj):
             assert frame["Prop1"] == i
+    
+    
 
 
 

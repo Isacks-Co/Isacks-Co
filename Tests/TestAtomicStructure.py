@@ -1,6 +1,6 @@
 import sys
 import numpy as np
-sys.path.append("..")
+sys.path.append("../SourceCode")
 from Tests.TestBase import TestBase
 from SourceCode.ASEWrappers import AtomicStructure
 from SourceCode.ASEWrappers import EMTPotential

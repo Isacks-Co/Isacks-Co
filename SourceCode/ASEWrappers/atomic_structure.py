@@ -7,7 +7,7 @@ from .potential import Potential
 from ase.md.velocitydistribution import MaxwellBoltzmannDistribution,Stationary, ZeroRotation
 
 
-
+import os
 
 
 class AtomicStructure:
@@ -15,14 +15,15 @@ class AtomicStructure:
     Wrapper around ASE Atoms
     """
 
-    def __init__(self, atoms: Atoms, special_label = None):
+    def __init__(self, atoms: Atoms, special_label = None,label = None):
         self._atoms = atoms.copy()
         self._atoms.calc = atoms.calc
-        self._label = self._generateHashLabel(special_label)
+        self._label = self._generateHashLabel(special_label) if label == None else label
 
     @classmethod
     def fromFile(cls,path, pbc = True,supercells = [1,1,1], potential:Potential = None):
-
+        print(str(os.getcwd()))
+        print(path)
         atoms = read(path) * supercells
         atoms.calc = potential.getASEPotentialCalculator()
         atoms.pbc = pbc
@@ -36,7 +37,7 @@ class AtomicStructure:
 
     def __copy__(self):
 
-        return AtomicStructure(self._atoms)
+        return AtomicStructure(self._atoms,label=self.label)
         
     @property
     def potential(self):
@@ -75,7 +76,9 @@ class AtomicStructure:
             raise RuntimeError("Cannot get forces: no potential assigned")
         return self._atoms.get_stress(voigt=True)
 
-
+    @property
+    def masses(self):
+        return self._atoms.get_masses()
     @property
     def potential_energy(self):
         if self._atoms.calc is None:
@@ -177,6 +180,15 @@ class AtomicStructure:
     def label(self):
         return self._label 
     
+
+    def computeMSD(self,orig_struct):
+        if not isinstance(orig_struct,AtomicStructure):
+            raise TypeError("orig_struct needs to be type AtomicStructure")
+        r_0 = orig_struct.positions
+        r_n = self.positions
+
+
+        return np.mean((r_0 - r_n) ** 2)
     def _generateHashLabel(self,special_label):
 
         formula = self._atoms.get_chemical_formula()

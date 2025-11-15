@@ -31,6 +31,8 @@ class PreProcessing:
         #Init settings and atomic structure
         
         self.settings = self.readSettings(self.argparser.args["input_settings"])
+        print(self.settings)
+        print(self.argparser.args["input_structure"])
         self.atomic_structure = self.readAtomicStructure(self.argparser.args["input_structure"])
 
         #Physical check of the input
@@ -79,6 +81,7 @@ class PreProcessing:
             raise FileNotFoundError(f"File {input_structure} not found, please check it exists")
         except Exception:
             error_msg = f"Atomic structure file format could not be read"
+            
             log.error(error_msg)
             raise RuntimeError(error_msg)
 

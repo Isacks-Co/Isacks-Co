@@ -5,7 +5,7 @@ from TestBase import TestBase
 from PreProcessing import PreProcessing
 from ase.visualize import view
 
-class TestPreProcessing(TestBase):
+class TestPreProcessing(TestBase): # TODO Fix. Tests old version
     """Tests for class PreProcessing"""
     def setUp(self):
         super().setUp()

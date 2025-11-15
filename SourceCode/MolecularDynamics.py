@@ -1,4 +1,5 @@
 import sys
+from pathlib import Path
 from PreProcessing import PreProcessing
 <<<<<<< HEAD
 from MDBase import MDBase
@@ -10,7 +11,8 @@ from SourceCode.PostProcessing import PostProcessing
 =======
 from MDClasses import EquilibriumRun,SampleRun,StrecthRun
 from PostProcessing import PostProcessing
->>>>>>> cfcfbf4 (Integrated the new wrappers into the MD classes. Also worked a bit on filepaths. Currently runs everything except Postprocessin)
+
+
 import logging
 
 def main():
@@ -26,26 +28,26 @@ def main():
         exit(1)
     try:
         #TODO THIS WILL GET GROUPED USING A MDMANAGER CLASS
-        equil_MD = EquilibriumRun(settings= settings)
-        sample_MD = SampleRun(settings= settings)
-        stretch_MD = StrecthRun(settings= settings)
-        
-        equil_struct = equil_MD.run(atomic_structure,settings.num_steps)
        
+
+        
+        
+
+        equil_MD = EquilibriumRun(settings = settings)
+        sample_MD = SampleRun(settings = settings)
+        stretch_MD = StrecthRun(settings = settings)
+        
+        equil_struct = equil_MD.run(atomic_structure,settings.num_steps) # Equilibrium run
+        print(equil_struct.label)
         sample_data = sample_MD.run(equil_struct,settings.num_steps)
-        
+        sample_data.storeTxtFile()
         C_matrix = stretch_MD.run(equil_struct,settings.num_steps)
-        
         log.info("MD done")
     except Exception as err:
         log.error(f"Simulation failed: {err}") #should probably add the err, here instead
         exit(1)
-    try:
-        Postviz = PostProcessing(settings)
-        
-    except Exception as err:
-        log.error(f"Calculating quantities failed: {err}") #should probably add the err, here instead
-        exit(1)
+    
+
     log.info("Simulation done")
 
 if __name__ == "__main__":
