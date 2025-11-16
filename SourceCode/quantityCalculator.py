@@ -33,7 +33,7 @@ class QuantityCalculator:
         E_tot_seq = np.array(E_tot_seq)
 
         e_mean = np.mean(E_tot_seq)
-        e_2_mean = np.mean(E_tot_seq**2)
+        e_2_mean = np.mean(np.array(E_tot_seq)**2)
         prefactor = 1/(kB*T**2)
         specific_heat =  prefactor * (e_2_mean-e_mean**2)/total_mass_amu # Specific heat in ev/amu*K
         
@@ -48,7 +48,7 @@ class QuantityCalculator:
         """
 
         e_kin_mean = np.mean(E_kin_seq)
-        e_kin_2_mean = np.mean(E_kin_seq**2)
+        e_kin_2_mean = np.mean(np.array(E_kin_seq)**2)
 
         specific_heat =  (3*kB/2)*1/(1-(2/(3*(kB*T)**2)*(e_kin_2_mean - e_kin_mean**2)))/total_mass_amu
         

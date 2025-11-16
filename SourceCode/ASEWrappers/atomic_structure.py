@@ -22,8 +22,8 @@ class AtomicStructure:
 
     @classmethod
     def fromFile(cls,path, pbc = True,supercells = [1,1,1], potential:Potential = None):
-        print(str(os.getcwd()))
-        print(path)
+       
+     
         atoms = read(path) * supercells
         atoms.calc = potential.getASEPotentialCalculator()
         atoms.pbc = pbc
@@ -192,7 +192,7 @@ class AtomicStructure:
     def _generateHashLabel(self,special_label):
 
         formula = self._atoms.get_chemical_formula()
-        data = (self._atoms.numbers.tobytes() + self._atoms.positions.tobytes())
+        data = (self._atoms.numbers.tobytes() + self._atoms.positions.tobytes() + np.random.bytes(4))
         short_hash = hashlib.md5(data).hexdigest()[:6]  # first 6 chars
         if special_label == None:
             label = f"{formula}_{short_hash}"

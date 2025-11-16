@@ -19,10 +19,11 @@ def main():
     try:
         log = logging.getLogger(__name__)
         PP = PreProcessing(sys.argv)
-        settings = PP.createSettings()
+      
+        equil_settings,sample_settings,stretch_settings = PP.createSettings()
         atomic_structure = PP.atomic_structure
         
-        log.info(f"Settings loaded :\n{settings}")
+        #log.info(f"Settings loaded :\n{settings}")
     except Exception as err:
         log.error(f"Preprocessing failed: {err}") #should probably add the err, here instead
         exit(1)
@@ -32,16 +33,17 @@ def main():
 
         
         
-
-        equil_MD = EquilibriumRun(settings = settings)
-        sample_MD = SampleRun(settings = settings)
-        stretch_MD = StrecthRun(settings = settings)
         
-        equil_struct = equil_MD.run(atomic_structure,settings.num_steps) # Equilibrium run
+        
+        equil_MD = EquilibriumRun(settings = equil_settings)
+        sample_MD = SampleRun(settings = sample_settings)
+        stretch_MD = StrecthRun(settings = stretch_settings)
+        
+        equil_struct = equil_MD.run(atomic_structure,equil_settings.num_steps) # Equilibrium run
         print(equil_struct.label)
-        sample_data = sample_MD.run(equil_struct,settings.num_steps)
+        sample_data = sample_MD.run(equil_struct,sample_settings.num_steps)
         sample_data.storeTxtFile()
-        C_matrix = stretch_MD.run(equil_struct,settings.num_steps)
+        C_matrix = stretch_MD.run(equil_struct)
         log.info("MD done")
     except Exception as err:
         log.error(f"Simulation failed: {err}") #should probably add the err, here instead

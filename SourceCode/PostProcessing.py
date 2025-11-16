@@ -32,7 +32,7 @@ class PostProcessing():
     def fromFiles(cls,folder):
       
         print(folder)
-        df = pd.read_fwf(f"{folder}/sampledata.txt")
+        df = pd.read_fwf(f"{folder}/sampledata.txt",skiprows = 1)
         equil_struct = AtomicStructure(Trajectory(f"{folder}/Equil.traj")[-1])
         C_matrix = np.load(f"{folder}/cmatrix.npy")
         return cls(equil_struct,df,C_matrix)
@@ -43,13 +43,13 @@ class PostProcessing():
         Cv = specificHeatAuToSI(QC.computeSpecificHeatNVT(self.dataframe["E_tot"],sum(self.equil_struct.masses),self.time_averages["T"]))
         
         #Requires C_Matrix
-        B,G,K = QC.calculateModuli(C_matrix=self.C_matrix)
+        B,G,E = QC.calculateModuli(C_matrix=self.C_matrix)
         
-        T_D = QC.computeDebyeTemperature(self.time_averages["V"],sum(self.equil_struct.masses),len(self.equil_struct),G,K)
+        T_D = QC.computeDebyeTemperature(self.time_averages["V"],sum(self.equil_struct.masses),len(self.equil_struct),G,E)
         B = auToGPascal(B)
         G = auToGPascal(G)
-        K = auToGPascal(K)
-        data = {"D":D, "Cv":Cv, "B":B, "G":G, "K":K, "T_D" : T_D}
+        E = auToGPascal(E)
+        data = {"D":D, "Cv":Cv, "B":B, "G":G, "E":E, "T_D" : T_D}
 
         return pd.DataFrame(data) 
 
@@ -83,7 +83,7 @@ class PostProcessing():
 
         # Write everything to CSV
         with open("Quantities.csv", "w") as f:
-            f.write(first_row + "\n")            # first custom row
+
             for line in formatted:
                 f.write(line + "\n")             # each formatted row
 

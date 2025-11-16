@@ -2,7 +2,7 @@
 
 from ASEWrappers.potential import EMTPotential,LennardJonesPotential
 from Utils import LJParams
-from ASEWrappers import VelocityVerletIntegrator,LangevinIntegrator,BerendsenNPTIntegrator
+from ASEWrappers import VelocityVerletIntegrator,LangevinIntegrator,IsotropicMTKNPTIntegrator
 from simulationInput import SimulationSettings
 from Utils.inputParser import InputParser
 from ASEWrappers import AtomicStructure
@@ -94,26 +94,27 @@ class PreProcessing:
                 return EMTPotential()
             
         
-    def getIntegrator(self):
-        match self.settings["Ensemble"]:
+    def getIntegrator(self,ensemble):
+        match ensemble:
             case "NVE":
-                
                 return VelocityVerletIntegrator(timestep=self.settings["Timestep"])
+            
             case "NVT":
-                
                 return LangevinIntegrator(timestep= self.settings["Timestep"],temperature_K=self.settings["Temperature"],friction=self.settings["Friction"])
+            
             case "NPT":
-
-                return BerendsenNPTIntegrator(timestep=self.settings["Timestep"],temperature_K=self.settings["Temperature"],pressure=self.settings["Pressure"],compressibility=self.settings["Compressibility"])
+                return IsotropicMTKNPTIntegrator(timestep=self.settings["Timestep"],temperature_K=self.settings["Temperature"],pressure=self.settings["Pressure"],pdamp=self.settings["Pdamp"],tdamp=self.settings["Tdamp"])
             
     def createSettings(self):
-        log.debug("Creating Settings object for ensemble: %s", self.settings["Ensemble"])
+        #log.debug("Creating Settings object for ensemble: %s", self.settings["Ensemble"])
         
         potential = self.getPotential()
-        integrator = self.getIntegrator()
-        
-        return SimulationSettings(self.settings["Number_of_steps"],potential=potential,integrator=integrator)
+        self.equil_settings = SimulationSettings(num_steps=10000,potential=potential,integrator=self.getIntegrator("NPT"))
+        self.sample_settings = SimulationSettings(num_steps=self.settings["Number_of_steps"],potential=potential,integrator=self.getIntegrator("NVT"))
+        self.stretch_settings = SimulationSettings(num_steps=self.settings["Number_of_steps"],potential=potential,integrator=self.getIntegrator("NVT"))
+        return self.equil_settings,self.sample_settings,self.stretch_settings
 
+  
 
 
 

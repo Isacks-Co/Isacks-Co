@@ -69,10 +69,11 @@ class EquilibriumRun(MDBase):
         super().__init__(settings)
         self.run_type = "Equil"
     
-    def run(self,atomic_structure: AtomicStructure ,num_steps,store_traj = True):
+    def run(self,atomic_structure: AtomicStructure ,num_steps,init_vel = False,store_traj = True):
 
-        #TODO Should init_vel be here or is this "user responsibility" 
-        print(atomic_structure.label)
+        if init_vel:
+            atomic_structure.setVelocitiesMB(self.integrator.temperature)
+        
         if store_traj:
             self._SaveASETrajectory(atomic_structure)
         print(atomic_structure.label)
@@ -90,7 +91,7 @@ class SampleRun(MDBase):
         self.sample_data = ["T","E_tot","E_kin","E_pot","V","MSD"] if sample_data =="all" else sample_data
     def run(self,atomic_structure: AtomicStructure ,num_steps,store_traj = False):
         
-        #TODO Should init_vel be here or is this "user responsibility" 
+        
         data_traj = DataTrajectory(atomic_structure)
         if store_traj:
 
@@ -109,7 +110,7 @@ class StrecthRun(MDBase): #TODO Finish this
         super().__init__(settings)
         self.run_type = "Stretch"
         
-    def run(self,atomic_structure: AtomicStructure ,num_steps,store_traj = True): 
+    def run(self,atomic_structure: AtomicStructure ): 
             
         strains = np.linspace(-0.005, 0.005, 5) # TODO Not hardcoded ? 
         cell0 = atomic_structure.cell
@@ -160,6 +161,7 @@ class StrecthRun(MDBase): #TODO Finish this
         stress = atoms.stress - stress0
     
         stress_list.append(stress)
+
 
 
 

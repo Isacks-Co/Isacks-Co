@@ -1,7 +1,9 @@
-#!/bin/bash
+#!/usr/bin/env bash
+
 
 file1="$1"
 file2="$2"
+flag="$3"
 # Get current directory
 current_dir=$(pwd)
 
@@ -11,8 +13,14 @@ cd currentSimulation/OutputFiles
 
 python3 ../../../SourceCode/MolecularDynamics.py ../SetupFiles/POSCAR ../SetupFiles/settings.json
 
-python3 ../../../SourceCode/PostProcessing.py "$PWD"
+if [[ $flag == "-P" ]]; then
+    cd ../..
+    echo "1 $PWD"
+    bash postprocessing.sh currentSimulation
+    echo "2 $PWD"
+    cd currentSimulation/Outputfiles
+fi
 
-cd ..
-
-python3 ../../SourceCode/scriptUtils/renameFolder.py OutputFiles/Quantities.csv
+cd ../
+echo "3 $PWD"
+python3 ../../SourceCode/scriptUtils/renameFolder.py OutputFiles/sampledata.txt

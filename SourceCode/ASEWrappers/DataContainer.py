@@ -33,16 +33,16 @@ class DataTrajectory:
         col_width = 30 # Should work fine with current number of decimals
         with open(f"sampledata.txt", "w") as f:
             #HEADER
-            #f.write(f"{self.structure_name}\n")
+            f.write(f"{self.initial_atoms.label}\n")
             #f.write(f"Ensemble: {self.settings.ensemble}\n")
             
             #f.write(f"\n")
 
             #DATA
-            print(self._frames[0].keys)
+            
             f.write(f"{"time":<{col_width}}")
             f.write(f"".join(f"{label:<{col_width}}" for label in self._frames[0].keys) + "\n")
-            for frame in self._frames:
+            for frame in self._frames[500:]:
                 f.write(f"{frame.time:<{col_width}}")
                 f.write(f"".join(f"{data:<{col_width}}" for data in frame.vals) + "\n")
                 
