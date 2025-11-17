@@ -1,7 +1,7 @@
 from asap3 import LennardJones as asap_LJ
 from asap3 import EMT
-#from mace.calculators import MACECalculator 
-#import torch
+from mace.calculators import MACECalculator 
+import torch
 
 class Potential:
     
@@ -41,14 +41,19 @@ class EMTPotential(Potential):
     def getASEPotentialCalculator(self):
         return EMT()
     
-"""
+
 class MACEPotential(Potential):
-    def __init__(self,model_path = "MACEModels/mace-mpa-0-medium.model"):
+    def __init__(self,model_path = "../SourceCode/MACEModels/mace-mpa-0-medium.model"):
         super().__init__()
         self.pot_str = "MACE"  
         self.model_path = model_path
 
     def getASEPotentialCalculator(self):
+        import os, warnings
+        os.environ["TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD"] = "1"
+        warnings.filterwarnings(
+            "ignore",
+            message= "Environment variable TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD detected, since the`weights_only` argument was not explicitly passed to `torch.load`, forcing weights_only=False.",
+        )
         device = "cuda" if torch.cuda.is_available() else "cpu"
         return MACECalculator(model_paths= self.model_path, device=device, default_dtype="float64",head="default")
-"""
