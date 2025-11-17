@@ -17,7 +17,7 @@ class Potential:
 
 class LennardJonesPotential(Potential):
 
-    def __init__(self,atomic_numbers, sigmas, epsilons, rc: float = None, ro: float = None):
+    def __init__(self,atomic_numbers, sigmas, epsilons, rc = None):
         super().__init__()
         self.pot_str = "Lennard Jones"
         print(4)

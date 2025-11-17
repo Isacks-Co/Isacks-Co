@@ -61,6 +61,7 @@ class PreProcessing:
         """Reads atomic structure from a file, and extend cell according to supercell setting"""
 
         try:
+            
             print(1)
             self.getPotential()
             print(2)
@@ -68,7 +69,7 @@ class PreProcessing:
             print(atomic_structure)
             return atomic_structure
         
-        #TODO Add this again if needed
+            #TODO Add this again if neseded
             log.info("Reading atomic structure from: %s", input_structure)
             atoms = read(input_structure) * tuple(self.settings["Supercells"])
             atoms.pbc = True #TODO, Hard coded pbc always true for now.
@@ -89,9 +90,14 @@ class PreProcessing:
     def getPotential(self): #TODO FIX
         match self.settings["Potential"]:
             case "LJ":
-                lj_params = LJParams(material=self.atoms.info["comment"].split()[-1]) #TODO Problem
+                atoms = read(self.argparser.args["input_structure"])
+             
+                atomic_num = [(atoms.get_atomic_numbers()[0])]
+                atomic_symbols = atoms.get_chemical_symbols()
                 
-                return LennardJonesPotential(atomic_numbers=[], epsilons = [lj_params["epsilon_ev"]],sigmas=[lj_params["sigma_A"]],rc=[lj_params["rc_A"]])
+                lj_params = LJParams(material=sorted(set(atomic_symbols))[0]) #TODO Problem
+                
+                return LennardJonesPotential(atomic_numbers=atomic_num, epsilons=[lj_params["epsilon_eV"]], sigmas= [lj_params["sigma_A"]],rc=lj_params["rc_A"])
             case "EMT":
                 return EMTPotential()
             
