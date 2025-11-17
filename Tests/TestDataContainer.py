@@ -1,8 +1,8 @@
 import sys
 import numpy as np
 sys.path.append("../SourceCode")
-from Tests.TestBase import TestBase
-from SourceCode.ASEWrappers import DataContainer
+from TestBase import TestBase
+
 from ase.lattice.cubic import FaceCenteredCubic
 
 import unittest
@@ -11,7 +11,8 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-from SourceCode.ASEWrappers import DataTrajectory,Frame
+from ASEWrappers import DataTrajectory,Frame
+
 class TestDataContainer(TestBase):
     
     def setUp(self):

@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 class TestAtomicStructure(TestBase):
     """Tests for the class AtomicStructure. Plenty of room for more testing. Just some basic coverage right now."""
     def setUp(self):
-        self.CU_struct = AtomicStructure.fromFile("TESTPOSCAR",pbc= True,supercells=[3,3,3],potential=EMTPotential())
+        self.CU_struct = AtomicStructure.fromFile("TestAtomicStructure/Cu_fcc.vasp",pbc= True,supercells=[3,3,3],potential=EMTPotential())
         self.method_name = unittest.TestCase.id(self)
         logger.info(f"Running test: {self.method_name}")
 

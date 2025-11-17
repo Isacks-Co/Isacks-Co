@@ -1,10 +1,10 @@
 import sys
 
 sys.path.append("../SourceCode")
-from Tests.TestBase import TestBase
+from TestBase import TestBase
 from asap3.Internal.BuiltinPotentials import EMT
 from asap3.Internal.BuiltinPotentials import LennardJones
-from SourceCode.ASEWrappers import LennardJonesPotential, EMTPotential
+from ASEWrappers import LennardJonesPotential, EMTPotential
 
 import unittest
 

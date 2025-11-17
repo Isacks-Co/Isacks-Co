@@ -1,8 +1,8 @@
 import sys
 import numpy as np
 sys.path.append("../SourceCode")
-from Tests.TestBase import TestBase
-from SourceCode.ASEWrappers.integrator import Integrator,VelocityVerletIntegrator,LangevinIntegrator,IsotropicMTKNPTIntegrator,BerendsenNPTIntegrator
+from TestBase import TestBase
+from ASEWrappers import Integrator,VelocityVerletIntegrator,LangevinIntegrator,IsotropicMTKNPTIntegrator,BerendsenNPTIntegrator
 
 import unittest
 

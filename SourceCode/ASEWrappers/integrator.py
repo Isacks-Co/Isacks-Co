@@ -7,6 +7,8 @@ from ase.units import fs,GPa
 from functools import partial
 from copy import deepcopy
 
+from .contextManager import suppress_cpp_output
+
 """
 Wrapper of the ASE integrators. 
 The purpose is to make the code more readable 
@@ -35,12 +37,12 @@ class Integrator:
             integrator.attach(func,interval = interval)
         
     def run(self,atomic_structure,steps):
+        with suppress_cpp_output():
+            integrator_func = deepcopy(self.integrator_partial)(atomic_structure.getAtoms())
 
-        integrator_func = deepcopy(self.integrator_partial)(atomic_structure.getAtoms())
+            self._addAttachments(integrator_func)
 
-        self._addAttachments(integrator_func)
-
-        integrator_func.run(steps)
+            integrator_func.run(steps)
         self.clearData()
        
 

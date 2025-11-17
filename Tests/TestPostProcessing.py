@@ -1,8 +1,8 @@
 import sys
 
 sys.path.append("../SourceCode")
-from Tests.TestBase import TestBase
-from SourceCode.PostProcessing import PostProcessing
+from TestBase import TestBase
+from PostProcessing import PostProcessing
 
 class TestPostProcessing(TestBase):
     """Tests for the class PostProcessing"""

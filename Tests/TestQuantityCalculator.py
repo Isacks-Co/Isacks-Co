@@ -3,10 +3,10 @@ import sys
 sys.path.append("../SourceCode")
 import logging
 import pytest
-from Tests.TestBase import TestBase
+from TestBase import TestBase
 from quantityCalculator import QuantityCalculator
 from PreProcessing import PreProcessing
-from unitConversions import auToGPascal
+from Utils.unitConversions import auToGPascal
 from ase.lattice.cubic import BodyCenteredCubic
 from ase.lattice.cubic import SimpleCubic
 from ase.visualize import view

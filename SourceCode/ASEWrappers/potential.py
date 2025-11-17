@@ -20,13 +20,16 @@ class LennardJonesPotential(Potential):
     def __init__(self,atomic_numbers, sigmas, epsilons, rc: float = None, ro: float = None):
         super().__init__()
         self.pot_str = "Lennard Jones"
+        print(4)
         self.atomic_nums = atomic_numbers
         self.sigmas = sigmas
         self.epsilons = epsilons
         self.rc = rc if rc is not None else 2.5*max(self.sigmas)
+        print(5)
         #self.ro = ro if ro is not None else 0.9*self.rc
 
     def getASEPotentialCalculator(self):
+        print(self.atomic_nums,self.epsilons,self.sigmas,self.rc)
         return asap_LJ(self.atomic_nums, sigma = self.sigmas,epsilon = self.epsilons,rCut = self.rc)
 
 class EMTPotential(Potential):
