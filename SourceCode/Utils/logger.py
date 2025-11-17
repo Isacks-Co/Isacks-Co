@@ -26,8 +26,8 @@ def loggerSetup(debug):
 
     if not log.handlers:           
         h = logging.StreamHandler()
-        fmt = "%(asctime)s | %(levelname)s: %(message)s"
-        datefmt = "%H:%M:%S.%ms"  
+        fmt = "%(asctime)s.%(msecs)03d | %(levelname)s: %(message)s"
+        datefmt = "%H:%M:%S"  
         h.setFormatter(CustomFormatter(fmt=fmt, datefmt=datefmt))        
         log.addHandler(h)
 

@@ -1,8 +1,7 @@
 import sys
-
-sys.path.append("..")
-from Tests.TestBase import TestBase
-from SourceCode.LJRegistry import  LJParams, LJ_DB
+sys.path.append("../SourceCode")
+from TestBase import TestBase
+from Utils.LJRegistry import  LJParams
 import logging
 logger = logging.getLogger(__name__)
 

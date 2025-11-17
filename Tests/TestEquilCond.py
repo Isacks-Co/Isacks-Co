@@ -1,10 +1,10 @@
 # tests/test_equilibrium_condition.py
 import sys
-from Tests.TestBase import TestBase
+from TestBase import TestBase
 import numpy as np
 
-sys.path.append("..")
-from SourceCode.equilibriumCondition import EquilibriumCondition
+sys.path.append("../SourceCode")
+from Utils.equilibriumCondition import EquilibriumCondition
 
 
 class TestequilibriumCondition(TestBase):

@@ -1,4 +1,4 @@
-from logger import loggerSetup
+from .logger import loggerSetup
 
 import argparse
 import sys
