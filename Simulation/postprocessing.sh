@@ -2,7 +2,7 @@
 
 
 folder="$1" 
-cd $folder/Outputfiles
+cd $folder/OutputFiles
 python3 ../../../SourceCode/PostProcessing.py "$PWD"
 
 

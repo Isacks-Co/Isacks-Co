@@ -17,6 +17,7 @@ class AtomicStructure:
 
     def __init__(self, atoms: Atoms, special_label = None,label = None):
         self._atoms = atoms.copy()
+        
         if atoms.calc != None:
             self._atoms.calc = atoms.calc
         else:

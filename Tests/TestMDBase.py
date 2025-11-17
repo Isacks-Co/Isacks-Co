@@ -1,14 +1,9 @@
 import sys
 
 sys.path.append("../SourceCode")
-<<<<<<< HEAD
 from TestBase import TestBase
 from MDBase import MDBase
 from PreProcessing import PreProcessing
-=======
-from Tests.TestBase import TestBase
-from SourceCode.Old.MDBase import MDBase
->>>>>>> aa47b38 (Changed some of the workflow. Now runnig using scripts in Simulation folder. Currently supporting setup, full run and clearing. Will add specific ones for each part of the full run like equilRun and Postprocessing)
 from ase.lattice.cubic import FaceCenteredCubic
 import pytest
 import sys

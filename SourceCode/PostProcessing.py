@@ -66,13 +66,6 @@ class PostProcessing():
     def writeQuantities(self,data: pd.DataFrame):
         """
         Write labels and quantities to txt file. 
-        Ex:
-
-        HEADER 
-        
-        label1  label2  .....
-        q1      q2      .....
-    
         """
         data  = data.T
      
@@ -80,8 +73,7 @@ class PostProcessing():
         # Format each row as "Name: Value" with fixed-point numbers
         formatted = data.apply(lambda row: f"{row.name}: {row[0]:.6f}", axis=1)
 
-        # First row you want to add
-        first_row = self.equil_struct.label
+        
 
         # Write everything to CSV
         with open("Quantities.csv", "w") as f:

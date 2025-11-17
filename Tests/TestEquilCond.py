@@ -4,7 +4,7 @@ from Tests.TestBase import TestBase
 import numpy as np
 
 sys.path.append("..")
-from SourceCode.equilibriumCondition import EquilibriumCondition
+from SourceCode.Utils.equilibriumCondition import EquilibriumCondition
 
 
 class TestequilibriumCondition(TestBase):

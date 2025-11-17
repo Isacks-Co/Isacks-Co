@@ -32,9 +32,9 @@ class EquilibriumCondition:
             true if the difference is below threshold
             false if the difference is above threshold
         """
-        print(1)
+        
         delta = np.abs(np.max(list_of_values) - np.min(list_of_values))
-        print(delta)
+     
         return delta <= tol
 
 

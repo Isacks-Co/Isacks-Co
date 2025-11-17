@@ -16,7 +16,7 @@ python3 ../../../SourceCode/MolecularDynamics.py ../SetupFiles/POSCAR ../SetupFi
 if [[ $flag == "-P" ]]; then
     cd ../..
     bash postprocessing.sh currentSimulation
-    cd currentSimulation/Outputfiles
+    cd currentSimulation/OutputFiles
 fi
 
 cd ../

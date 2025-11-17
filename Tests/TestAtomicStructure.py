@@ -1,9 +1,9 @@
 import sys
 import numpy as np
 sys.path.append("../SourceCode")
-from Tests.TestBase import TestBase
-from SourceCode.ASEWrappers import AtomicStructure
-from SourceCode.ASEWrappers import EMTPotential
+from TestBase import TestBase
+from ASEWrappers import AtomicStructure
+from ASEWrappers import EMTPotential
 
 import unittest
 
