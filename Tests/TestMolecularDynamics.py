@@ -25,7 +25,7 @@ class TestMolecularDynamics(TestBase):
     def testNearZeroCu(self):
         sys.argv = [sys.argv[0], "TestAtomicStructure/Cu_fcc.vasp", "TestSettings/nearZeroSettings.json"]
         MolecularDynamics()
-    @pytest.mark.skip("Lennard Jones doesnt work")
+    
     def testBccCu(self):
         sys.argv = [sys.argv[0], "TestAtomicStructure/Cr_bcc.vasp", "TestSettings/chromiumSettings.json"]
         MolecularDynamics()

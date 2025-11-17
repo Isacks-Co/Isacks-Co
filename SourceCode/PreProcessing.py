@@ -62,11 +62,11 @@ class PreProcessing:
 
         try:
             
-            print(1)
+          
             self.getPotential()
-            print(2)
+         
             atomic_structure = AtomicStructure.fromFile(input_structure,pbc = True, supercells= self.settings["Supercells"],potential=self.getPotential())
-            print(atomic_structure)
+        
             return atomic_structure
         
             #TODO Add this again if neseded
