@@ -1,4 +1,9 @@
+from ase.io import read
+import numpy as np
 
+import json
+import sys
+import logging
 
 from ASEWrappers.potential import EMTPotential,LennardJonesPotential
 from Utils import LJParams
@@ -6,13 +11,6 @@ from ASEWrappers import VelocityVerletIntegrator,LangevinIntegrator,IsotropicMTK
 from simulationInput import SimulationSettings
 from Utils.inputParser import InputParser
 from ASEWrappers import AtomicStructure
-import json
-import sys
-import logging
-
-from ase.io import read
-import numpy as np
-
 
 log = logging.getLogger(__name__)
 
@@ -31,8 +29,7 @@ class PreProcessing:
         #Init settings and atomic structure
         
         self.settings = self.readSettings(self.argparser.args["input_settings"])
-        print(self.settings)
-        print(self.argparser.args["input_structure"])
+        
         self.atomic_structure = self.readAtomicStructure(self.argparser.args["input_structure"])
 
         #Physical check of the input
@@ -42,7 +39,7 @@ class PreProcessing:
 
     def readSettings(self, input_settings):
         """Reads settings from json file, checks all expected settings present. Overwrite settings file if a terminal flag is set."""
-        log.info("Reading settings file: %s", self.argparser.args["input_settings"])
+        log.debug("Reading settings file: %s", self.argparser.args["input_settings"])
         try:
             with open(input_settings, "r") as file:
                 temp_settings = json.load(file)

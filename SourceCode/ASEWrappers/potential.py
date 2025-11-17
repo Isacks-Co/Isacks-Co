@@ -1,7 +1,6 @@
 from asap3 import LennardJones as asap_LJ
 from asap3 import EMT
-
-#from mace.calculators import MACECalculator
+#from mace.calculators import MACECalculator 
 #import torch
 
 class Potential:
@@ -39,7 +38,6 @@ class EMTPotential(Potential):
     def getASEPotentialCalculator(self):
         return EMT()
     
-
 """
 class MACEPotential(Potential):
     def __init__(self,model_path = "MACEModels/mace-mpa-0-medium.model"):

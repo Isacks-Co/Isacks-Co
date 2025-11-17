@@ -1,5 +1,14 @@
 from copy import copy
 import numpy as np
+
+"""
+Module used as a replacement of ASE Trajectories. 
+This module only stores the desired data to sample
+and not all the positions, forces .... that ASE did. 
+Resulting in a much more memory efficient sampling. 
+When reading data it works mostly the same as an ASE trajectory.
+"""
+
 class Frame:
     def __init__(self,time,data_dict):
         
@@ -48,33 +57,6 @@ class DataTrajectory:
                 
             #f.write("".join(f"{value:<{col_width}.3f}" for value in quantities) + "\n")
 
-
-    @classmethod
-    def fromTxtFile(cls, filename, initial_atomic_structure):
-        """Rebuild a DataTrajectory from a text file."""
-        with open(filename, "r") as f:
-            lines = f.readlines()
-
-   
-        headers = lines[0].split()
-
-
-        traj = cls(initial_atomic_structure)
-
-        for line in lines[1:]:
-            if not line.strip():
-                continue 
-            values = line.split()
-         
-            data_dict = {}
-            for key, val in zip(headers, values):
-                try:
-                    data_dict[key] = float(val)
-                except ValueError:
-                    data_dict[key] = val
-            traj.append(Frame(data_dict))
-
-        return traj
 
     def __len__(self):
         return len(self._frames)

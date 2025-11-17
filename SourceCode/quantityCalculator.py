@@ -1,16 +1,13 @@
 from scipy.constants import physical_constants
-
-from ase import Atoms
 from ase.neighborlist import NeighborList, natural_cutoffs
 from ase.units import kB
 from ase.eos import EquationOfState
-
 import numpy as np
+
 import logging
 
 from Utils.unitConversions import auToGPascal, evToJ
 from Utils.plotting import secondOrderNumericalDerivative
-
 
 hbar = physical_constants['Planck constant over 2 pi in eV s'][0] * 1e15
 

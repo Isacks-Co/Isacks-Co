@@ -1,20 +1,17 @@
 from ase.units import fs
 from ase.io.trajectory import Trajectory
 import numpy as np
+
+from copy import copy
+
 from ASEWrappers import DataTrajectory,Frame
 from ASEWrappers import AtomicStructure
-from functools import partial
-from copy import copy
+
 class MDBase:
     def __init__(self,settings):
         self.integrator = settings.integrator
         self.sample_data = None
         self.run_type = None
-
-        
-    def run(self,atomic_structure: AtomicStructure ,num_steps, store_traj, **kwargs):
-        pass
-
 
     def _storeFrame(self,atomic_strucuture: AtomicStructure,data_traj: DataTrajectory):
         if len(data_traj) == 0:
@@ -64,6 +61,9 @@ class MDBase:
         if name == "MSD":
             MSD = atomic_structure.computeMSD(initial_atomic_structure)
             return MSD
+        if name == "E_coh":
+            E_coh = atomic_structure.cohesive_energy
+            return E_coh
 class EquilibriumRun(MDBase):
     def __init__(self, settings):
         super().__init__(settings)
@@ -76,9 +76,9 @@ class EquilibriumRun(MDBase):
         
         if store_traj:
             self._SaveASETrajectory(atomic_structure)
-        print(atomic_structure.label)
+        
         self.integrator.run(atomic_structure,num_steps)
-        print(atomic_structure.label)
+  
         # TODO Add equil check / Fail check
         return atomic_structure
 

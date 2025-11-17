@@ -3,8 +3,18 @@ from asap3.md.langevin import Langevin
 from asap3.md.nose_hoover_chain import IsotropicMTKNPT
 from asap3.md.nptberendsen import NPTBerendsen
 from ase.units import fs,GPa
+
 from functools import partial
 from copy import deepcopy
+
+"""
+Wrapper of the ASE integrators. 
+The purpose is to make the code more readable 
+by wrapping up some of the complexities ASEs 
+interface results in. 
+"""
+
+
 class Integrator:
     def __init__(self,timestep):
         self.timestep = timestep

@@ -15,12 +15,10 @@ python3 ../../../SourceCode/MolecularDynamics.py ../SetupFiles/POSCAR ../SetupFi
 
 if [[ $flag == "-P" ]]; then
     cd ../..
-    echo "1 $PWD"
     bash postprocessing.sh currentSimulation
-    echo "2 $PWD"
     cd currentSimulation/Outputfiles
 fi
 
 cd ../
-echo "3 $PWD"
+
 python3 ../../SourceCode/scriptUtils/renameFolder.py OutputFiles/sampledata.txt

@@ -1,11 +1,12 @@
-import logging
-import sys,os
 import pandas as pd
 import numpy as np
 from ase.io.trajectory import Trajectory
-from Utils.unitConversions import selfDiffusionCoeffAuToSI,auToGPascal,specificHeatAuToSI
+
+import sys
+
 from quantityCalculator import QuantityCalculator as QC
 from ASEWrappers import AtomicStructure
+from Utils.unitConversions import selfDiffusionCoeffAuToSI,auToGPascal,specificHeatAuToSI
 
 class PostProcessing():
     """
@@ -22,16 +23,16 @@ class PostProcessing():
         self.time_averages = self.computeTimeAverages().to_frame().T
        
     
+    def storeQuantities(self):
         self.time_averages = self.time_averages.drop(columns = ["time","MSD"])
         self.derived_quants = self.computeDerivedQuantities()
-        print(self.time_averages)
-        print(self.derived_quants)
+        
         self.writeQuantities(pd.concat([self.time_averages,self.derived_quants],axis=1))
         
     @classmethod
     def fromFiles(cls,folder):
       
-        print(folder)
+       
         df = pd.read_fwf(f"{folder}/sampledata.txt",skiprows = 1)
         equil_struct = AtomicStructure(Trajectory(f"{folder}/Equil.traj")[-1])
         C_matrix = np.load(f"{folder}/cmatrix.npy")
@@ -49,6 +50,7 @@ class PostProcessing():
         B = auToGPascal(B)
         G = auToGPascal(G)
         E = auToGPascal(E)
+        
         data = {"D":D, "Cv":Cv, "B":B, "G":G, "E":E, "T_D" : T_D}
 
         return pd.DataFrame(data) 
@@ -90,4 +92,6 @@ class PostProcessing():
 
 
 if __name__ == "__main__":
-    PostProcessing.fromFiles(sys.argv[1])
+    post = PostProcessing.fromFiles(sys.argv[1])
+    post.storeQuantities()
+    
