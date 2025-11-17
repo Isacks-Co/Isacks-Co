@@ -67,7 +67,8 @@ class DataTrajectory:
     
     def __getitem__(self, idx):
         if isinstance(idx, slice):
-            new_traj = DataTrajectory()
+            new_traj = DataTrajectory(self.initial_atoms)
             new_traj._frames = self._frames[idx]
             return new_traj
         return self._frames[idx]
+    

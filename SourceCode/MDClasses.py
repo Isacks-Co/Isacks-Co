@@ -6,7 +6,7 @@ from copy import copy
 
 from ASEWrappers import DataTrajectory,Frame
 from ASEWrappers import AtomicStructure
-
+from Utils.equilibriumCondition import EquilibriumCondition
 class MDBase:
     def __init__(self,settings):
         self.integrator = settings.integrator
@@ -68,21 +68,29 @@ class EquilibriumRun(MDBase):
     def __init__(self, settings):
         super().__init__(settings)
         self.run_type = "Equil"
+        self.sample_data = ["E_pot"]
     
     def run(self,atomic_structure: AtomicStructure ,num_steps,init_vel = False,store_traj = True):
-
+        data_traj = DataTrajectory(atomic_structure)
         if init_vel:
-            atomic_structure.setVelocitiesMB(self.integrator.temperature)
+            atomic_structure.setVelocitiesMB(self.integrator.temperature_K)
         
         if store_traj:
             self._SaveASETrajectory(atomic_structure)
-        
+        self.integrator.attach(lambda: self._storeFrame(atomic_strucuture=atomic_structure,data_traj = data_traj),1)
+        #self.integrator.attach(lambda: self._check_equilibrium(dataframe=data_traj),1)
+   
         self.integrator.run(atomic_structure,num_steps)
-  
-        # TODO Add equil check / Fail check
+        
+        data_traj.storeTxtFile()
         return atomic_structure
-
-
+    
+    def _check_equilibrium(self,dataframe):
+        print(type(dataframe))
+        if len(dataframe) > 1000:
+            if EquilibriumCondition.checkStable(dataframe[-1000:]):
+                
+                raise StopIteration("Equil reached")
 
 class SampleRun(MDBase):
     def __init__(self, settings,sample_data = "all"):

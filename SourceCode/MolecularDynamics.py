@@ -1,14 +1,11 @@
 import sys
 
 from PreProcessing import PreProcessing
-<<<<<<< HEAD
-from MDBase import MDBase
-<<<<<<< HEAD
-from PostProcessing import PostProcessing
-=======
-from SourceCode.PostProcessing import PostProcessing
->>>>>>> ae14402 ( Moved some of the writing of quantuities to psotprocessing and changed QC to only contain functions)
-=======
+
+
+
+
+
 from MDClasses import EquilibriumRun,SampleRun,StrecthRun
 
 
@@ -40,7 +37,7 @@ def main():
         stretch_MD = StrecthRun(settings = stretch_settings)
         
         log.info("Relaxing structure")
-        equil_struct = equil_MD.run(atomic_structure,equil_settings.num_steps) 
+        equil_struct = equil_MD.run(atomic_structure,equil_settings.num_steps,init_vel=True) 
         log.info("Sampling structure")
         sample_data = sample_MD.run(equil_struct,sample_settings.num_steps)
         log.info("Running stretch sequence")
