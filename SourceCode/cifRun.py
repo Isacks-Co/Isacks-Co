@@ -1,22 +1,20 @@
 #!/usr/bin/env python
-from __future__ import print_function
-
 import os
+
 import httk
 import httk.db
 import httk.task
-from httk.atomistic import Structure
 from classes import DefectCell
+from httk.atomistic import Structure
 
 
 def get_defect_cif(
-    host_name,
-    defect_name,
-    db_path="../../defect/defects.sqlite",
-    out_root="Runs",
-    template_name="template",  #  httk-task-template
-    ):
-
+        host_name,
+        defect_name,
+        db_path="../../defect/defects.sqlite",
+        out_root="Runs",
+        template_name="template",  # httk-task-template
+):
     os.makedirs(out_root, exist_ok=True)
 
     backend = httk.db.backend.Sqlite(db_path)
@@ -29,7 +27,6 @@ def get_defect_cif(
     search.add(search_defect.host_name == host_name_pbe)
 
     search.output(search_defect, "defect")
-    saved_paths = []
 
     for match, header in search:
         defect_cell = match[0]
@@ -47,7 +44,6 @@ def get_defect_cif(
             {"structure": struct},
             name=run_name,
             overwrite_head_dir=True,
-
         )
 
         # CIF-file gets put in folder that create_batch_task made
@@ -55,19 +51,15 @@ def get_defect_cif(
         full_path = os.path.abspath(os.path.join(dir_path, cif_filename))
 
         httk.save(struct, full_path)
-        print(f"CIF saved: {full_path}")
-
-        saved_paths.append(full_path)
 
     backend.close()
-    return saved_paths
 
 
 if __name__ == "__main__":
     get_defect_cif(
         host_name="As2",
-        defect_name="C_int",
+        defect_name="C_",
         db_path="../../defect/defects.sqlite",
-        out_root="Runs",      
+        out_root="Runs",
         template_name="template",
     )
