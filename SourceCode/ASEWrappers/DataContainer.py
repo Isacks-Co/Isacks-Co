@@ -49,7 +49,7 @@ class DataTrajectory:
 
             #DATA
             
-            f.write(f"{"time":<{col_width}}")
+            f.write(f'{"time":<{col_width}}')
             f.write(f"".join(f"{label:<{col_width}}" for label in self._frames[0].keys) + "\n")
             for frame in self._frames[500:]:
                 f.write(f"{frame.time:<{col_width}}")
