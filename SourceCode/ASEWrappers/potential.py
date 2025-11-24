@@ -43,7 +43,7 @@ class EMTPotential(Potential):
     
 
 class MACEPotential(Potential):
-    def __init__(self,model_path = "../SourceCode/MACEModels/mace-mpa-0-medium.model"):
+    def __init__(self,model_path = "MACEModels/mace-mpa-0-medium.model"):
         super().__init__()
         self.pot_str = "MACE"  
         self.model_path = model_path
