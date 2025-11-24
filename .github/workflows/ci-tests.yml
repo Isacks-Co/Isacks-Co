@@ -22,13 +22,13 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install cython ase numpy==1.26.4 scipy matplotlib mpi4py ipython \
-        sphinx sphinx_rtd_theme mpmath asap3 pytest pandas
+        sphinx sphinx_rtd_theme mpmath asap3 pytest pandas mace-torch
 
     - name: CI-tests
       run: |
         cd Tests
-        pytest -k TestMolecularDynamics.py --junit-xml=TestMolecularDynamics.xml --color=yes
-        pytest -k "not TestMolecularDynamics.py" --junit-xml=TestReport.xml --color=yes
+        pytest TestMolecularDynamics.py --junit-xml=ReportMolecularDynamics.xml --color=yes
+        pytest -k "not TestMolecularDynamics" --junit-xml=ReportOther.xml --color=yes
         cd ..
 
   upload-reports:
