@@ -36,7 +36,7 @@ if __name__ == "__main__":
     Saves the initial and final configurations in a cif file.
     """
     # Adjustable parameters
-    num_steps = 300
+    num_steps = 1000
     temp_k = 0
     friction = 0.1
     time_steps = 1
@@ -44,12 +44,13 @@ if __name__ == "__main__":
     log = logging.getLogger(__name__)
 
     poscar_path = sys.argv[1]
-    try:
+    mace_path = sys.argv[2]
+    try: 
         lang_int = LangevinIntegrator(time_steps, temp_k, time_steps)
     except Exception as err:
         log.error(f"Integrator cannot be loaded: {err}")
         exit(1)
-    mace_potential = MACEPotential()
+    mace_potential = MACEPotential(mace_path)
     settings = simulationInput.SimulationSettings(num_steps, mace_potential, lang_int)
 
     # Load in the initial structure

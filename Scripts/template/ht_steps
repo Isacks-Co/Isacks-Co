@@ -1,0 +1,61 @@
+#!/bin/bash
+# Tutorial run, relax until converged
+# 1.0
+#
+# The second row of your ht_steps script should be the 'name' of
+# your run script program, and the third the version number.
+# When your run is being processed, these are picked out automatically.
+#
+. "$HTTK_DIR"/Execution/tasks/ht_tasks_api.sh
+. "$HTTK_DIR"/Execution/tasks/vasp/vasptools.sh
+
+#. /opt/runexample-files/ht_tasks_api.sh
+#. /opt/runexample-files/vasptools2.sh
+
+# For now we want to rely on the taskmanager timeout, so just
+# keep the timeout of our RUN_CONTROLLED somewhat larger
+TIMEOUT=$((HT_TASKMGR_TIMEOUT + 3600))
+# (It may be a future feature to let some computations
+# timeout earlier though.)
+
+HT_TASK_INIT "$@"
+
+echo "== ht_steps for preinit run, step: $STEP"
+
+####################### start ############################
+if [ "$STEP" == "start" ]; then
+
+    cp ../*.cif .
+
+    HT_TASK_ATOMIC_SECTION_START
+
+
+    HT_TASK_ATOMIC_SECTION_END_NEXT relax
+fi
+
+####################### relax1 ############################
+if [ "$STEP" == "relax" ]; then
+
+   
+    $VASP_EXECUTE $VASP_PSEUDOLIB 
+    HT_TASK_ATOMIC_SECTION_START
+
+
+    HT_TASK_ATOMIC_SECTION_END_NEXT cleanup
+
+
+fi
+
+
+####################### cleanup ############################
+if [ "$STEP" == "cleanup" ]; then
+
+    
+
+    HT_TASK_CLEANUP
+    rm -f *.traj
+  
+    HT_TASK_COMPRESS
+    HT_TASK_FINISHED
+fi
+
