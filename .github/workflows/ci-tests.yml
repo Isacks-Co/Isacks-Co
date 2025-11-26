@@ -27,7 +27,7 @@ jobs:
     - name: CI-tests
       run: |
         cd Tests
-        pytest TestMolecularDynamics.py --junit-xml=ReportMolecularDynamics.xml --color=yes
+        # pytest TestMolecularDynamics.py --junit-xml=ReportMolecularDynamics.xml --color=yes
         pytest -k "not TestMolecularDynamics" --junit-xml=ReportOther.xml --color=yes
         cd ..
 

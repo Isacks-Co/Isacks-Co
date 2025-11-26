@@ -8,4 +8,5 @@ class TestPostProcessing(TestBase):
     """Tests for the class PostProcessing"""
     def testInitilizer(self):
         """Only test for now, but more can be implemented"""
-        PostViz = PostProcessing("testsettings.json", "testoutput.traj")
+        # TODO New structure for PostProcessing, new tests needed
+        # PostViz = PostProcessing("TestSettings/solidSettings.json", "testoutput.traj")

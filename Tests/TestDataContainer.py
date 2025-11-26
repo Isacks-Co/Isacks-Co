@@ -20,7 +20,7 @@ class TestDataContainer(TestBase):
         atoms = FaceCenteredCubic(size=(5, 5, 5), symbol="Cu", pbc=True)
         self.traj = DataTrajectory(atoms)
         for i in range(0,10):
-            self.traj.append(Frame({"Prop1":i}))
+            self.traj.append(Frame(0, {"Prop1":i}))
 
     def testLength(self):
         assert len(self.traj) == 10
@@ -39,7 +39,7 @@ class TestFrame(TestBase):
     
     def test(self):
         d = {"Prop1":1,"Prop2":2}
-        frame = Frame(d)
+        frame = Frame(0, d)
         assert frame["Prop1"] == 1 and frame["Prop2"] == 2
     
     
