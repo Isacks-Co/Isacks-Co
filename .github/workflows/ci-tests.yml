@@ -2,10 +2,12 @@ name: CI
 
 on:
   pull_request:
-    branches: [ "dev" , "main" ]
 
 permissions:
   contents: read
+  issues: read
+  checks: write
+  pull-requests: write
 
 jobs:
   ci-test:
@@ -31,16 +33,9 @@ jobs:
         pytest -k "not TestMolecularDynamics" --junit-xml=ReportOther.xml --color=yes
         cd ..
 
-  upload-reports:
-    runs-on: ubuntu-latest
-    needs: ci-test
-    steps:
-    - uses: actions/checkout@v4
-
     - name: Upload-results
-      uses: dorny/test-reporter@v2
-      if: ${{ !cancelled() }}
+      uses: EnricoMi/publish-unit-test-result-action@v2
+      if: (!cancelled())
       with:
-        name: Pytest results
-        path: Tests/Test*.xml
-        reporter: jest-junit
+        files: Tests/Report*.xml
+
