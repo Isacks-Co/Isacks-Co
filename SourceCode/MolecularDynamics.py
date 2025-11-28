@@ -23,38 +23,29 @@
 
 import logging
 import sys
-from MDClasses import EquilibriumRun, SampleRun, StrecthRun
 from PreProcessing import PreProcessing
+from MDManager import MDManager
 
 
 def main():
+    log = logging.getLogger(__name__)
     try:
-        log = logging.getLogger(__name__)
         PP = PreProcessing(sys.argv)
 
-        equil_settings, sample_settings, stretch_settings = PP.createSettings()
-        atomic_structure = PP.atomic_structure
-
+        settings_list = PP.createSettings()
+        quantitites_to_compute = PP.settings["Compute"]
+        SimulationSetup = MDManager(settings_list, quantitites_to_compute)
+        order_of_operations = SimulationSetup.order_of_operations
+        log.info(f"Order of operations: {order_of_operations}")
+        log.info(f"Settings loaded :\n{settings_list[0].timestep}")
         log.info(f"Structure and settings sucessfully loaded")
+
+        atomic_structure = PP.atomic_structure
     except Exception as err:
         log.error(f"Preprocessing failed: {err}")  # should probably add the err, here instead
         exit(1)
     try:
-        # TODO THIS WILL GET GROUPED USING A MDMANAGER CLASS
-
-        equil_MD = EquilibriumRun(settings=equil_settings)
-        sample_MD = SampleRun(settings=sample_settings)
-        stretch_MD = StrecthRun(settings=stretch_settings)
-
-        log.info("Relaxing structure")
-        equil_struct = equil_MD.run(atomic_structure, equil_settings.num_steps, init_vel=True)
-        log.info("Sampling structure")
-        sample_data = sample_MD.run(equil_struct, sample_settings.num_steps)
-        log.info("Running stretch sequence")
-        sample_data.storeTxtFile()
-        C_matrix = stretch_MD.run(equil_struct)
-        log.info("MD done")
-        log.info(f"Stored results in {equil_struct.label}/Outputfiles")
+        SimulationSetup.run(atomic_structure)
     except Exception as err:
         log.error(f"Simulation failed: {err}")  # should probably add the err, here instead
         exit(1)

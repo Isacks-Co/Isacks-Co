@@ -149,15 +149,21 @@ class PreProcessing:
 
     def createSettings(self):
         # log.debug("Creating Settings object for ensemble: %s", self.settings["Ensemble"])
-
+        sim_list = []
         potential = self.getPotential()
-        self.equil_settings = SimulationSettings(num_steps=10000, potential=potential,
+        self.npt_settings = SimulationSettings(num_steps=10000, potential=potential,
                                                  integrator=self.getIntegrator("NPT"))
-        self.sample_settings = SimulationSettings(num_steps=self.settings["Number_of_steps"], potential=potential,
+        self.nvt_settings = SimulationSettings(num_steps=self.settings["Number_of_steps"], potential=potential,
                                                   integrator=self.getIntegrator("NVT"))
-        self.stretch_settings = SimulationSettings(num_steps=self.settings["Number_of_steps"], potential=potential,
-                                                   integrator=self.getIntegrator("NVT"))
-        return self.equil_settings, self.sample_settings, self.stretch_settings
+
+        if self.settings["Find_equilibrium"]:
+            sim_list.append(self.npt_settings)
+        else:
+            sim_list.append(False)
+
+        sim_list.append(self.nvt_settings)
+        sim_list.append(self.npt_settings)
+        return sim_list
 
     def sanityCheckSettings(self):  # TODO Put in the respective classes like integrator and atomic structure
         """
