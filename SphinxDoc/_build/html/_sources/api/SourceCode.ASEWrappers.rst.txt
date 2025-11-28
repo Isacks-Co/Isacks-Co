@@ -1,0 +1,53 @@
+SourceCode.ASEWrappers package
+==============================
+
+Submodules
+----------
+
+SourceCode.ASEWrappers.DataContainer module
+-------------------------------------------
+
+.. automodule:: SourceCode.ASEWrappers.DataContainer
+   :members:
+   :show-inheritance:
+   :undoc-members:
+
+SourceCode.ASEWrappers.atomic\_structure module
+-----------------------------------------------
+
+.. automodule:: SourceCode.ASEWrappers.atomic_structure
+   :members:
+   :show-inheritance:
+   :undoc-members:
+
+SourceCode.ASEWrappers.contextManager module
+--------------------------------------------
+
+.. automodule:: SourceCode.ASEWrappers.contextManager
+   :members:
+   :show-inheritance:
+   :undoc-members:
+
+SourceCode.ASEWrappers.integrator module
+----------------------------------------
+
+.. automodule:: SourceCode.ASEWrappers.integrator
+   :members:
+   :show-inheritance:
+   :undoc-members:
+
+SourceCode.ASEWrappers.potential module
+---------------------------------------
+
+.. automodule:: SourceCode.ASEWrappers.potential
+   :members:
+   :show-inheritance:
+   :undoc-members:
+
+Module contents
+---------------
+
+.. automodule:: SourceCode.ASEWrappers
+   :members:
+   :show-inheritance:
+   :undoc-members:

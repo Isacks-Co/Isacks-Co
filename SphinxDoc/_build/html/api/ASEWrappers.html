@@ -1,0 +1,460 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ASEWrappers package &mdash; Computational physics project - TFYA99  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="HTP module" href="HTP.html" />
+    <link rel="prev" title="SourceCode" href="modules.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            Computational physics project - TFYA99
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="modules.html">SourceCode</a><ul class="current">
+<li class="toctree-l2 current"><a class="current reference internal" href="#">ASEWrappers package</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#submodules">Submodules</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#module-ASEWrappers.DataContainer">ASEWrappers.DataContainer module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#ASEWrappers.DataContainer.DataTrajectory"><code class="docutils literal notranslate"><span class="pre">DataTrajectory</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#ASEWrappers.DataContainer.Frame"><code class="docutils literal notranslate"><span class="pre">Frame</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#module-ASEWrappers.atomic_structure">ASEWrappers.atomic_structure module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#ASEWrappers.atomic_structure.AtomicStructure"><code class="docutils literal notranslate"><span class="pre">AtomicStructure</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#module-ASEWrappers.contextManager">ASEWrappers.contextManager module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#ASEWrappers.contextManager.suppress_cpp_output"><code class="docutils literal notranslate"><span class="pre">suppress_cpp_output()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#module-ASEWrappers.integrator">ASEWrappers.integrator module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#ASEWrappers.integrator.BerendsenNPTIntegrator"><code class="docutils literal notranslate"><span class="pre">BerendsenNPTIntegrator</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#ASEWrappers.integrator.Integrator"><code class="docutils literal notranslate"><span class="pre">Integrator</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#ASEWrappers.integrator.IsotropicMTKNPTIntegrator"><code class="docutils literal notranslate"><span class="pre">IsotropicMTKNPTIntegrator</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#ASEWrappers.integrator.LangevinIntegrator"><code class="docutils literal notranslate"><span class="pre">LangevinIntegrator</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#ASEWrappers.integrator.VelocityVerletIntegrator"><code class="docutils literal notranslate"><span class="pre">VelocityVerletIntegrator</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#module-ASEWrappers.potential">ASEWrappers.potential module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#ASEWrappers.potential.EMTPotential"><code class="docutils literal notranslate"><span class="pre">EMTPotential</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#ASEWrappers.potential.LennardJonesPotential"><code class="docutils literal notranslate"><span class="pre">LennardJonesPotential</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#ASEWrappers.potential.MACEPotential"><code class="docutils literal notranslate"><span class="pre">MACEPotential</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#ASEWrappers.potential.Potential"><code class="docutils literal notranslate"><span class="pre">Potential</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#module-ASEWrappers">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="HTP.html">HTP module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="MDClasses.html">MDClasses module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="MolecularDynamics.html">MolecularDynamics module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="PostProcessing.html">PostProcessing module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="PreProcessing.html">PreProcessing module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="QuantityCalculator.html">QuantityCalculator module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="SimulationInput.html">SimulationInput module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="Utils.html">Utils package</a></li>
+<li class="toctree-l2"><a class="reference internal" href="Visualizer.html">Visualizer module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="cifRun.html">cifRun module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="testingSPHINx.html">testingSPHINx module</a></li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">Computational physics project - TFYA99</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="modules.html">SourceCode</a></li>
+      <li class="breadcrumb-item active">ASEWrappers package</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/api/ASEWrappers.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="asewrappers-package">
+<h1>ASEWrappers package<a class="headerlink" href="#asewrappers-package" title="Link to this heading"></a></h1>
+<section id="submodules">
+<h2>Submodules<a class="headerlink" href="#submodules" title="Link to this heading"></a></h2>
+</section>
+<section id="module-ASEWrappers.DataContainer">
+<span id="asewrappers-datacontainer-module"></span><h2>ASEWrappers.DataContainer module<a class="headerlink" href="#module-ASEWrappers.DataContainer" title="Link to this heading"></a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="ASEWrappers.DataContainer.DataTrajectory">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">ASEWrappers.DataContainer.</span></span><span class="sig-name descname"><span class="pre">DataTrajectory</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">initial_atomic_structure</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ASEWrappers.DataContainer.DataTrajectory" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="ASEWrappers.DataContainer.DataTrajectory.append">
+<span class="sig-name descname"><span class="pre">append</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">frame</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ASEWrappers.DataContainer.DataTrajectory.append" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="ASEWrappers.DataContainer.DataTrajectory.storeTxtFile">
+<span class="sig-name descname"><span class="pre">storeTxtFile</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#ASEWrappers.DataContainer.DataTrajectory.storeTxtFile" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="ASEWrappers.DataContainer.Frame">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">ASEWrappers.DataContainer.</span></span><span class="sig-name descname"><span class="pre">Frame</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">time</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">data_dict</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ASEWrappers.DataContainer.Frame" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<dl class="py property">
+<dt class="sig sig-object py" id="ASEWrappers.DataContainer.Frame.keys">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">keys</span></span><a class="headerlink" href="#ASEWrappers.DataContainer.Frame.keys" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="ASEWrappers.DataContainer.Frame.vals">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">vals</span></span><a class="headerlink" href="#ASEWrappers.DataContainer.Frame.vals" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="module-ASEWrappers.atomic_structure">
+<span id="asewrappers-atomic-structure-module"></span><h2>ASEWrappers.atomic_structure module<a class="headerlink" href="#module-ASEWrappers.atomic_structure" title="Link to this heading"></a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="ASEWrappers.atomic_structure.AtomicStructure">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">ASEWrappers.atomic_structure.</span></span><span class="sig-name descname"><span class="pre">AtomicStructure</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">atoms</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">special_label</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">label</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ASEWrappers.atomic_structure.AtomicStructure" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Wrapper around ASE Atoms.
+Can be created from eithre a complete atoms object, including potential or directly
+from a file in combination with a potential object.</p>
+<dl class="py property">
+<dt class="sig sig-object py" id="ASEWrappers.atomic_structure.AtomicStructure.cell">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">cell</span></span><a class="headerlink" href="#ASEWrappers.atomic_structure.AtomicStructure.cell" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="ASEWrappers.atomic_structure.AtomicStructure.cohesive_energy">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">cohesive_energy</span></span><a class="headerlink" href="#ASEWrappers.atomic_structure.AtomicStructure.cohesive_energy" title="Link to this definition"></a></dt>
+<dd><p>Calculate the cohesive energy per atom.
+This is done by computing the difference in energy between the separate atoms and the bulk structure</p>
+<p>Unit: ev/atom</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="ASEWrappers.atomic_structure.AtomicStructure.computeMSD">
+<span class="sig-name descname"><span class="pre">computeMSD</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">orig_struct</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ASEWrappers.atomic_structure.AtomicStructure.computeMSD" title="Link to this definition"></a></dt>
+<dd><p>Computes MSD in relation to some reference structure
+In:</p>
+<blockquote>
+<div><p>(AtomicStructure) : reference structure</p>
+</div></blockquote>
+<dl class="simple">
+<dt>Out:</dt><dd><p>(int) : Mean square displacement over all atoms</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="ASEWrappers.atomic_structure.AtomicStructure.forces">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">forces</span></span><a class="headerlink" href="#ASEWrappers.atomic_structure.AtomicStructure.forces" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="ASEWrappers.atomic_structure.AtomicStructure.fromFile">
+<em class="property"><span class="k"><span class="pre">classmethod</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">fromFile</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pbc</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">supercells</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">[1,</span> <span class="pre">1,</span> <span class="pre">1]</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">potential</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ASEWrappers.atomic_structure.AtomicStructure.fromFile" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="ASEWrappers.atomic_structure.AtomicStructure.getAtoms">
+<span class="sig-name descname"><span class="pre">getAtoms</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#ASEWrappers.atomic_structure.AtomicStructure.getAtoms" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="ASEWrappers.atomic_structure.AtomicStructure.internal_pressure">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">internal_pressure</span></span><a class="headerlink" href="#ASEWrappers.atomic_structure.AtomicStructure.internal_pressure" title="Link to this definition"></a></dt>
+<dd><p>Compute internal pressure using atomic units internally.
+Instantaneous: P = (1/3V) [ 2 N E_kin + sum_i r_i · f_i ]
+Returns a mean over the instantaneous frames in the trajectory
+Unit: ev/Å^3</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="ASEWrappers.atomic_structure.AtomicStructure.kinetic_energy">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">kinetic_energy</span></span><a class="headerlink" href="#ASEWrappers.atomic_structure.AtomicStructure.kinetic_energy" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="ASEWrappers.atomic_structure.AtomicStructure.label">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">label</span></span><a class="headerlink" href="#ASEWrappers.atomic_structure.AtomicStructure.label" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="ASEWrappers.atomic_structure.AtomicStructure.masses">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">masses</span></span><a class="headerlink" href="#ASEWrappers.atomic_structure.AtomicStructure.masses" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="ASEWrappers.atomic_structure.AtomicStructure.positions">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">positions</span></span><a class="headerlink" href="#ASEWrappers.atomic_structure.AtomicStructure.positions" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="ASEWrappers.atomic_structure.AtomicStructure.potential">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">potential</span></span><a class="headerlink" href="#ASEWrappers.atomic_structure.AtomicStructure.potential" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="ASEWrappers.atomic_structure.AtomicStructure.potential_energy">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">potential_energy</span></span><a class="headerlink" href="#ASEWrappers.atomic_structure.AtomicStructure.potential_energy" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="ASEWrappers.atomic_structure.AtomicStructure.setVelocitiesMB">
+<span class="sig-name descname"><span class="pre">setVelocitiesMB</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">temperature_K</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ASEWrappers.atomic_structure.AtomicStructure.setVelocitiesMB" title="Link to this definition"></a></dt>
+<dd><p>Sets the velocities of the structure at a given temperature accordint to a
+Maxwell-Boltzmann distribution. Also makes sure that the result
+has no drift.</p>
+<dl class="simple">
+<dt>In:</dt><dd><p>(float) temperature_K: wanted temperature of the structure in Kelvin</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="ASEWrappers.atomic_structure.AtomicStructure.stress">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">stress</span></span><a class="headerlink" href="#ASEWrappers.atomic_structure.AtomicStructure.stress" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="ASEWrappers.atomic_structure.AtomicStructure.symbols">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">symbols</span></span><a class="headerlink" href="#ASEWrappers.atomic_structure.AtomicStructure.symbols" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="ASEWrappers.atomic_structure.AtomicStructure.temperature">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">temperature</span></span><a class="headerlink" href="#ASEWrappers.atomic_structure.AtomicStructure.temperature" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="ASEWrappers.atomic_structure.AtomicStructure.total_energy">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">total_energy</span></span><a class="headerlink" href="#ASEWrappers.atomic_structure.AtomicStructure.total_energy" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="ASEWrappers.atomic_structure.AtomicStructure.velocities">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">velocities</span></span><a class="headerlink" href="#ASEWrappers.atomic_structure.AtomicStructure.velocities" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="ASEWrappers.atomic_structure.AtomicStructure.volume">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">volume</span></span><a class="headerlink" href="#ASEWrappers.atomic_structure.AtomicStructure.volume" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="module-ASEWrappers.contextManager">
+<span id="asewrappers-contextmanager-module"></span><h2>ASEWrappers.contextManager module<a class="headerlink" href="#module-ASEWrappers.contextManager" title="Link to this heading"></a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="ASEWrappers.contextManager.suppress_cpp_output">
+<span class="sig-prename descclassname"><span class="pre">ASEWrappers.contextManager.</span></span><span class="sig-name descname"><span class="pre">suppress_cpp_output</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#ASEWrappers.contextManager.suppress_cpp_output" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</section>
+<section id="module-ASEWrappers.integrator">
+<span id="asewrappers-integrator-module"></span><h2>ASEWrappers.integrator module<a class="headerlink" href="#module-ASEWrappers.integrator" title="Link to this heading"></a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="ASEWrappers.integrator.BerendsenNPTIntegrator">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">ASEWrappers.integrator.</span></span><span class="sig-name descname"><span class="pre">BerendsenNPTIntegrator</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">timestep</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">temperature_K</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pressure</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">compressibility</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ASEWrappers.integrator.BerendsenNPTIntegrator" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#ASEWrappers.integrator.Integrator" title="ASEWrappers.integrator.Integrator"><code class="xref py py-class docutils literal notranslate"><span class="pre">Integrator</span></code></a></p>
+<dl class="py property">
+<dt class="sig sig-object py" id="ASEWrappers.integrator.BerendsenNPTIntegrator.ensemble">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">ensemble</span></span><a class="headerlink" href="#ASEWrappers.integrator.BerendsenNPTIntegrator.ensemble" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="ASEWrappers.integrator.Integrator">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">ASEWrappers.integrator.</span></span><span class="sig-name descname"><span class="pre">Integrator</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">timestep</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ASEWrappers.integrator.Integrator" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="ASEWrappers.integrator.Integrator.attach">
+<span class="sig-name descname"><span class="pre">attach</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">attachment</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">interval</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ASEWrappers.integrator.Integrator.attach" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="ASEWrappers.integrator.Integrator.clearData">
+<span class="sig-name descname"><span class="pre">clearData</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#ASEWrappers.integrator.Integrator.clearData" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="ASEWrappers.integrator.Integrator.ensemble">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">ensemble</span></span><a class="headerlink" href="#ASEWrappers.integrator.Integrator.ensemble" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="ASEWrappers.integrator.Integrator.run">
+<span class="sig-name descname"><span class="pre">run</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">atomic_structure</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">steps</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ASEWrappers.integrator.Integrator.run" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="ASEWrappers.integrator.IsotropicMTKNPTIntegrator">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">ASEWrappers.integrator.</span></span><span class="sig-name descname"><span class="pre">IsotropicMTKNPTIntegrator</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">timestep</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">temperature_K</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pressure</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tdamp</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pdamp</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ASEWrappers.integrator.IsotropicMTKNPTIntegrator" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#ASEWrappers.integrator.Integrator" title="ASEWrappers.integrator.Integrator"><code class="xref py py-class docutils literal notranslate"><span class="pre">Integrator</span></code></a></p>
+<dl class="py property">
+<dt class="sig sig-object py" id="ASEWrappers.integrator.IsotropicMTKNPTIntegrator.ensemble">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">ensemble</span></span><a class="headerlink" href="#ASEWrappers.integrator.IsotropicMTKNPTIntegrator.ensemble" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="ASEWrappers.integrator.LangevinIntegrator">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">ASEWrappers.integrator.</span></span><span class="sig-name descname"><span class="pre">LangevinIntegrator</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">timestep</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">temperature_K</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">friction</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ASEWrappers.integrator.LangevinIntegrator" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#ASEWrappers.integrator.Integrator" title="ASEWrappers.integrator.Integrator"><code class="xref py py-class docutils literal notranslate"><span class="pre">Integrator</span></code></a></p>
+<dl class="py property">
+<dt class="sig sig-object py" id="ASEWrappers.integrator.LangevinIntegrator.ensemble">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">ensemble</span></span><a class="headerlink" href="#ASEWrappers.integrator.LangevinIntegrator.ensemble" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="ASEWrappers.integrator.VelocityVerletIntegrator">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">ASEWrappers.integrator.</span></span><span class="sig-name descname"><span class="pre">VelocityVerletIntegrator</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">timestep</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ASEWrappers.integrator.VelocityVerletIntegrator" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#ASEWrappers.integrator.Integrator" title="ASEWrappers.integrator.Integrator"><code class="xref py py-class docutils literal notranslate"><span class="pre">Integrator</span></code></a></p>
+<dl class="py property">
+<dt class="sig sig-object py" id="ASEWrappers.integrator.VelocityVerletIntegrator.ensemble">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">ensemble</span></span><a class="headerlink" href="#ASEWrappers.integrator.VelocityVerletIntegrator.ensemble" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="module-ASEWrappers.potential">
+<span id="asewrappers-potential-module"></span><h2>ASEWrappers.potential module<a class="headerlink" href="#module-ASEWrappers.potential" title="Link to this heading"></a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="ASEWrappers.potential.EMTPotential">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">ASEWrappers.potential.</span></span><span class="sig-name descname"><span class="pre">EMTPotential</span></span><a class="headerlink" href="#ASEWrappers.potential.EMTPotential" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#ASEWrappers.potential.Potential" title="ASEWrappers.potential.Potential"><code class="xref py py-class docutils literal notranslate"><span class="pre">Potential</span></code></a></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="ASEWrappers.potential.EMTPotential.getASEPotentialCalculator">
+<span class="sig-name descname"><span class="pre">getASEPotentialCalculator</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#ASEWrappers.potential.EMTPotential.getASEPotentialCalculator" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="ASEWrappers.potential.LennardJonesPotential">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">ASEWrappers.potential.</span></span><span class="sig-name descname"><span class="pre">LennardJonesPotential</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">atomic_numbers</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sigmas</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">epsilons</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rc</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ASEWrappers.potential.LennardJonesPotential" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#ASEWrappers.potential.Potential" title="ASEWrappers.potential.Potential"><code class="xref py py-class docutils literal notranslate"><span class="pre">Potential</span></code></a></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="ASEWrappers.potential.LennardJonesPotential.getASEPotentialCalculator">
+<span class="sig-name descname"><span class="pre">getASEPotentialCalculator</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#ASEWrappers.potential.LennardJonesPotential.getASEPotentialCalculator" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="ASEWrappers.potential.MACEPotential">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">ASEWrappers.potential.</span></span><span class="sig-name descname"><span class="pre">MACEPotential</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model_path</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'/Users/isawe28/Desktop/TFYA99/temp/Isacks-Co/SourceCode/MACEModels/mace-mpa-0-medium.model'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ASEWrappers.potential.MACEPotential" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#ASEWrappers.potential.Potential" title="ASEWrappers.potential.Potential"><code class="xref py py-class docutils literal notranslate"><span class="pre">Potential</span></code></a></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="ASEWrappers.potential.MACEPotential.getASEPotentialCalculator">
+<span class="sig-name descname"><span class="pre">getASEPotentialCalculator</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#ASEWrappers.potential.MACEPotential.getASEPotentialCalculator" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="ASEWrappers.potential.Potential">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">ASEWrappers.potential.</span></span><span class="sig-name descname"><span class="pre">Potential</span></span><a class="headerlink" href="#ASEWrappers.potential.Potential" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="ASEWrappers.potential.Potential.getASEPotentialCalculator">
+<span class="sig-name descname"><span class="pre">getASEPotentialCalculator</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#ASEWrappers.potential.Potential.getASEPotentialCalculator" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="module-ASEWrappers">
+<span id="module-contents"></span><h2>Module contents<a class="headerlink" href="#module-ASEWrappers" title="Link to this heading"></a></h2>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="modules.html" class="btn btn-neutral float-left" title="SourceCode" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="HTP.html" class="btn btn-neutral float-right" title="HTP module" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Isacks &amp; Co.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
