@@ -1,5 +1,28 @@
-import numpy as np
+# MIT License
+#
+# Copyright (c) 2025 Isacks-Co contributors
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+# THE SOFTWARE.
+
+
 import logging
+import numpy as np
 from ase.io.trajectory import Trajectory
 from collections import defaultdict
 
@@ -7,8 +30,9 @@ logger = logging.getLogger(__name__)
 from Utils.unitConversions import auToGPascal, evToJ
 from Utils.plotting import secondOrderNumericalDerivative
 
-def calculateCMatrix(strech_sequence): #TODO Move so it is computed on the fly.
-    
+
+def calculateCMatrix(strech_sequence):  # TODO Move so it is computed on the fly.
+
     betas = [[], [], [], [], [], []]
     for frame in strech_sequence:
         # Add the corresponding values to the right beta (strain direction)
@@ -44,9 +68,7 @@ def calculateCMatrix(strech_sequence): #TODO Move so it is computed on the fly.
     return C
 
 
-
-
-def _numericalC(stretch_sequence): # TODO Move to do on the fly
+def _numericalC(stretch_sequence):  # TODO Move to do on the fly
     """
     Calculates the elastic constants C11, C22, C33, C12, C44
 
@@ -58,10 +80,10 @@ def _numericalC(stretch_sequence): # TODO Move to do on the fly
     """
     betas = [[], [], [], [], [], []]
     # Prefer reconstructing 1D slices from 2D trajectory to avoid stale 1D data
-    
+
     used_2d = False
     try:
-        
+
         tol = 1e-12
         for frame in stretch_sequence:
             info = getattr(frame, 'info', {})
@@ -69,7 +91,8 @@ def _numericalC(stretch_sequence): # TODO Move to do on the fly
             b2 = info.get('beta2')
             if b1 is None or b2 is None:
                 continue
-            if int(b1) == int(b2) and np.isclose(float(info.get('strain1', 0.0)), 0.0, atol=tol):                   #Looks at difference between strains when creating 2D data
+            if int(b1) == int(b2) and np.isclose(float(info.get('strain1', 0.0)), 0.0,
+                                                 atol=tol):  # Looks at difference between strains when creating 2D data
                 i = int(b1)
                 eps = float(info.get('strain2', 0.0))
                 energy = float(info.get('total_energy', np.nan))
@@ -85,7 +108,8 @@ def _numericalC(stretch_sequence): # TODO Move to do on the fly
             for frame in stretch_trajectory:
                 energy = frame.info.get('total_energy')
                 betas[int(frame.info['beta'])].append([float(frame.info['strain']), np.array(frame.info['stress'],
-                                                                                    dtype=float), float(energy)])
+                                                                                             dtype=float),
+                                                       float(energy)])
             logger.info("Used legacy 1D stretch trajectory to compute elastic constants.")
         except Exception as e:
             logger.info(f"No usable stretch data found (2D or 1D): {e}")
@@ -111,12 +135,11 @@ def _numericalC(stretch_sequence): # TODO Move to do on the fly
         avg_data = sorted(avg_data, key=lambda x: x[0])
         averages.append(avg_data)
 
-    second_deriv = np.zeros((6,6))
-    
+    second_deriv = np.zeros((6, 6))
 
     twoD_energies = stretch_sequence[-1].info["2D Energies"]
     strains_axis = stretch_sequence[-1].info["Strains axis"]
-    number_of_pairs = stretch_sequence[-1].info["Number of pairs"]         # Should usually be 6
+    number_of_pairs = stretch_sequence[-1].info["Number of pairs"]  # Should usually be 6
 
     for i in range(int(np.sqrt(number_of_pairs))):
         energy_1 = np.array([x[2] for x in averages[i]], dtype=float)
@@ -134,15 +157,7 @@ def _numericalC(stretch_sequence): # TODO Move to do on the fly
 
     C_from_U = second_deriv / stretch_sequence[0].get_volume()
     logger.debug(f"C_from_U = \n {C_from_U * auToGPascal(1)} \n")
-    logger.info(f" \n C_11 = {auToGPascal(C_from_U[0,0])} \n C_12 = {auToGPascal(C_from_U[0,1])} \n C_44 = {auToGPascal(C_from_U[3,3])}")
+    logger.info(
+        f" \n C_11 = {auToGPascal(C_from_U[0, 0])} \n C_12 = {auToGPascal(C_from_U[0, 1])} \n C_44 = {auToGPascal(C_from_U[3, 3])}")
 
     return C_from_U
-
-
-
-
-
-
-
-
-

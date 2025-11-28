@@ -38,4 +38,3 @@ jobs:
       if: (!cancelled())
       with:
         files: Tests/Report*.xml
-

@@ -1,18 +1,40 @@
-from ase.io import read
-import numpy as np
+# MIT License
+#
+# Copyright (c) 2025 Isacks-Co contributors
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+# THE SOFTWARE.
+
 
 import json
-import sys
 import logging
-
-from ASEWrappers.potential import EMTPotential,LennardJonesPotential
-from Utils import LJParams
-from ASEWrappers import VelocityVerletIntegrator,LangevinIntegrator,IsotropicMTKNPTIntegrator
-from simulationInput import SimulationSettings
-from Utils.inputParser import InputParser
+import numpy as np
+import sys
 from ASEWrappers import AtomicStructure
+from ASEWrappers import VelocityVerletIntegrator, LangevinIntegrator, IsotropicMTKNPTIntegrator
+from ASEWrappers.potential import EMTPotential, LennardJonesPotential
+from Utils import LJParams
+from Utils.inputParser import InputParser
+from ase.io import read
+from SimulationInput import SimulationSettings
 
 log = logging.getLogger(__name__)
+
 
 class PreProcessing:
     """
@@ -23,19 +45,18 @@ class PreProcessing:
 
     def __init__(self, args):
 
-        #Init argparser, all inputs from terminal available in self.argparser.args (dict)
+        # Init argparser, all inputs from terminal available in self.argparser.args (dict)
         self.argparser = InputParser(args)
 
-        #Init settings and atomic structure
-        
+        # Init settings and atomic structure
+
         self.settings = self.readSettings(self.argparser.args["input_settings"])
-        
+
         self.atomic_structure = self.readAtomicStructure(self.argparser.args["input_structure"])
 
-        #Physical check of the input
-        #self.sanityCheckAtomicStructure() #TODO Problems with new structure
-        #self.sanityCheckSettings()
-
+        # Physical check of the input
+        # self.sanityCheckAtomicStructure() #TODO Problems with new structure
+        # self.sanityCheckSettings()
 
     def readSettings(self, input_settings):
         """Reads settings from json file, checks all expected settings present. Overwrite settings file if a terminal flag is set."""
@@ -56,25 +77,25 @@ class PreProcessing:
         log.debug("Settings loaded: %r", temp_settings)
         return temp_settings
 
-
     def readAtomicStructure(self, input_structure):
         """Reads atomic structure from a file, and extend cell according to supercell setting"""
 
         try:
-            
-          
+
             self.getPotential()
-         
-            atomic_structure = AtomicStructure.fromFile(input_structure,pbc = True, supercells= self.settings["Supercells"],potential=self.getPotential())
-        
+
+            atomic_structure = AtomicStructure.fromFile(input_structure, pbc=True,
+                                                        supercells=self.settings["Supercells"],
+                                                        potential=self.getPotential())
+
             return atomic_structure
-        
-            #TODO Add this again if neseded
+
+            # TODO Add this again if neseded
             log.info("Reading atomic structure from: %s", input_structure)
             atoms = read(input_structure) * tuple(self.settings["Supercells"])
-            atoms.pbc = True #TODO, Hard coded pbc always true for now.
+            atoms.pbc = True  # TODO, Hard coded pbc always true for now.
 
-            with open(input_structure, "r") as file: # Manually read the first line and add as a comment.
+            with open(input_structure, "r") as file:  # Manually read the first line and add as a comment.
                 structure_name = file.readline().strip()
                 atoms.info["comment"] = structure_name
             return atoms
@@ -83,58 +104,63 @@ class PreProcessing:
             raise FileNotFoundError(f"File {input_structure} not found, please check it exists")
         except Exception:
             error_msg = f"Atomic structure file format could not be read"
-            
+
             log.error(error_msg)
             raise RuntimeError(error_msg)
 
-    def getPotential(self): #TODO FIX
+    def getPotential(self):  # TODO FIX
         match self.settings["Potential"]:
             case "LJ":
                 atoms = read(self.argparser.args["input_structure"])
-             
+
                 atomic_num = [(atoms.get_atomic_numbers()[0])]
                 atomic_symbols = atoms.get_chemical_symbols()
-                
-                lj_params = LJParams(material=sorted(set(atomic_symbols))[0]) #TODO Problem
-                
-                return LennardJonesPotential(atomic_numbers=atomic_num, epsilons=[lj_params["epsilon_eV"]], sigmas= [lj_params["sigma_A"]],rc=lj_params["rc_A"])
+
+                lj_params = LJParams(material=sorted(set(atomic_symbols))[0])  # TODO Problem
+
+                return LennardJonesPotential(atomic_numbers=atomic_num, epsilons=[lj_params["epsilon_eV"]],
+                                             sigmas=[lj_params["sigma_A"]], rc=lj_params["rc_A"])
             case "EMT":
                 return EMTPotential()
-            
-        
-    def getIntegrator(self,ensemble):
+
+    def getIntegrator(self, ensemble):
         match ensemble:
             case "NVE":
                 return VelocityVerletIntegrator(timestep=self.settings["Timestep"])
-            
+
             case "NVT":
-                return LangevinIntegrator(timestep= self.settings["Timestep"],temperature_K=self.settings["Temperature"],friction=self.settings["Friction"])
-            
+                return LangevinIntegrator(timestep=self.settings["Timestep"],
+                                          temperature_K=self.settings["Temperature"],
+                                          friction=self.settings["Friction"])
+
             case "NPT":
-                return IsotropicMTKNPTIntegrator(timestep=self.settings["Timestep"],temperature_K=self.settings["Temperature"],pressure=self.settings["Pressure"],pdamp=self.settings["Pdamp"],tdamp=self.settings["Tdamp"])
-            
+                return IsotropicMTKNPTIntegrator(timestep=self.settings["Timestep"],
+                                                 temperature_K=self.settings["Temperature"],
+                                                 pressure=self.settings["Pressure"], pdamp=self.settings["Pdamp"],
+                                                 tdamp=self.settings["Tdamp"])
+
     def createSettings(self):
-        #log.debug("Creating Settings object for ensemble: %s", self.settings["Ensemble"])
-        
+        # log.debug("Creating Settings object for ensemble: %s", self.settings["Ensemble"])
+
         potential = self.getPotential()
-        self.equil_settings = SimulationSettings(num_steps=10000,potential=potential,integrator=self.getIntegrator("NPT"))
-        self.sample_settings = SimulationSettings(num_steps=self.settings["Number_of_steps"],potential=potential,integrator=self.getIntegrator("NVT"))
-        self.stretch_settings = SimulationSettings(num_steps=self.settings["Number_of_steps"],potential=potential,integrator=self.getIntegrator("NVT"))
-        return self.equil_settings,self.sample_settings,self.stretch_settings
+        self.equil_settings = SimulationSettings(num_steps=10000, potential=potential,
+                                                 integrator=self.getIntegrator("NPT"))
+        self.sample_settings = SimulationSettings(num_steps=self.settings["Number_of_steps"], potential=potential,
+                                                  integrator=self.getIntegrator("NVT"))
+        self.stretch_settings = SimulationSettings(num_steps=self.settings["Number_of_steps"], potential=potential,
+                                                   integrator=self.getIntegrator("NVT"))
+        return self.equil_settings, self.sample_settings, self.stretch_settings
 
-  
-
-
-
-    def sanityCheckSettings(self): #TODO Put in the respective classes like integrator and atomic structure
+    def sanityCheckSettings(self):  # TODO Put in the respective classes like integrator and atomic structure
         """
         Sanity check for the settings.json file. Makes sure that we only use EMT for
         valid metals. Also checks that relevant values are non-negative.
         """
         if self.settings["Potential"] == "EMT":
             elements = self.atoms.get_atomic_numbers()
-            
-            if not np.all(np.isin(elements,[13, 28, 29, 46, 47, 78, 79])): # Check if the elements are supported for EMT potential
+
+            if not np.all(np.isin(elements, [13, 28, 29, 46, 47, 78,
+                                             79])):  # Check if the elements are supported for EMT potential
                 raise ValueError(f"Invalid potential: EMT potential only available for Al, Cu, Ag, Au, Ni, Pd, Pt.")
         if self.settings["Temperature"] > 3000:
             raise ValueError(f"Invalid temperature: Exceeds 3000K")
@@ -179,7 +205,8 @@ class PreProcessing:
             distances_matrix = self.atoms.get_all_distances()
             upper_indeces = np.triu_indices(len(distances_matrix), k=1)
             flat_distances = distances_matrix[upper_indeces]
-            if np.any(flat_distances <= 0.5): # Not sure exactly what is a reasonable threshold as atomic radius varies alot. currently 0.5 Å
+            if np.any(
+                    flat_distances <= 0.5):  # Not sure exactly what is a reasonable threshold as atomic radius varies alot. currently 0.5 Å
                 raise ValueError("Invalid atomic configuration: Atomic overlap")
 
 

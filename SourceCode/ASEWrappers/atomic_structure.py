@@ -1,9 +1,30 @@
+# MIT License
+#
+# Copyright (c) 2025 Isacks-Co contributors
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+# THE SOFTWARE.
+
+import hashlib
 import numpy as np
 from ase import Atoms
 from ase.io import read
-from ase.md.velocitydistribution import MaxwellBoltzmannDistribution,Stationary, ZeroRotation
-
-import hashlib
+from ase.md.velocitydistribution import MaxwellBoltzmannDistribution, Stationary, ZeroRotation
 
 from .potential import Potential
 
@@ -15,9 +36,9 @@ class AtomicStructure:
     from a file in combination with a potential object.
     """
 
-    def __init__(self, atoms: Atoms, special_label = None,label = None):
+    def __init__(self, atoms: Atoms, special_label=None, label=None):
         self._atoms = atoms.copy()
-        
+
         if atoms.calc != None:
             self._atoms.calc = atoms.calc
         else:
@@ -25,37 +46,37 @@ class AtomicStructure:
         self._label = self._generateHashLabel(special_label) if label == None else label
 
     @classmethod
-    def fromFile(cls,path, pbc = True,supercells = [1,1,1], potential:Potential = None):
+    def fromFile(cls, path, pbc=True, supercells=[1, 1, 1], potential: Potential = None):
         atoms = read(path) * supercells
         atoms.calc = potential.getASEPotentialCalculator()
         atoms.pbc = pbc
         return cls(atoms)
 
-    #Standard dunder methods
+    # Standard dunder methods
 
     def __len__(self):
         return len(self._atoms)
-    
+
     def __str__(self):
         return f"{self._atoms}"
 
     def __copy__(self):
-        return AtomicStructure(self._atoms,label=self.label)
-    
+        return AtomicStructure(self._atoms, label=self.label)
+
     # Properties. 
 
     @property
     def label(self):
-        return self._label 
-    
+        return self._label
+
     @property
     def potential(self):
         return self._atoms.calc
-    
+
     @potential.setter
-    def potential(self,new_pot):
+    def potential(self, new_pot):
         self._atoms.calc = new_pot
-    
+
     @property
     def positions(self):
         return self._atoms.get_positions()
@@ -78,7 +99,7 @@ class AtomicStructure:
         if self._atoms.calc is None:
             raise RuntimeError("Cannot get forces: no potential assigned")
         return self._atoms.get_forces()
-    
+
     @property
     def stress(self):
         if self._atoms.calc is None:
@@ -88,6 +109,7 @@ class AtomicStructure:
     @property
     def masses(self):
         return self._atoms.get_masses()
+
     @property
     def potential_energy(self):
         if self._atoms.calc is None:
@@ -99,25 +121,25 @@ class AtomicStructure:
         if self._atoms.calc is None:
             raise RuntimeError("Cannot get energy: no potential assigned")
         return self._atoms.get_kinetic_energy()
-    
+
     @property
     def total_energy(self):
         if self._atoms.calc is None:
             raise RuntimeError("Cannot get energy: no potential assigned")
         return self._atoms.get_total_energy()
-    
+
     @property
     def temperature(self):
         if self._atoms.calc is None:
             raise RuntimeError("Cannot get energy: no potential assigned")
         return self._atoms.get_temperature()
-    
+
     @property
     def volume(self):
         if self._atoms.calc is None:
             raise RuntimeError("Cannot get energy: no potential assigned")
         return self._atoms.get_volume()
-    
+
     @property
     def cell(self):
         return self._atoms.cell.array.copy()
@@ -132,14 +154,14 @@ class AtomicStructure:
 
     @property
     def cohesive_energy(self):
-        
+
         """
         Calculate the cohesive energy per atom. 
         This is done by computing the difference in energy between the separate atoms and the bulk structure 
         
         Unit: ev/atom
         """
-        
+
         number = self.__len__()
         e_atoms = 0
 
@@ -148,14 +170,13 @@ class AtomicStructure:
 
             atom.calc = self._atoms.calc
             e_atoms += atom.get_potential_energy()
-        
-        e_bulk =self.potential_energy
-        
-        e_coh = (e_atoms-e_bulk) / number
+
+        e_bulk = self.potential_energy
+
+        e_coh = (e_atoms - e_bulk) / number
 
         return e_coh
 
-    
     @property
     def internal_pressure(self):
         """
@@ -167,20 +188,18 @@ class AtomicStructure:
 
         N = len(self)
 
-        
         e_kin_eV = self.kinetic_energy
         V_A3 = self.volume
         forces_eVA = self.forces
         positions_A = self.positions
         sum_rf = np.sum(forces_eVA * positions_A)
         P_eVA3 = (1.0 / (3.0 * V_A3)) * (2.0 * N * e_kin_eV + sum_rf)
-        
+
         return P_eVA3
 
+    # Help functions
 
-    # Help functions 
-
-    def setVelocitiesMB(self,temperature_K):
+    def setVelocitiesMB(self, temperature_K):
         """
         Sets the velocities of the structure at a given temperature accordint to a 
         Maxwell-Boltzmann distribution. Also makes sure that the result
@@ -192,10 +211,10 @@ class AtomicStructure:
 
         MaxwellBoltzmannDistribution(self._atoms, temperature_K=temperature_K,
                                      force_temp=True)  # Initialize velocity according to temperature_k
-        Stationary(self._atoms) # Make sure center of mass has no linear momentum
-        ZeroRotation(self._atoms) # Make sure center of mass has no angular momentum, might not be needed
+        Stationary(self._atoms)  # Make sure center of mass has no linear momentum
+        ZeroRotation(self._atoms)  # Make sure center of mass has no angular momentum, might not be needed
 
-    def computeMSD(self,orig_struct):
+    def computeMSD(self, orig_struct):
         """
         Computes MSD in relation to some reference structure
         In:
@@ -204,13 +223,13 @@ class AtomicStructure:
         Out: 
             (int) : Mean square displacement over all atoms
         """
-        if not isinstance(orig_struct,AtomicStructure):
+        if not isinstance(orig_struct, AtomicStructure):
             raise TypeError("orig_struct needs to be type AtomicStructure")
         r_0 = orig_struct.positions
         r_n = self.positions
         return np.mean((r_0 - r_n) ** 2)
-    
-    def _generateHashLabel(self,special_label):
+
+    def _generateHashLabel(self, special_label):
         """
         Generates a semi-random hashlabel for the atomic structure.
         In:
@@ -220,12 +239,12 @@ class AtomicStructure:
         """
         formula = self._atoms.get_chemical_formula()
         data = (self._atoms.numbers.tobytes() + self._atoms.positions.tobytes() + np.random.bytes(4))
-        short_hash = hashlib.md5(data).hexdigest()[:6]  
+        short_hash = hashlib.md5(data).hexdigest()[:6]
         if special_label == None:
             label = f"{formula}_{short_hash}"
         else:
             label = f"{formula}_{special_label}_{short_hash}"
         return label
-    
-    def getAtoms(self): # help function that should be used carefully
+
+    def getAtoms(self):  # help function that should be used carefully
         return self._atoms

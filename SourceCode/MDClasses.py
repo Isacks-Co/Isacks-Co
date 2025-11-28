@@ -1,43 +1,67 @@
-from ase.units import fs
-from ase.io.trajectory import Trajectory
-import numpy as np
+# MIT License
+#
+# Copyright (c) 2025 Isacks-Co contributors
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+# THE SOFTWARE.
 
+
+import numpy as np
+from ASEWrappers import AtomicStructure
+from ASEWrappers import DataTrajectory, Frame
+from Utils.equilibriumCondition import EquilibriumCondition
+from ase.io.trajectory import Trajectory
+from ase.units import fs
 from copy import copy
 
-from ASEWrappers import DataTrajectory,Frame
-from ASEWrappers import AtomicStructure
-from Utils.equilibriumCondition import EquilibriumCondition
+
 class MDBase:
-    def __init__(self,settings):
+    def __init__(self, settings):
         self.integrator = settings.integrator
         self.sample_data = None
         self.run_type = None
 
-    def _storeFrame(self,atomic_strucuture: AtomicStructure,data_traj: DataTrajectory):
+    def _storeFrame(self, atomic_strucuture: AtomicStructure, data_traj: DataTrajectory):
         if len(data_traj) == 0:
             time = 0
         else:
             time = data_traj[-1].time + self.integrator.timestep
-      
-        data = {label:  self._getAtomsData(atomic_strucuture,label,data_traj.initial_atoms) for label in  self.sample_data }
 
-        frame = Frame(time,data)
- 
+        data = {label: self._getAtomsData(atomic_strucuture, label, data_traj.initial_atoms) for label in
+                self.sample_data}
+
+        frame = Frame(time, data)
+
         data_traj.append(frame)
-  
-    def _SaveASETrajectory(self,atomic_structure: AtomicStructure,interval = 1):
-        traj = Trajectory(filename=f"{self.run_type}.traj", mode="w",atoms = atomic_structure.getAtoms())
-        self.integrator.attach(traj.write,interval)
+
+    def _SaveASETrajectory(self, atomic_structure: AtomicStructure, interval=1):
+        traj = Trajectory(filename=f"{self.run_type}.traj", mode="w", atoms=atomic_structure.getAtoms())
+        self.integrator.attach(traj.write, interval)
 
     @staticmethod
-    def _getAtomsData(atomic_structure: AtomicStructure, name,initial_atomic_structure:AtomicStructure):
+    def _getAtomsData(atomic_structure: AtomicStructure, name, initial_atomic_structure: AtomicStructure):
         """
         Help function for getting specific data from the ASE atoms object.
         """
-     
+
         if atomic_structure.potential is None:
             raise RuntimeError("Atoms object has no potential")
-        
+
         if name == "E_pot":
             E_pot = atomic_structure.potential_energy
             return E_pot
@@ -53,7 +77,7 @@ class MDBase:
         if name == "V":
             vol = atomic_structure.volume
             return vol
-        
+
         if name == "T":
             T = atomic_structure.temperature
             return T
@@ -64,73 +88,70 @@ class MDBase:
         if name == "E_coh":
             E_coh = atomic_structure.cohesive_energy
             return E_coh
+
+
 class EquilibriumRun(MDBase):
     def __init__(self, settings):
         super().__init__(settings)
         self.run_type = "Equil"
         self.sample_data = ["E_pot"]
-    
-    def run(self,atomic_structure: AtomicStructure ,num_steps,init_vel = False,store_traj = True):
-        
+
+    def run(self, atomic_structure: AtomicStructure, num_steps, init_vel=False, store_traj=True):
+
         if init_vel:
             atomic_structure.setVelocitiesMB(self.integrator.temperature_K)
-        
+
         if store_traj:
             self._SaveASETrajectory(atomic_structure)
-        #self.integrator.attach(lambda: self._storeFrame(atomic_strucuture=atomic_structure,data_traj = data_traj),1)
-        #self.integrator.attach(lambda: self._check_equilibrium(dataframe=data_traj),1)
-   
-        self.integrator.run(atomic_structure,num_steps)
-        
-       
+        # self.integrator.attach(lambda: self._storeFrame(atomic_strucuture=atomic_structure,data_traj = data_traj),1)
+        # self.integrator.attach(lambda: self._check_equilibrium(dataframe=data_traj),1)
+
+        self.integrator.run(atomic_structure, num_steps)
+
         return atomic_structure
-    
-    def _check_equilibrium(self,dataframe):
-        
+
+    def _check_equilibrium(self, dataframe):
+
         if len(dataframe) > 1000:
             if EquilibriumCondition.checkStable(dataframe[-1000:]):
-                
                 raise StopIteration("Equil reached")
 
+
 class SampleRun(MDBase):
-    def __init__(self, settings,sample_data = "all"):
+    def __init__(self, settings, sample_data="all"):
         super().__init__(settings)
         self.run_type = "Sample"
-        self.sample_data = ["T","E_tot","E_kin","E_pot","V","MSD"] if sample_data =="all" else sample_data
-    def run(self,atomic_structure: AtomicStructure ,num_steps,store_traj = False):
-        
-        
+        self.sample_data = ["T", "E_tot", "E_kin", "E_pot", "V", "MSD"] if sample_data == "all" else sample_data
+
+    def run(self, atomic_structure: AtomicStructure, num_steps, store_traj=False):
         data_traj = DataTrajectory(atomic_structure)
         if store_traj:
-
             self._SaveASETrajectory(atomic_structure)
 
-        self.integrator.attach(lambda: self._storeFrame(atomic_strucuture=atomic_structure,data_traj = data_traj),1)
-        
-        
-        self.integrator.run(atomic_structure,num_steps) 
+        self.integrator.attach(lambda: self._storeFrame(atomic_strucuture=atomic_structure, data_traj=data_traj), 1)
+
+        self.integrator.run(atomic_structure, num_steps)
         # TODO Add equil check / Fail check
         return data_traj
-    
 
-class StrecthRun(MDBase): #TODO Finish this
+
+class StrecthRun(MDBase):  # TODO Finish this
     def __init__(self, settings):
         super().__init__(settings)
         self.run_type = "Stretch"
-        
-    def run(self,atomic_structure: AtomicStructure ): 
-            
-        strains = np.linspace(-0.005, 0.005, 5) # TODO Not hardcoded ? 
+
+    def run(self, atomic_structure: AtomicStructure):
+
+        strains = np.linspace(-0.005, 0.005, 5)  # TODO Not hardcoded ?
         cell0 = atomic_structure.cell
         stress0 = atomic_structure.stress
-        hold_steps = 500 # TODO Not hardcoded ? 
+        hold_steps = 500  # TODO Not hardcoded ?
         equil_atoms = copy(atomic_structure)
         calculator = atomic_structure.potential
-        
-        
+
         C = np.zeros((6, 6))
         for beta in range(6):
-            
+
             # list for storing the average matrix of stresses for each strain.
             average_stress = []
             for e in strains:
@@ -149,11 +170,11 @@ class StrecthRun(MDBase): #TODO Finish this
                 # Apply the strain to the cell and perform the number of steps specified with hold_steps
                 new_cell = np.dot(cell0, np.eye(3) + eps)
                 atoms = copy(equil_atoms)
-                #atoms.calc = calculator
+                # atoms.calc = calculator
                 atoms.cell = new_cell
-                self.integrator.attach(lambda : self.appendStress(atoms, stress_list, stress0),1)
-                self.integrator.run(atoms,hold_steps)
-                
+                self.integrator.attach(lambda: self.appendStress(atoms, stress_list, stress0), 1)
+                self.integrator.run(atoms, hold_steps)
+
                 stacked = np.stack(stress_list)
                 avg_matrix = stacked.mean(axis=0)
                 average_stress.append(avg_matrix)
@@ -162,15 +183,9 @@ class StrecthRun(MDBase): #TODO Finish this
                 C[alpha, beta] = np.polyfit(strains, sigmas[:, alpha], 1)[0]
         np.save(f"cmatrix", C)
         return C
-    
 
     def appendStress(self, atoms, stress_list, stress0):
         # Help function for appending stresses during _stretchCell runs
         stress = atoms.stress - stress0
-    
+
         stress_list.append(stress)
-
-
-
-
-

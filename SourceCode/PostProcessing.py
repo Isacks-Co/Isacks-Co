@@ -1,12 +1,34 @@
-import pandas as pd
+# MIT License
+#
+# Copyright (c) 2025 Isacks-Co contributors
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+# THE SOFTWARE.
+
+
 import numpy as np
-from ase.io.trajectory import Trajectory
-
+import pandas as pd
 import sys
-
-from quantityCalculator import QuantityCalculator as QC
 from ASEWrappers import AtomicStructure
-from Utils.unitConversions import selfDiffusionCoeffAuToSI,auToGPascal,specificHeatAuToSI
+from Utils.unitConversions import selfDiffusionCoeffAuToSI, auToGPascal, specificHeatAuToSI
+from ase.io.trajectory import Trajectory
+from QuantityCalculator import QuantityCalculator as QC
+
 
 class PostProcessing():
     """
@@ -15,75 +37,64 @@ class PostProcessing():
     Typically takes one or multiple trajectories and some flags for what to compute.
     
     """
-    
-    def __init__(self,equil_struct,dataframe, C_matrix):
+
+    def __init__(self, equil_struct, dataframe, C_matrix):
         self.equil_struct = equil_struct
         self.dataframe = dataframe
         self.C_matrix = C_matrix
         self.time_averages = self.computeTimeAverages().to_frame().T
-       
-    
+
     def storeQuantities(self):
-        self.time_averages = self.time_averages.drop(columns = ["time","MSD"])
+        self.time_averages = self.time_averages.drop(columns=["time", "MSD"])
         self.derived_quants = self.computeDerivedQuantities()
-        
-        self.writeQuantities(pd.concat([self.time_averages,self.derived_quants],axis=1))
-        
+
+        self.writeQuantities(pd.concat([self.time_averages, self.derived_quants], axis=1))
+
     @classmethod
-    def fromFiles(cls,folder):
-      
-       
-        df = pd.read_fwf(f"{folder}/sampledata.txt",skiprows = 1)
+    def fromFiles(cls, folder):
+        df = pd.read_fwf(f"{folder}/sampledata.txt", skiprows=1)
         equil_struct = AtomicStructure(Trajectory(f"{folder}/Equil.traj")[-1])
         C_matrix = np.load(f"{folder}/cmatrix.npy")
-        return cls(equil_struct,df,C_matrix)
-     
+        return cls(equil_struct, df, C_matrix)
+
     def computeDerivedQuantities(self):
-        #Requires sampledata
-        D = selfDiffusionCoeffAuToSI(QC.computeSelfDiffusionCoefficient(self.dataframe["MSD"].tolist(),self.dataframe["time"][1]))
-        Cv = specificHeatAuToSI(QC.computeSpecificHeatNVT(self.dataframe["E_tot"],sum(self.equil_struct.masses),self.time_averages["T"]))
-        
-        #Requires C_Matrix
-        B,G,E = QC.calculateModuli(C_matrix=self.C_matrix)
-        
-        T_D = QC.computeDebyeTemperature(self.time_averages["V"],sum(self.equil_struct.masses),len(self.equil_struct),G,E)
+        # Requires sampledata
+        D = selfDiffusionCoeffAuToSI(
+            QC.computeSelfDiffusionCoefficient(self.dataframe["MSD"].tolist(), self.dataframe["time"][1]))
+        Cv = specificHeatAuToSI(
+            QC.computeSpecificHeatNVT(self.dataframe["E_tot"], sum(self.equil_struct.masses), self.time_averages["T"]))
+
+        # Requires C_Matrix
+        B, G, E = QC.calculateModuli(C_matrix=self.C_matrix)
+
+        T_D = QC.computeDebyeTemperature(self.time_averages["V"], sum(self.equil_struct.masses), len(self.equil_struct),
+                                         G, E)
         B = auToGPascal(B)
         G = auToGPascal(G)
         E = auToGPascal(E)
-        
-        data = {"D":D, "Cv":Cv, "B":B, "G":G, "E":E, "T_D" : T_D}
 
-        return pd.DataFrame(data) 
+        data = {"D": D, "Cv": Cv, "B": B, "G": G, "E": E, "T_D": T_D}
+
+        return pd.DataFrame(data)
 
     def computeTimeAverages(self):
-        
         return self.dataframe.mean()
 
-
-
-
-
-    def writeQuantities(self,data: pd.DataFrame):
+    def writeQuantities(self, data: pd.DataFrame):
         """
         Write labels and quantities to txt file. 
         """
-        data  = data.T
-     
+        data = data.T
 
         # Format each row as "Name: Value" with fixed-point numbers
         formatted = data.apply(lambda row: f"{row.name}: {row[0]:.6f}", axis=1)
 
-        
-
         # Write everything to CSV
         with open("Quantities.csv", "w") as f:
-
             for line in formatted:
-                f.write(line + "\n")             # each formatted row
-
+                f.write(line + "\n")  # each formatted row
 
 
 if __name__ == "__main__":
     post = PostProcessing.fromFiles(sys.argv[1])
     post.storeQuantities()
-    

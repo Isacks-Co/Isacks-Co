@@ -1,43 +1,64 @@
-from scipy.constants import physical_constants
-from ase.neighborlist import NeighborList, natural_cutoffs
-from ase.units import kB
-from ase.eos import EquationOfState
-import numpy as np
+# MIT License
+#
+# Copyright (c) 2025 Isacks-Co contributors
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+# THE SOFTWARE.
+
 
 import logging
-
-from Utils.unitConversions import auToGPascal, evToJ
+import numpy as np
 from Utils.plotting import secondOrderNumericalDerivative
+from Utils.unitConversions import auToGPascal, evToJ
+from ase.eos import EquationOfState
+from ase.neighborlist import NeighborList, natural_cutoffs
+from ase.units import kB
+from scipy.constants import physical_constants
 
 hbar = physical_constants['Planck constant over 2 pi in eV s'][0] * 1e15
 
 logger = logging.getLogger(__name__)
 
-class QuantityCalculator: 
+
+class QuantityCalculator:
     """
     Computes derived quantities from sequences of instantaneus data
     """
-    
 
     @staticmethod
-    def computeSpecificHeatNVT(E_tot_seq,total_mass_amu,T):
+    def computeSpecificHeatNVT(E_tot_seq, total_mass_amu, T):
         """ 
         Compute specific heat capacity as a time average of the total energy fluctuations 
         over all frames.
         Unit: ev/(amu*K) (amu = atomic mass unit)
         """
-       
+
         E_tot_seq = np.array(E_tot_seq)
 
         e_mean = np.mean(E_tot_seq)
-        e_2_mean = np.mean(np.array(E_tot_seq)**2)
-        prefactor = 1/(kB*T**2)
-        specific_heat =  prefactor * (e_2_mean-e_mean**2)/total_mass_amu # Specific heat in ev/amu*K
-        
+        e_2_mean = np.mean(np.array(E_tot_seq) ** 2)
+        prefactor = 1 / (kB * T ** 2)
+        specific_heat = prefactor * (e_2_mean - e_mean ** 2) / total_mass_amu  # Specific heat in ev/amu*K
+
         return specific_heat
-    
+
     @staticmethod
-    def computeSpecificHeatNVE(E_kin_seq,total_mass_amu,T): 
+    def computeSpecificHeatNVE(E_kin_seq, total_mass_amu, T):
         """
         Compute specific heat capacity as a time average of the kinetic energy fluctuations 
         over all frames. 
@@ -45,19 +66,17 @@ class QuantityCalculator:
         """
 
         e_kin_mean = np.mean(E_kin_seq)
-        e_kin_2_mean = np.mean(np.array(E_kin_seq)**2)
+        e_kin_2_mean = np.mean(np.array(E_kin_seq) ** 2)
 
-        specific_heat =  (3*kB/2)*1/(1-(2/(3*(kB*T)**2)*(e_kin_2_mean - e_kin_mean**2)))/total_mass_amu
-        
+        specific_heat = (3 * kB / 2) * 1 / (
+                    1 - (2 / (3 * (kB * T) ** 2) * (e_kin_2_mean - e_kin_mean ** 2))) / total_mass_amu
+
         return specific_heat
 
-    
-
-    
-    
     @staticmethod
-    def computeSelfDiffusionCoefficient(msd_list,sample_spacing):  # Needs constant temperature, for current implementation. 
-        
+    def computeSelfDiffusionCoefficient(msd_list,
+                                        sample_spacing):  # Needs constant temperature, for current implementation.
+
         """
         Compute self diffusion coefficient from the slope of MSD over a large timeperiod
         Unit: Å^2/fs
@@ -69,40 +88,39 @@ class QuantityCalculator:
             timestep = i * sample_spacing
             timestep_list.append([timestep, i])
 
-        if len(timestep_list) > 100: # Since early values of MSD are inaccurate
+        if len(timestep_list) > 100:  # Since early values of MSD are inaccurate
             msd0 = msd_list[50]
             msd_final = msd_list[-1]
             t_0 = timestep_list[50][0]
             t_end = timestep_list[-1][0]
-            D = (msd_final-msd0)/(t_end - t_0)
-            
+            D = (msd_final - msd0) / (t_end - t_0)
+
         else:
             logger.error("Too small sample size to calculate self-diffusion coefficient")
             D = None
 
-        return D / 6 # Å^2/fs
-
-
+        return D / 6  # Å^2/fs
 
     @staticmethod
-    def computeDebyeTemperature(V_A3,mass_u,N, G, K):
-        
+    def computeDebyeTemperature(V_A3, mass_u, N, G, K):
+
         rho = (mass_u / V_A3)
 
         transversal_sound_velocity = np.sqrt(G / rho)
         longitudinal_sound_velocity = np.sqrt((K + 4.0 * G / 3.0) / rho)
-        sound_velocity = ((1.0 / 3.0) * (1.0 / (longitudinal_sound_velocity ** 3) + 2.0 / (transversal_sound_velocity ** 3))) ** (-1.0 / 3.0)
+        sound_velocity = ((1.0 / 3.0) * (
+                    1.0 / (longitudinal_sound_velocity ** 3) + 2.0 / (transversal_sound_velocity ** 3))) ** (-1.0 / 3.0)
 
-        
         n = (N / V_A3)
 
-        Theta_D = (hbar / kB) * ((6.0 * np.pi ** 2 * n) ** (1.0 / 3.0)) * sound_velocity / 10.18 #TODO move to unit conversion file  to fs/Å
-        
+        Theta_D = (hbar / kB) * ((6.0 * np.pi ** 2 * n) ** (
+                    1.0 / 3.0)) * sound_velocity / 10.18  # TODO move to unit conversion file  to fs/Å
+
         return Theta_D
 
     @staticmethod
-    def computeLindemannIndex( msd,nearest_neighour_d):
-        
+    def computeLindemannIndex(msd, nearest_neighour_d):
+
         return np.sqrt(msd) / nearest_neighour_d
 
     @staticmethod
@@ -112,13 +130,11 @@ class QuantityCalculator:
         youngs_modulus = 9 * bulk_modulus * G_shear / (3 * bulk_modulus + G_shear)
         return bulk_modulus, G_shear, youngs_modulus
 
-
-
-    #TODO Still need to look at the stuf below this
-    
+    # TODO Still need to look at the stuf below this
 
     @staticmethod
-    def nearestNeighborsMean( atoms_sequence, start: int, end: int = None): # TODO Look at this and make work without traj
+    def nearestNeighborsMean(atoms_sequence, start: int,
+                             end: int = None):  # TODO Look at this and make work without traj
         """Calculate the mean distance of nearest neighbor in the structure for the last ten states of the simulation
         Loop structure: Last ten states -> Each atom -> neighbors to current atom
 
@@ -161,14 +177,9 @@ class QuantityCalculator:
         NN_mean_distance = np.mean(NN_list)
         logger.debug(f"Mean value of nearest neighbor : {NN_mean_distance} å")
         return NN_mean_distance
-    
-    
-
-
-    
 
     @staticmethod
-    def computeBulkModulus( stretch_sequence): #TODO Move so it is computed on the fly.
+    def computeBulkModulus(stretch_sequence):  # TODO Move so it is computed on the fly.
         energies = []
         cells = []
         for frame in stretch_sequence:
@@ -185,22 +196,3 @@ class QuantityCalculator:
         B0_GPa = auToGPascal(B0_eVa3)
         eos.plot('Ag-eos.png')
         return B0_GPa
-
-
-
-
-
-
-
-
-
-
-   
-
-
-
-    
-
-    
-
-

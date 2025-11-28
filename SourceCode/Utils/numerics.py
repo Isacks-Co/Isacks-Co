@@ -1,4 +1,29 @@
+# MIT License
+#
+# Copyright (c) 2025 Isacks-Co contributors
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+# THE SOFTWARE.
+
+
 import numpy as np
+
+
 def numericalDerivative(x, y, deg=1):
     """
     Compute the numerical derivative dy/dx given lists of x and y values.
@@ -29,18 +54,18 @@ def numericalDerivative(x, y, deg=1):
             if x[i + 1] != x[i - 1]:
                 dx = x[i + 1] - x[i - 1]
                 dy = y[i + 1] - y[i - 1]
-                #logger.debug(f"\n [{i}] ----- dx = {dx} \n [{i}] ----- dy = {dy} \n")
+                # logger.debug(f"\n [{i}] ----- dx = {dx} \n [{i}] ----- dy = {dy} \n")
                 dydx[i] = dy / dx
                 x_out[i] = x[i]
             else:
                 dydx[i] = (y[i + 1] - y[i]) / (x[i + 1] - x[i])
                 x_out[i] = (x[i + 1] + x[i]) / 2
-                
+
         # Backward difference for last point
         dydx[-1] = (y[-1] - y[-2]) / (x[-1] - x[-2])
         x_out[-1] = (x[-1] + x[-2]) / 2
-        y=dydx
-        x=x_out
+        y = dydx
+        x = x_out
         iteration += 1
 
     return x_out, dydx
@@ -68,8 +93,6 @@ def sortRealignAndFilter(x_list, y_list, filter=True, resolution=None):
     return x_sorted, y_realigned
 
 
-
-
 def secondOrderNumericalDerivative(eps_list, U):
     """
     Approximate the mixed partial derivative ∂²U/(∂x ∂y) using available data.
@@ -91,7 +114,7 @@ def secondOrderNumericalDerivative(eps_list, U):
     try:
         import numpy as _np
         U_arr = _np.asarray(U)
-        #logger.debug(f"U_arr = {U_arr}")
+        # logger.debug(f"U_arr = {U_arr}")
     except Exception:
         U_arr = None
 
@@ -105,8 +128,6 @@ def secondOrderNumericalDerivative(eps_list, U):
         U2D = _np.asarray(U_arr, dtype=float)
         d2 = _np.full_like(U2D, _np.nan, dtype=float)
 
-
-
         # Central difference approximation
         for i in range(1, n - 1):
             dx = x[i + 1] - x[i - 1]
@@ -119,7 +140,6 @@ def secondOrderNumericalDerivative(eps_list, U):
                 d2[i, j] = (U2D[i + 1, j + 1] - U2D[i + 1, j - 1] - U2D[i - 1, j + 1] + U2D[i - 1, j - 1]) / (dx * dy)
 
         return float(_np.nanmean(d2[1:-1, 1:-1]))
-
 
     # Otherwise interpret U as two 1D traces
     if not isinstance(U, (list, tuple)) or len(U) != 2:
@@ -149,8 +169,9 @@ def secondOrderNumericalDerivative(eps_list, U):
         _, d2 = numericalDerivative(x, U1, deg=2)
         return float(np.mean(d2))
 
-    #logger.debug(f"returning 0.0")
+    # logger.debug(f"returning 0.0")
     return 0.0
+
 
 def fitter(x, y, deg=14, resolution=None):
     coeffs = np.polyfit(x, y, deg=deg)
