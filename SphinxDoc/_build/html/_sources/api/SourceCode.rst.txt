@@ -1,0 +1,102 @@
+SourceCode package
+==================
+
+Subpackages
+-----------
+
+.. toctree::
+   :maxdepth: 4
+
+   SourceCode.ASEWrappers
+   SourceCode.Utils
+
+Submodules
+----------
+
+SourceCode.HTP module
+---------------------
+
+.. automodule:: SourceCode.HTP
+   :members:
+   :show-inheritance:
+   :undoc-members:
+
+SourceCode.MDClasses module
+---------------------------
+
+.. automodule:: SourceCode.MDClasses
+   :members:
+   :show-inheritance:
+   :undoc-members:
+
+SourceCode.MolecularDynamics module
+-----------------------------------
+
+.. automodule:: SourceCode.MolecularDynamics
+   :members:
+   :show-inheritance:
+   :undoc-members:
+
+SourceCode.PostProcessing module
+--------------------------------
+
+.. automodule:: SourceCode.PostProcessing
+   :members:
+   :show-inheritance:
+   :undoc-members:
+
+SourceCode.PreProcessing module
+-------------------------------
+
+.. automodule:: SourceCode.PreProcessing
+   :members:
+   :show-inheritance:
+   :undoc-members:
+
+SourceCode.QuantityCalculator module
+------------------------------------
+
+.. automodule:: SourceCode.QuantityCalculator
+   :members:
+   :show-inheritance:
+   :undoc-members:
+
+SourceCode.SimulationInput module
+---------------------------------
+
+.. automodule:: SourceCode.SimulationInput
+   :members:
+   :show-inheritance:
+   :undoc-members:
+
+SourceCode.Visualizer module
+----------------------------
+
+.. automodule:: SourceCode.Visualizer
+   :members:
+   :show-inheritance:
+   :undoc-members:
+
+SourceCode.cifRun module
+------------------------
+
+.. automodule:: SourceCode.cifRun
+   :members:
+   :show-inheritance:
+   :undoc-members:
+
+SourceCode.testingSPHINx module
+-------------------------------
+
+.. automodule:: SourceCode.testingSPHINx
+   :members:
+   :show-inheritance:
+   :undoc-members:
+
+Module contents
+---------------
+
+.. automodule:: SourceCode
+   :members:
+   :show-inheritance:
+   :undoc-members:

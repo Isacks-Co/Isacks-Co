@@ -1,0 +1,46 @@
+name: Sphinx Documentation
+
+on:
+  push:
+    branches:
+      - main  # runs whenever you push to main
+
+jobs:
+  build-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Checkout the repository
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      # 2. Setup Python
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+
+      # 3. Install dependencies
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install sphinx 
+          pip install -r SphinxDoc/sphinx-requirements.txt
+
+      # 4. Generate API docs (optional, if you regenerate them automatically)
+      - name: Generate API docs
+        run: |
+          sphinx-apidoc -o SphinxDoc/api SourceCode/
+
+      # 5. Build HTML
+      - name: Build Sphinx docs
+        run: |
+          cd SphinxDoc
+          make html
+
+      # 6. Deploy to GitHub Pages
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v7
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: SphinxDoc/_build/html

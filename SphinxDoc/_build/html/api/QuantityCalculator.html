@@ -1,0 +1,196 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>QuantityCalculator module &mdash; Computational physics project - TFYA99  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="SimulationInput module" href="SimulationInput.html" />
+    <link rel="prev" title="PreProcessing module" href="PreProcessing.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            Computational physics project - TFYA99
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="modules.html">SourceCode</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="ASEWrappers.html">ASEWrappers package</a></li>
+<li class="toctree-l2"><a class="reference internal" href="HTP.html">HTP module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="MDClasses.html">MDClasses module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="MolecularDynamics.html">MolecularDynamics module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="PostProcessing.html">PostProcessing module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="PreProcessing.html">PreProcessing module</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">QuantityCalculator module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#QuantityCalculator.QuantityCalculator"><code class="docutils literal notranslate"><span class="pre">QuantityCalculator</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#QuantityCalculator.QuantityCalculator.calculateModuli"><code class="docutils literal notranslate"><span class="pre">QuantityCalculator.calculateModuli()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#QuantityCalculator.QuantityCalculator.computeBulkModulus"><code class="docutils literal notranslate"><span class="pre">QuantityCalculator.computeBulkModulus()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#QuantityCalculator.QuantityCalculator.computeDebyeTemperature"><code class="docutils literal notranslate"><span class="pre">QuantityCalculator.computeDebyeTemperature()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#QuantityCalculator.QuantityCalculator.computeLindemannIndex"><code class="docutils literal notranslate"><span class="pre">QuantityCalculator.computeLindemannIndex()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#QuantityCalculator.QuantityCalculator.computeSelfDiffusionCoefficient"><code class="docutils literal notranslate"><span class="pre">QuantityCalculator.computeSelfDiffusionCoefficient()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#QuantityCalculator.QuantityCalculator.computeSpecificHeatNVE"><code class="docutils literal notranslate"><span class="pre">QuantityCalculator.computeSpecificHeatNVE()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#QuantityCalculator.QuantityCalculator.computeSpecificHeatNVT"><code class="docutils literal notranslate"><span class="pre">QuantityCalculator.computeSpecificHeatNVT()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#QuantityCalculator.QuantityCalculator.nearestNeighborsMean"><code class="docutils literal notranslate"><span class="pre">QuantityCalculator.nearestNeighborsMean()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="SimulationInput.html">SimulationInput module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="Utils.html">Utils package</a></li>
+<li class="toctree-l2"><a class="reference internal" href="Visualizer.html">Visualizer module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="cifRun.html">cifRun module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="testingSPHINx.html">testingSPHINx module</a></li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">Computational physics project - TFYA99</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="modules.html">SourceCode</a></li>
+      <li class="breadcrumb-item active">QuantityCalculator module</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/api/QuantityCalculator.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="module-QuantityCalculator">
+<span id="quantitycalculator-module"></span><h1>QuantityCalculator module<a class="headerlink" href="#module-QuantityCalculator" title="Link to this heading"></a></h1>
+<dl class="py class">
+<dt class="sig sig-object py" id="QuantityCalculator.QuantityCalculator">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">QuantityCalculator.</span></span><span class="sig-name descname"><span class="pre">QuantityCalculator</span></span><a class="headerlink" href="#QuantityCalculator.QuantityCalculator" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Computes derived quantities from sequences of instantaneus data</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="QuantityCalculator.QuantityCalculator.calculateModuli">
+<em class="property"><span class="k"><span class="pre">static</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">calculateModuli</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">C_matrix</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#QuantityCalculator.QuantityCalculator.calculateModuli" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="QuantityCalculator.QuantityCalculator.computeBulkModulus">
+<em class="property"><span class="k"><span class="pre">static</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">computeBulkModulus</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">stretch_sequence</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#QuantityCalculator.QuantityCalculator.computeBulkModulus" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="QuantityCalculator.QuantityCalculator.computeDebyeTemperature">
+<em class="property"><span class="k"><span class="pre">static</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">computeDebyeTemperature</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">V_A3</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mass_u</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">N</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">G</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">K</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#QuantityCalculator.QuantityCalculator.computeDebyeTemperature" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="QuantityCalculator.QuantityCalculator.computeLindemannIndex">
+<em class="property"><span class="k"><span class="pre">static</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">computeLindemannIndex</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">msd</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nearest_neighour_d</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#QuantityCalculator.QuantityCalculator.computeLindemannIndex" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="QuantityCalculator.QuantityCalculator.computeSelfDiffusionCoefficient">
+<em class="property"><span class="k"><span class="pre">static</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">computeSelfDiffusionCoefficient</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">msd_list</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sample_spacing</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#QuantityCalculator.QuantityCalculator.computeSelfDiffusionCoefficient" title="Link to this definition"></a></dt>
+<dd><p>Compute self diffusion coefficient from the slope of MSD over a large timeperiod
+Unit: Å^2/fs</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="QuantityCalculator.QuantityCalculator.computeSpecificHeatNVE">
+<em class="property"><span class="k"><span class="pre">static</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">computeSpecificHeatNVE</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">E_kin_seq</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">total_mass_amu</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">T</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#QuantityCalculator.QuantityCalculator.computeSpecificHeatNVE" title="Link to this definition"></a></dt>
+<dd><p>Compute specific heat capacity as a time average of the kinetic energy fluctuations
+over all frames.
+Unit: ev/(amu*K) (amu = atomic mass units)</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="QuantityCalculator.QuantityCalculator.computeSpecificHeatNVT">
+<em class="property"><span class="k"><span class="pre">static</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">computeSpecificHeatNVT</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">E_tot_seq</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">total_mass_amu</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">T</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#QuantityCalculator.QuantityCalculator.computeSpecificHeatNVT" title="Link to this definition"></a></dt>
+<dd><p>Compute specific heat capacity as a time average of the total energy fluctuations
+over all frames.
+Unit: ev/(amu*K) (amu = atomic mass unit)</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="QuantityCalculator.QuantityCalculator.nearestNeighborsMean">
+<em class="property"><span class="k"><span class="pre">static</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">nearestNeighborsMean</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">atoms_sequence</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">start</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">end</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#QuantityCalculator.QuantityCalculator.nearestNeighborsMean" title="Link to this definition"></a></dt>
+<dd><p>Calculate the mean distance of nearest neighbor in the structure for the last ten states of the simulation
+Loop structure: Last ten states -&gt; Each atom -&gt; neighbors to current atom</p>
+<p>(int) start : Index for the start of the interval that should be checked
+(int) end : Index for the end of the interval that should be checked</p>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="PreProcessing.html" class="btn btn-neutral float-left" title="PreProcessing module" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="SimulationInput.html" class="btn btn-neutral float-right" title="SimulationInput module" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Isacks &amp; Co.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
