@@ -1,0 +1,17 @@
+{
+  "Ensemble": "NVT",
+
+  "Temperature": 300,
+  "Timestep": 1,
+  "Number_of_steps": 15000,
+  "Sample_interval": 1,
+  "Potential": "EMT",
+
+  "Friction": 0.05,
+  "Pressure": 0,
+  "Tdamp": 10,
+  "Pdamp": 100,
+
+  "Supercells": [6,6,6],
+  "Output_file" : "../Outputs/output"
+}

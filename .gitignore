@@ -324,6 +324,11 @@ Icon
 
 # Thumbnails
 ._*
+*.pyc
+__pycache__/*
+*/__pycache__/*
+.vscode/*
+.idea/*
 
 # Files that might appear in the root of a volume
 .DocumentRevisions-V100

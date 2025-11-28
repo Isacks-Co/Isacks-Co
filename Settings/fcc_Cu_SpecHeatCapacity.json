@@ -1,0 +1,19 @@
+{
+  "Ensemble": "NVT",
+
+  "Temperature": 300,
+  "Timestep": 1,
+  "Number_of_steps": 60000,
+  "Interval": 10,
+  "Potential": "EMT",
+  "Attachments": ["energy"],
+
+  "Friction": 0.05,
+  "Pressure": 0,
+  "Compressibility": 0,
+
+  "EquilSteps": 15000,
+  "Supercells": [7, 7, 7],
+  "Output_file" : "Outputs/output"
+
+}

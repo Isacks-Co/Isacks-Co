@@ -1,0 +1,45 @@
+# MIT License
+#
+# Copyright (c) 2025 Isacks-Co contributors
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+# THE SOFTWARE.
+
+
+import os
+import re
+import sys
+
+if __name__ == "__main__":
+    outputfile = sys.argv[1]
+
+    # Get the current working directory (the folder you want to rename)
+    dir_path = os.getcwd()
+
+    # Read the first line from the file
+    with open(outputfile, "r") as f:
+        first_line = f.readline().strip()
+
+    # Sanitize the string to remove invalid characters for folder names
+    safe_name = re.sub(r'[\/:*?"<>|]', "_", first_line)
+
+    # Build the full new path
+    new_path = os.path.join(os.path.dirname(dir_path), f"{safe_name}_DONE")
+
+    # Rename the folder
+    os.rename(dir_path, new_path)
