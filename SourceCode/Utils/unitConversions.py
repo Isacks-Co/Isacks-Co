@@ -9,6 +9,9 @@ def pascalToAu(pressure_Pa):
     """Convert pressure from Pa to eV/Å^3."""
     return pressure_Pa * 6.241509074e-12
 
+def GPascalToAu(pressure_GPa):
+    return pressure_GPa * 6.241509074e-3
+
 def specificHeatAuToSI(Cv_au):
     """Convert specific heat from eV/(amu·K) to J/(kg·K)."""
     return Cv_au * 9.64853321e7

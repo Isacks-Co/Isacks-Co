@@ -10,7 +10,10 @@ logger = logging.getLogger(__name__)
 
 
 class TestMolecularDynamics(TestBase):
-    """Run premade cases that are used in TestPostProcessing later. Order is important!"""
+    """Run some simulations. Was previously used in TestQuantityCalculator but not anymore.
+    May be used in TestPostProcessing later on or removed
+    NOTE: Currently out of the CI action on github"""
+
     def setUp(self):
         super().setUp()
 
@@ -25,12 +28,11 @@ class TestMolecularDynamics(TestBase):
     def testNearZeroCu(self):
         sys.argv = [sys.argv[0], "TestAtomicStructure/Cu_fcc.vasp", "TestSettings/nearZeroSettings.json"]
         MolecularDynamics()
-    
+
     def testBccCu(self):
         sys.argv = [sys.argv[0], "TestAtomicStructure/Cr_bcc.vasp", "TestSettings/chromiumSettings.json"]
         MolecularDynamics()
 
-    @pytest.mark.skip("NPT currently not working. Half implemented, something went wrong during merge")
     def testNPTCopper(self):
         sys.argv = [sys.argv[0], "TestAtomicStructure/Cu_fcc.vasp", "TestSettings/NPTCopperSettings.json"]
         MolecularDynamics()
