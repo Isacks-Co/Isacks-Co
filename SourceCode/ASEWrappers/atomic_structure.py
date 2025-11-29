@@ -26,7 +26,7 @@ from ase import Atoms
 from ase.io import read
 from ase.md.velocitydistribution import MaxwellBoltzmannDistribution, Stationary, ZeroRotation
 
-from .potential import Potential
+from .potential import Potential, LennardJonesPotential
 
 
 class AtomicStructure:
@@ -49,7 +49,12 @@ class AtomicStructure:
     def fromFile(cls, path, pbc=True, supercells=[1, 1, 1], potential: Potential = None):
         atoms = read(path) * supercells
         atoms.calc = potential.getASEPotentialCalculator()
-        atoms.pbc = pbc
+        if isinstance(potential, bool):
+            atoms.pbc = [pbc, pbc, pbc]
+        else:
+            if len(pbc) != 3:
+                raise ValueError("pbc needs to be a single boolean or a list of three booleans")
+            atoms.pbc = [bool(x) for x in pbc]
         return cls(atoms)
 
     # Standard dunder methods
