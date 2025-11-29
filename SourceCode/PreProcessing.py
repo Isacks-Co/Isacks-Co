@@ -109,12 +109,15 @@ class PreProcessing:
             raise RuntimeError(error_msg)
 
     def getPotential(self):  # TODO FIX
-        match self.settings["Potential"]:
+        match self.settings["Potential"]["Kind"]:
             case "LJ":
                 atoms = read(self.argparser.args["input_structure"])
 
                 atomic_num = [(atoms.get_atomic_numbers()[0])]
                 atomic_symbols = atoms.get_chemical_symbols()
+                if self.settings["Potential"]["Species_parameters"]:
+                    materials = list(self.settings["Potential"]["Species_parameters"].keys())
+                    species_params = [list(self.settings["Potential"]["Species_parameters"][species].values()) for species in materials]
 
                 lj_params = LJParams(material=sorted(set(atomic_symbols))[0])  # TODO Problem
 
