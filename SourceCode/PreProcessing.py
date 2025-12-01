@@ -79,12 +79,7 @@ class PreProcessing:
 
     def readAtomicStructure(self, input_structure):
         """Reads atomic structure from a file, and extend cell according to supercell setting"""
-        print("-----------------------_", input_structure, "----------------")
         try:
-
-            print("-----------------------_", self.settings, "----------------")
-            #self.getPotential()
-            print("----------------------- RIGHT BEFORE READ OF ATOMIC STRUCTURE----------------")
             atomic_structure = AtomicStructure.fromFile(input_structure, pbc=self.settings["Simulations_config"]["PBC"],
                                                         supercells=self.settings["Simulations_config"]["Supercells"],
                                                         potential=self.getPotential())
@@ -115,14 +110,23 @@ class PreProcessing:
 
                 atomic_num = [(atoms.get_atomic_numbers()[0])]
                 atomic_symbols = atoms.get_chemical_symbols()
+                epsilon = None
+                sigma = None
+                rc = None
+                ro = None
+                if "Material" in self.settings["Simulations_config"]["Potential"]["Parameters"]:
+                    material = self.settings["Simulations_config"]["Potential"]["Parameters"]["Material"]
+                else:
+                    material = sorted(set(atomic_symbols))[0]
 
-                material = self.settings["Simulations_config"]["Potential"]["Parameters"]["Material"] if self.settings["Simulations_config"]["Potential"]["Parameters"]["Material"] else None
-                epsilon = self.settings["Simulations_config"]["Potential"]["Parameters"]["epsilon_eV"] if self.settings["Simulations_config"]["Potential"]["Parameters"]["epsilon_eV"] else None
-                sigma = self.settings["Simulations_config"]["Potential"]["Parameters"]["sigma"] if self.settings["Simulations_config"]["Potential"]["Parameters"]["sigma"] else None
-                rc = self.settings["Simulations_config"]["Potential"]["Parameters"]["RC"] if self.settings["Simulations_config"]["Potential"]["Parameters"]["RC"] else None
-                ro = self.settings["Simulations_config"]["Potential"]["Parameters"]["RO"] if self.settings["Simulations_config"]["Potential"]["Parameters"]["RO"] else None
-
-                #lj_params = LJParams(material=sorted(set(atomic_symbols))[0])  # TODO Problem
+                if "epsilon_eV" in self.settings["Simulations_config"]["Potential"]["Parameters"]:
+                    epsilon = self.settings["Simulations_config"]["Potential"]["Parameters"]["epsilon_eV"]
+                if "sigma" in self.settings["Simulations_config"]["Potential"]["Parameters"]:
+                    sigma = self.settings["Simulations_config"]["Potential"]["Parameters"]["sigma"]
+                if "RC" in self.settings["Simulations_config"]["Potential"]["Parameters"]:
+                    rc = self.settings["Simulations_config"]["Potential"]["Parameters"]["RC"]
+                if "RO" in self.settings["Simulations_config"]["Potential"]["Parameters"]:
+                    ro = self.settings["Simulations_config"]["Potential"]["Parameters"]["RO"]
 
                 lj_params = LJParams(material=material, epsilon_eV=epsilon, sigma_A=sigma, rc_A=rc, ro_A=ro)
                 print("LJ PARAMS:", lj_params)
