@@ -115,11 +115,16 @@ class PreProcessing:
 
                 atomic_num = [(atoms.get_atomic_numbers()[0])]
                 atomic_symbols = atoms.get_chemical_symbols()
-                if self.settings["Potential"]["Species_parameters"]:
-                    materials = list(self.settings["Potential"]["Species_parameters"].keys())
-                    species_params = [list(self.settings["Potential"]["Species_parameters"][species].values()) for species in materials]
 
-                lj_params = LJParams(material=sorted(set(atomic_symbols))[0])  # TODO Problem
+                material = self.settings["Potential"]["Parameters"]["Material"] if self.settings["Potential"]["Parameters"]["Material"] else None
+                epsilon = self.settings["Potential"]["Parameters"]["epsilon_eV"] if self.settings["Potential"]["Parameters"]["epsilon_eV"] else None
+                sigma = self.settings["Potential"]["Parameters"]["sigma"] if self.settings["Potential"]["Parameters"]["sigma"] else None
+                rc = self.settings["Potential"]["Parameters"]["RC"] if self.settings["Potential"]["Parameters"]["RC"] else None
+                ro = self.settings["Potential"]["Parameters"]["RO"] if self.settings["Potential"]["Parameters"]["RO"] else None
+
+                #lj_params = LJParams(material=sorted(set(atomic_symbols))[0])  # TODO Problem
+
+                lj_params = LJParams(material=material, epsilon_eV=epsilon, sigma_A=sigma, rc_A=rc, ro_A=ro)
 
                 return LennardJonesPotential(atomic_numbers=atomic_num, epsilons=[lj_params["epsilon_eV"]],
                                              sigmas=[lj_params["sigma_A"]], rc=lj_params["rc_A"])
