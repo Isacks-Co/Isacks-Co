@@ -48,7 +48,7 @@ class SingleMetavarHelpFormatter(argparse.HelpFormatter):
 class InputParser():
     def __init__(self, args=sys.argv):
         self.argparser = argparse.ArgumentParser(prog="MolecularDynamics.py",
-                                                 usage='%(prog)s <Atomic Configuration> <settings> [options]',
+                                                 usage='%(prog)s <settings> [options]',
                                                  description="Molecular dynamics program developed by Isacks & Co",
                                                  formatter_class=lambda prog: SingleMetavarHelpFormatter(prog,
                                                                                                          max_help_position=50,
@@ -62,7 +62,12 @@ class InputParser():
     def addArguments(self):
         """ Whenever a new setting is added, add the corresponding flag here."""
         # Positional arguments
-        self.argparser.add_argument("input_structure", help="Path for atomic configuration")
+        self.argparser.add_argument("-PE", "--Physical_environment", help="Dict of temperature and pressure")
+        self.argparser.add_argument("-SC", "--Simulations_config", help="Simulation-specific settings")
+        self.argparser.add_argument("-IS", "--Input_structure", help="Initial structure of material to be simulated")
+        self.argparser.add_argument("-FE", "--Find_equilibrium", help="Bool of whether to find equilibrium or not")
+        self.argparser.add_argument("-CQ", "--Compute_quantities", help="List of abbreviations for quantities to compute")
+        #self.argparser.add_argument("input_structure", help="Path for atomic configuration")
         self.argparser.add_argument("input_settings", help="Path to settings file")
         # Options (flags), to add a new flag make sure to follow the format below with -<abbrev.>, --<Full name>, etc.
         self.argparser.add_argument("-E", "--Ensemble", metavar="<ENSEMBLE>", type=str, help="Ensemble (NVE, NPT, NVT)")

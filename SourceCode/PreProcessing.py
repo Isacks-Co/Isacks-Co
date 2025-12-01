@@ -52,7 +52,7 @@ class PreProcessing:
 
         self.settings = self.readSettings(self.argparser.args["input_settings"])
 
-        self.atomic_structure = self.readAtomicStructure(self.argparser.args["input_structure"])
+        self.atomic_structure = self.readAtomicStructure("../SetupFiles/POSCAR")
 
         # Physical check of the input
         # self.sanityCheckAtomicStructure() #TODO Problems with new structure
@@ -79,20 +79,20 @@ class PreProcessing:
 
     def readAtomicStructure(self, input_structure):
         """Reads atomic structure from a file, and extend cell according to supercell setting"""
-
+        print("-----------------------_", input_structure, "----------------")
         try:
 
-            self.getPotential()
-
-            atomic_structure = AtomicStructure.fromFile(input_structure, pbc=True,
-                                                        supercells=self.settings["Supercells"],
+            print("-----------------------_", self.settings, "----------------")
+            #self.getPotential()
+            print("----------------------- RIGHT BEFORE READ OF ATOMIC STRUCTURE----------------")
+            atomic_structure = AtomicStructure.fromFile(input_structure, pbc=self.settings["Simulations_config"]["PBC"],
+                                                        supercells=self.settings["Simulations_config"]["Supercells"],
                                                         potential=self.getPotential())
-
             return atomic_structure
 
             # TODO Add this again if neseded
             log.info("Reading atomic structure from: %s", input_structure)
-            atoms = read(input_structure) * tuple(self.settings["Supercells"])
+            atoms = read(input_structure) * tuple(self.settings["Simulations_config"]["Supercells"])
             atoms.pbc = True  # TODO, Hard coded pbc always true for now.
 
             with open(input_structure, "r") as file:  # Manually read the first line and add as a comment.
@@ -109,23 +109,23 @@ class PreProcessing:
             raise RuntimeError(error_msg)
 
     def getPotential(self):  # TODO FIX
-        match self.settings["Potential"]["Kind"]:
+        match self.settings["Simulations_config"]["Potential"]["Kind"]:
             case "LJ":
-                atoms = read(self.argparser.args["input_structure"])
+                atoms = read("../SetupFiles/POSCAR")
 
                 atomic_num = [(atoms.get_atomic_numbers()[0])]
                 atomic_symbols = atoms.get_chemical_symbols()
 
-                material = self.settings["Potential"]["Parameters"]["Material"] if self.settings["Potential"]["Parameters"]["Material"] else None
-                epsilon = self.settings["Potential"]["Parameters"]["epsilon_eV"] if self.settings["Potential"]["Parameters"]["epsilon_eV"] else None
-                sigma = self.settings["Potential"]["Parameters"]["sigma"] if self.settings["Potential"]["Parameters"]["sigma"] else None
-                rc = self.settings["Potential"]["Parameters"]["RC"] if self.settings["Potential"]["Parameters"]["RC"] else None
-                ro = self.settings["Potential"]["Parameters"]["RO"] if self.settings["Potential"]["Parameters"]["RO"] else None
+                material = self.settings["Simulations_config"]["Potential"]["Parameters"]["Material"] if self.settings["Simulations_config"]["Potential"]["Parameters"]["Material"] else None
+                epsilon = self.settings["Simulations_config"]["Potential"]["Parameters"]["epsilon_eV"] if self.settings["Simulations_config"]["Potential"]["Parameters"]["epsilon_eV"] else None
+                sigma = self.settings["Simulations_config"]["Potential"]["Parameters"]["sigma"] if self.settings["Simulations_config"]["Potential"]["Parameters"]["sigma"] else None
+                rc = self.settings["Simulations_config"]["Potential"]["Parameters"]["RC"] if self.settings["Simulations_config"]["Potential"]["Parameters"]["RC"] else None
+                ro = self.settings["Simulations_config"]["Potential"]["Parameters"]["RO"] if self.settings["Simulations_config"]["Potential"]["Parameters"]["RO"] else None
 
                 #lj_params = LJParams(material=sorted(set(atomic_symbols))[0])  # TODO Problem
 
                 lj_params = LJParams(material=material, epsilon_eV=epsilon, sigma_A=sigma, rc_A=rc, ro_A=ro)
-
+                print("LJ PARAMS:", lj_params)
                 return LennardJonesPotential(atomic_numbers=atomic_num, epsilons=[lj_params["epsilon_eV"]],
                                              sigmas=[lj_params["sigma_A"]], rc=lj_params["rc_A"])
             case "EMT":
@@ -134,26 +134,25 @@ class PreProcessing:
     def getIntegrator(self, ensemble):
         match ensemble:
             case "NVE":
-                return VelocityVerletIntegrator(timestep=self.settings["Timestep"])
+                return VelocityVerletIntegrator(timestep=self.settings["Simulations_config"]["Timestep"])
 
             case "NVT":
-                return LangevinIntegrator(timestep=self.settings["Timestep"],
-                                          temperature_K=self.settings["Temperature"],
-                                          friction=self.settings["Friction"])
+                return LangevinIntegrator(timestep=self.settings["Simulations_config"]["Timestep"],
+                                          temperature_K=self.settings["Physical_environment"]["Temperature"],
+                                          friction=self.settings["Simulations_config"]["Friction"])
 
             case "NPT":
-                return IsotropicMTKNPTIntegrator(timestep=self.settings["Timestep"],
-                                                 temperature_K=self.settings["Temperature"],
-                                                 pressure=self.settings["Pressure"], pdamp=self.settings["Pdamp"],
-                                                 tdamp=self.settings["Tdamp"])
+                return IsotropicMTKNPTIntegrator(timestep=self.settings["Simulations_config"]["Timestep"],
+                                                 temperature_K=self.settings["Physical_environment"]["Temperature"],
+                                                 pressure=self.settings["Physical_environment"]["Pressure"], pdamp=self.settings["Simulations_config"]["Pdamp"],
+                                                 tdamp=self.settings["Simulations_config"]["Tdamp"])
 
     def createSettings(self):
-        # log.debug("Creating Settings object for ensemble: %s", self.settings["Ensemble"])
         sim_list = []
         potential = self.getPotential()
-        self.npt_settings = SimulationSettings(num_steps=10000, potential=potential,
+        self.npt_settings = SimulationSettings(num_steps=self.settings["Simulations_config"]["Number_of_steps"], potential=potential,
                                                  integrator=self.getIntegrator("NPT"))
-        self.nvt_settings = SimulationSettings(num_steps=self.settings["Number_of_steps"], potential=potential,
+        self.nvt_settings = SimulationSettings(num_steps=self.settings["Simulations_config"]["Number_of_steps"], potential=potential,
                                                   integrator=self.getIntegrator("NVT"))
 
         if self.settings["Find_equilibrium"]:
@@ -170,23 +169,23 @@ class PreProcessing:
         Sanity check for the settings.json file. Makes sure that we only use EMT for
         valid metals. Also checks that relevant values are non-negative.
         """
-        if self.settings["Potential"] == "EMT":
+        if self.settings["Potential"]["Kind"] == "EMT":
             elements = self.atoms.get_atomic_numbers()
 
             if not np.all(np.isin(elements, [13, 28, 29, 46, 47, 78,
                                              79])):  # Check if the elements are supported for EMT potential
                 raise ValueError(f"Invalid potential: EMT potential only available for Al, Cu, Ag, Au, Ni, Pd, Pt.")
-        if self.settings["Temperature"] > 3000:
+        if self.settings["Physical_environment"]["Temperature"] > 3000:
             raise ValueError(f"Invalid temperature: Exceeds 3000K")
-        elif self.settings["Temperature"] < 0:
+        elif self.settings["Physical_environment"]["Temperature"] < 0:
             raise ValueError(f"Invalid temperature: Negative temperature")
-        elif self.settings["Pressure"] < 0:
+        elif self.settings["Physical_environment"]["Pressure"] < 0:
             raise ValueError(f"Invalid pressure: Pressure has to be non-negative")
-        elif self.settings["Timestep"] < 0:
+        elif self.settings["Simulations_config"]["Timestep"] < 0:
             raise ValueError(f"Invalid timestep: timestep has to be non-negative")
-        elif self.settings["Friction"] < 0:
+        elif self.settings["Simulations_config"]["Friction"] < 0:
             raise ValueError(f"Invalid friction: Friction has to be non-negative")
-        elif self.settings["Number_of_steps"] < 0 or not isinstance(self.settings["Number_of_steps"], int):
+        elif self.settings["Simulations_config"]["Number_of_steps"] < 0 or not isinstance(self.settings["Simulations_config"]["Number_of_steps"], int):
             raise ValueError(f"Invalid number of steps: Has to be a positive integer")
 
     def sanityCheckAtomicStructure(self):
@@ -204,7 +203,7 @@ class PreProcessing:
         cell = self.atoms.get_cell()
         angles = cell.angles()
 
-        lengths = np.array([a / i for a, i in zip(cell.lengths(), self.settings["Supercells"])])
+        lengths = np.array([a / i for a, i in zip(cell.lengths(), self.settings["Simulations_config"]["Supercells"])])
 
         if np.any(angles <= 0) or np.any(angles >= 180):  # Check that lattice angles are between 0 and 180
             raise ValueError("Invalid Lattice: Lattice angles must be between 0 and 180 degrees")
