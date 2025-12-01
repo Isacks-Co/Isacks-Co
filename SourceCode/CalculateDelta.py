@@ -24,11 +24,14 @@ import re
 
 import httk.db
 from abad_classes import *
-from classes import *
+from classes import DefectInfo
+from MDClasses import MDDelta, MDScreenResult, MDAbadParameters
 
 from MDDefectUtils import notDoneMDRuns, notDoneDelta
 
 INF = 10000000
+
+delta_to_push = []
 
 backend = httk.db.backend.Sqlite('../../defect/defects.sqlite')
 store = httk.db.store.SqlStore(backend)
@@ -58,8 +61,8 @@ missing_delta = notDoneDelta(store)
 for host in host_list:
     search = store.searcher()
     search_defectinfo = search.variable(DefectInfo)
-    search_screenresult = search.variable(ScreenResult)
-    search_abad = search.variable(AbadParameters)
+    search_screenresult = search.variable(MDScreenResult)
+    search_abad = search.variable(MDAbadParameters)
 
     search.add(search_defectinfo.key == search_screenresult.defect_key)
     search.add(search_defectinfo.key == search_abad.key)
@@ -83,7 +86,8 @@ for host in host_list:
             continue
 
         adatom_lowest, interstital_lowest = INF, INF
-        adatom_dopant, interstital_dopant = "", ""
+        adatom_defect, interstital_defect = "", ""
+        adatom_key, interstital_key = "", ""
         for match in search:
             defect_info = match[0][0]
             screenresult = match[0][1]
@@ -98,23 +102,32 @@ for host in host_list:
 
             if re.match(r"^.*_ads\d+$", defect_info.defect_name) and screenresult.total_energy_coarse < adatom_lowest:
                 adatom_lowest = screenresult.total_energy_coarse
-                adatom_dopant = defect_info.defect_name
+                adatom_defect = defect_info.defect_name
+                adatom_key = defect_info.key
 
             if re.match(r"^.*_int\d+$",
                         defect_info.defect_name) and screenresult.total_energy_coarse < interstital_lowest:
                 interstital_lowest = screenresult.total_energy_coarse
-                interstital_dopant = defect_info.defect_name
+                interstital_defect = defect_info.defect_name
+                interstital_key = defect_info.key
 
         # Make sure that we found some values
         if adatom_lowest == INF or interstital_lowest == INF:
             print(f"{host} : {dopant} No valid results found in the database, delta not calculated")
             continue
 
-        # print(f"For the host : {defect_info.host_name}, the lowest adatom, respectively interstital, energy is "
-        #       f"\n{adatom_lowest} eV for {adatom_dopant} and {interstital_lowest} eV for {interstital_dopant} eV for {interstital_dopant}")
-
-        # TODO Fix upload logisics
         delta = interstital_lowest - adatom_lowest
 
         print(
-            f"Delta for {host} - {dopant} : {delta} eV, with material {interstital_dopant if delta < 0 else adatom_dopant}.")
+            f"Delta for {host} - {dopant} : {delta} eV, with material {interstital_defect if delta < 0 else adatom_defect}.")
+
+        delta_to_push.append(MDDelta(
+            host=host,
+            dopant=dopant,
+            defect=interstital_defect if delta < 0 else adatom_defect,
+            key=interstital_key if delta < 0 else adatom_key,
+            delta=delta,
+        ))
+
+for delta in delta_to_push:
+    store.save(delta)
