@@ -15,4 +15,3 @@ SourceCode
    Utils
    Visualizer
    cifRun
-   testingSPHINx
