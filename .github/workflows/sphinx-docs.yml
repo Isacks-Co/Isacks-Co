@@ -4,7 +4,8 @@ on:
   push:
     branches:
       - main  # runs whenever you push to main
-	pull-request:
+  pull-request:
+  	branches:
 	  - main 
 jobs:
   build-deploy:
