@@ -14,7 +14,6 @@ export NUMEXPR_NUM_THREADS=32
 export OMP_NUM_THREADS=32
 
 source /proj/liu-compute-2025-38/software/init.sh
-module unload Python
-time python3 MolecularDynamics.py ../AtomicStructure/FCC_Cu_UnitCell.vasp ../Settings/settings.json
+time mpprun python3 <program to run>
 
 echo "job completed"
