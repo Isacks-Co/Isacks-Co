@@ -80,6 +80,6 @@ if __name__ == "__main__":
         host_name="As2",
         defect_name="C_",
         db_path="../../defect/defects.sqlite",
-        out_root="Runs",
+        out_root="../../httk-test/Runs",
         template_name="template",
     )
