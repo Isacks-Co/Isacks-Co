@@ -22,7 +22,7 @@
 
 
 import logging
-import simulationInput
+import SimulationInput as simulationInput
 import sys
 from ASEWrappers import LangevinIntegrator, MACEPotential, AtomicStructure
 from MDClasses import EquilibriumRun
