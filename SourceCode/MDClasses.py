@@ -28,8 +28,8 @@ from Utils.equilibriumCondition import EquilibriumCondition
 from ase.io.trajectory import Trajectory
 from ase.units import fs
 from copy import copy
-
-
+import logging
+log = logging.getLogger(__name__)
 class MDBase:
     def __init__(self, settings):
         self.integrator = settings.integrator
@@ -95,28 +95,35 @@ class EquilibriumRun(MDBase):
         super().__init__(settings)
         self.run_type = "Equil"
         self.sample_data = ["E_pot"]
+        self.equil_data = []
 
-    def run(self, atomic_structure: AtomicStructure, num_steps, init_vel=False, store_traj=True):
-
+    def run(self,atomic_structure: AtomicStructure ,num_steps,init_vel = False,store_traj = True, check_conv = False):
+        
         if init_vel:
             atomic_structure.setVelocitiesMB(self.integrator.temperature_K)
 
         if store_traj:
             self._SaveASETrajectory(atomic_structure)
-        # self.integrator.attach(lambda: self._storeFrame(atomic_strucuture=atomic_structure,data_traj = data_traj),1)
-        # self.integrator.attach(lambda: self._check_equilibrium(dataframe=data_traj),1)
+        #self.integrator.attach(lambda: self._storeFrame(atomic_strucuture=atomic_structure,data_traj = data_traj),1)
+        #self.integrator.attach(lambda: self._check_equilibrium(dataframe=data_traj),1)
 
-        self.integrator.run(atomic_structure, num_steps)
-
+        if check_conv:
+            self.integrator.attach(lambda: self._saveData(atomic_structure),1)
+            self.integrator.attach(self._check_equilibrium,10)
+        try:
+            self.integrator.run(atomic_structure,num_steps)
+        except StopIteration as err:
+            log.info(f"{err} in {len(self.equil_data)} steps")
         return atomic_structure
-
-    def _check_equilibrium(self, dataframe):
-
-        if len(dataframe) > 1000:
-            if EquilibriumCondition.checkStable(dataframe[-1000:]):
-                raise StopIteration("Equil reached")
-
-
+    
+    def _check_equilibrium(self):
+        if len(self.equil_data) > 100:
+            if EquilibriumCondition.checkStable(self.equil_data[-100:], 0.0001):
+                
+                raise StopIteration(f"Equil reached")
+    def _saveData(self, atomic_structure):
+        self.equil_data.append(atomic_structure.potential_energy)
+        
 class SampleRun(MDBase):
     def __init__(self, settings, sample_data="all"):
         super().__init__(settings)

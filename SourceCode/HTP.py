@@ -28,6 +28,8 @@ from ASEWrappers import LangevinIntegrator, MACEPotential, AtomicStructure
 from MDClasses import EquilibriumRun
 from httk.external import ase_glue
 
+
+
 if __name__ == "__main__":
 
     """
@@ -36,7 +38,7 @@ if __name__ == "__main__":
     Saves the initial and final configurations in a cif file.
     """
     # Adjustable parameters
-    num_steps = 300
+    num_steps = 3000
     temp_k = 0
     friction = 0.1
     time_steps = 1
@@ -44,12 +46,14 @@ if __name__ == "__main__":
     log = logging.getLogger(__name__)
 
     poscar_path = sys.argv[1]
-    try:
+    mace_path = sys.argv[2]
+    try: 
         lang_int = LangevinIntegrator(time_steps, temp_k, time_steps)
     except Exception as err:
         log.error(f"Integrator cannot be loaded: {err}")
         exit(1)
-    mace_potential = MACEPotential()
+    
+    mace_potential = MACEPotential(mace_path)
     settings = simulationInput.SimulationSettings(num_steps, mace_potential, lang_int)
 
     # Load in the initial structure
@@ -65,8 +69,10 @@ if __name__ == "__main__":
     httk_pre.io.save("pre_structure.cif")
 
     # Run the simulation
-    equil_MD = EquilibriumRun(settings=settings)
-    equil_structure = equil_MD.run(atomic_structure, settings.num_steps)
+    
+    equil_MD = EquilibriumRun(settings= settings)
+    equil_structure = equil_MD.run(atomic_structure,settings.num_steps, check_conv=True)
+    
 
     # Save the equilibrium structure and save it in a cif file
     E_post = equil_structure.potential_energy
