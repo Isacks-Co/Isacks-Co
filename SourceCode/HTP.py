@@ -22,7 +22,7 @@
 
 
 import logging
-import simulationInput
+import SimulationInput
 import sys
 from ASEWrappers import LangevinIntegrator, MACEPotential, AtomicStructure
 from MDClasses import EquilibriumRun
@@ -54,7 +54,7 @@ if __name__ == "__main__":
         exit(1)
     
     mace_potential = MACEPotential(mace_path)
-    settings = simulationInput.SimulationSettings(num_steps, mace_potential, lang_int)
+    settings = SimulationInput.SimulationSettings(num_steps, mace_potential, lang_int)
 
     # Load in the initial structure
     try:
