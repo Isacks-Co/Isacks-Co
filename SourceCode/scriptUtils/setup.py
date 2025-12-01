@@ -33,7 +33,6 @@ if __name__ == "__main__":
     with open(settings_file, "r") as file:
         settings_dict = json.load(file)
     structure_file = Path(settings_dict["Input_structure"])
-    print("-----------------------_", structure_file, "----------------")
     current_sim = current_dir / "currentSimulation"
 
     current_sim.mkdir(exist_ok=True)

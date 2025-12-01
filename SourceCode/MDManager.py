@@ -19,13 +19,13 @@ class MDManager:
         """
         self.sim_list = sim_list
         self.quants = quants
-        self.quants_by_variation = {"equil": [], "sample": [], "stretch": [], "any":[]}
-        q_sims_nvt_deps = {"equil": ["p_i", "b", "g", "cvt", "debye"], "sample": ["cvt", "t", "e_tot", "e_kin", "e_pot", "v"], "stretch": ["p_i", "b"], "any": []}
-        q_sims_npt_deps ={"equil": [], "sample": ["lat_const", "t", "e_tot", "e_kin", "e_pot", "v"], "stretch": [], "any": []}
-        q_sims_indep_of_ensemble = {"equil": ["d", "e_coh", "l_crit", "lat_const"], "sample": ["e_coh", "t", "e_tot", "e_kin", "e_pot", "v"], "stretch": [] , "any": ["msd", "l_crit"]}
+        q_sims_nvt_deps = {"equil": ["p_i", "b", "g", "cvt", "debye"], "sample": ["cvt"], "stretch": ["p_i", "b", "debye"], "any": []}
+        q_sims_npt_deps ={"equil": [], "sample": ["lat_const"], "stretch": [], "any": []}
+        q_sims_indep_of_ensemble = {"equil": ["e_coh", "l_crit"], "sample": ["e_coh"], "stretch": [] , "any": ["msd", "l_crit"]}
         self.catergorized_compatibility = [q_sims_nvt_deps, q_sims_npt_deps, q_sims_indep_of_ensemble]
         self.order_of_operations = self._simulations_to_run(sim_list, self.catergorized_compatibility, quants)
         self.equil_struct = None
+        self.C_matrix = None
 
 
     def run(self, atomic_structure, init_vel=False, store_traj=False):
@@ -36,6 +36,9 @@ class MDManager:
                 for var in variations:
                     if var != "any":
                         self.simulate(ensemble=ensemble, variation=var, atomic_structure=atomic_structure, init_vel=init_vel, store_traj=store_traj)
+        logger.info("MD done")
+        logger.info(f"Stored results in {atomic_structure.label}/Outputfiles")
+
 
     def simulate(self, ensemble, variation, atomic_structure, init_vel, store_traj):
         if variation == "equil":
@@ -45,33 +48,28 @@ class MDManager:
             self.equil_struct = equil_MD.run(atomic_structure=atomic_structure, num_steps=equil_settings.num_steps, init_vel=init_vel, store_traj=store_traj)
 
         elif variation == "sample":
-            if self.quants_by_variation["any"]:
-                sample_quants = self.quants_by_variation["sample"] + self.quants_by_variation["any"]
-            else:
-                sample_quants = self.quants_by_variation["sample"]
             if ensemble == "nvt" or ensemble == "indep":
                 sample_settings = self.sim_list[1]
             else:
                 sample_settings = self.sim_list[2]
-            sample_MD = SampleRun(settings=sample_settings, sample_data=sample_quants)
-            logger.info("Sampling structure")
+            sample_MD = SampleRun(settings=sample_settings, sample_data="all")                      #TODO: Sampling data during run doesn't write to file atm
             if self.sim_list[0]:
+                logger.info("Sampling run with equilibrated structure")
                 sample_data = sample_MD.run(atomic_structure=self.equil_struct, num_steps=sample_settings.num_steps, store_traj=store_traj)
             else:
+                logger.info("Sampling run without equilibration")
                 sample_data = sample_MD.run(atomic_structure=atomic_structure, num_steps=sample_settings.num_steps, store_traj=store_traj)
             sample_data.storeTxtFile()
 
         elif variation == "stretch":
             stretch_settings = self.sim_list[1]
             stretch_MD = StrecthRun(settings=stretch_settings)
-            logger.info("Running stretch sequence")
             if self.sim_list[0]:
-                C_matrix = stretch_MD.run(atomic_structure=self.equil_struct)
+                logger.info("Running stretch sequence with equilibrated structure")
+                self.C_matrix = stretch_MD.run(atomic_structure=self.equil_struct)
             else:
-                C_matrix = stretch_MD.run(atomic_structure=atomic_structure)
-
-        logger.info("MD done")
-        logger.info(f"Stored results in {equil_struct.label}/Outputfiles")
+                logger.info("Running stretch sequence without equilibrated structure")
+                self.C_matrix = stretch_MD.run(atomic_structure=atomic_structure)
 
 
     def _simulations_to_run(self, sim_list, cat_resp, quants = None):
@@ -84,29 +82,19 @@ class MDManager:
 
         if quants:
             for deps in categorized_compatibility:
-                quants_by_deps = []
                 for q in quants:
                     q = q.lower()
-                    if q in deps["any"] :
-                        if q not in quants_by_deps:
-                            quants_by_deps.append(q)
-                            self.quants_by_variation["any"].append(q)
-                        if "any" not in candidate_run_variations:
-                            candidate_run_variations.append("any")
-
                     if q in deps["sample"]:
-                        if q not in quants_by_deps:
-                            self.quants_by_variation["sample"].append(q)
-                            quants_by_deps.append(q)
                         if "sample" not in candidate_run_variations:
                             candidate_run_variations.append("sample")
 
                     if q in deps["stretch"]:
-                        if q not in quants_by_deps:
-                            self.quants_by_variation["stretch"].append(q)
-                            quants_by_deps.append(q)
                         if "stretch" not in candidate_run_variations:
                             candidate_run_variations.append("stretch")
+
+                    if q in deps["any"] :
+                        if "any" not in candidate_run_variations:
+                            candidate_run_variations.append("any")
 
                 if candidate_run_variations:
                     if categorized_compatibility.index(deps) == 0:

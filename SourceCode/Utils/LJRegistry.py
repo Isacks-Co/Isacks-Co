@@ -38,10 +38,9 @@ LJ_DB = {
 }
 
 
-def LJParams(material: str = None, *, epsilon_eV=None, sigma_A=None, rc_A=None,
+def LJParams(material: str, *, epsilon_eV=None, sigma_A=None, rc_A=None,
              ro_A=None):  # So you can call this function without any argument? What happens? Should probably remove None on material
-
-    if material:
+    if material != "":
         base = LJ_DB.get(material.lower())
         if not base:
             raise ValueError(f"No LJ-parametrar registered for '{material}'."
@@ -62,7 +61,6 @@ def LJParams(material: str = None, *, epsilon_eV=None, sigma_A=None, rc_A=None,
     if not (0 < ro < rc):
         raise ValueError(
             f"LJ ro_A must be between 0 and rc_A (ro={ro}, rc={rc}).")  # Doesnt really make sense as error message since user have no control of these values
-
     return {"epsilon_eV": float(eps), "sigma_A": float(sig), "rc_A": float(rc), "ro_A": float(ro)}
 
 
