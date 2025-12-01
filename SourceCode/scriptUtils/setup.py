@@ -24,14 +24,16 @@
 import os
 import shutil
 import sys
+import json
 from pathlib import Path
 
 if __name__ == "__main__":
     current_dir = Path(str(os.getcwd()))
-    structure_file = Path(sys.argv[1])
-    settings_file = Path(sys.argv[2])
-    print(settings_file)
-
+    settings_file = Path(sys.argv[1])
+    with open(settings_file, "r") as file:
+        settings_dict = json.load(file)
+    structure_file = Path(settings_dict["Input_structure"])
+    print("-----------------------_", structure_file, "----------------")
     current_sim = current_dir / "currentSimulation"
 
     current_sim.mkdir(exist_ok=True)

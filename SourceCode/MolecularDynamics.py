@@ -33,19 +33,20 @@ def main():
         PP = PreProcessing(sys.argv)
 
         settings_list = PP.createSettings()
-        quantitites_to_compute = PP.settings["Compute"]
+        log.info(f"Settings created")
+        quantitites_to_compute = PP.settings["Compute_quantities"]
+        log.info(f"Quantities to compute: {quantitites_to_compute}")
         SimulationSetup = MDManager(settings_list, quantitites_to_compute)
-        order_of_operations = SimulationSetup.order_of_operations
-        log.info(f"Order of operations: {order_of_operations}")
-        log.info(f"Settings loaded :\n{settings_list[0].timestep}")
-        log.info(f"Structure and settings sucessfully loaded")
+        log.info(f"Simulation is ready to run")
+        log.info(f"Order of operations for this run: {SimulationSetup.order_of_operations}")
+        log.info(f"Quantities by variation: {SimulationSetup.quants_by_variation}")
 
         atomic_structure = PP.atomic_structure
     except Exception as err:
         log.error(f"Preprocessing failed: {err}")  # should probably add the err, here instead
         exit(1)
     try:
-        SimulationSetup.run(atomic_structure)
+        SimulationSetup.run(atomic_structure, init_vel=False, store_traj=False)
     except Exception as err:
         log.error(f"Simulation failed: {err}")  # should probably add the err, here instead
         exit(1)

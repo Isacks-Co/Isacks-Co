@@ -19,86 +19,102 @@ class MDManager:
         """
         self.sim_list = sim_list
         self.quants = quants
-        q_sims_nvt_deps = {"equil": ["p_i", "b", "g", "cvt", "debye"], "sample": ["cvt"], "stretch": ["p_i", "b"], "any": []}
-        q_sims_npt_deps ={"equil": [], "sample": ["lat_const"], "stretch": [], "any": []}
-        q_sims_indep_of_ensemble = {"equil": ["d", "e_coh", "l_crit", "lat_const"], "sample": ["e_coh"], "stretch": [] , "any": ["msd", "l_crit"]}
+        self.quants_by_variation = {"equil": [], "sample": [], "stretch": [], "any":[]}
+        q_sims_nvt_deps = {"equil": ["p_i", "b", "g", "cvt", "debye"], "sample": ["cvt", "t", "e_tot", "e_kin", "e_pot", "v"], "stretch": ["p_i", "b"], "any": []}
+        q_sims_npt_deps ={"equil": [], "sample": ["lat_const", "t", "e_tot", "e_kin", "e_pot", "v"], "stretch": [], "any": []}
+        q_sims_indep_of_ensemble = {"equil": ["d", "e_coh", "l_crit", "lat_const"], "sample": ["e_coh", "t", "e_tot", "e_kin", "e_pot", "v"], "stretch": [] , "any": ["msd", "l_crit"]}
         self.catergorized_compatibility = [q_sims_nvt_deps, q_sims_npt_deps, q_sims_indep_of_ensemble]
-        self.order_of_operations = _simulations_to_run(sim_list, self.catergorized_compatibility, quants)
+        self.order_of_operations = self._simulations_to_run(sim_list, self.catergorized_compatibility, quants)
+        self.equil_struct = None
 
 
-    def run(self, atomic_structure):
+    def run(self, atomic_structure, init_vel=False, store_traj=False):
         for sim in self.order_of_operations:
             logger.debug(f"Running {sim}")
             for ensemble, variations in sim.items():
                 logger.debug(f"Variations: {variations}")
                 for var in variations:
-                    self.simulate(ensemble=ensemble, variation=var, atomic_structure=atomic_structure)
+                    if var != "any":
+                        self.simulate(ensemble=ensemble, variation=var, atomic_structure=atomic_structure, init_vel=init_vel, store_traj=store_traj)
 
-    def simulate(self, ensemble, variation, atomic_structure):
+    def simulate(self, ensemble, variation, atomic_structure, init_vel, store_traj):
         if variation == "equil":
             equil_settings = self.sim_list[0]
             equil_MD = EquilibriumRun(settings=equil_settings)
             logger.info("Relaxing structure")
-            equil_struct = equil_MD.run(atomic_structure, equil_settings.num_steps, init_vel=True)
+            self.equil_struct = equil_MD.run(atomic_structure=atomic_structure, num_steps=equil_settings.num_steps, init_vel=init_vel, store_traj=store_traj)
 
-        if variation == "sample" or variation == "any":
-            if ensemble == "nvt":
+        elif variation == "sample":
+            if self.quants_by_variation["any"]:
+                sample_quants = self.quants_by_variation["sample"] + self.quants_by_variation["any"]
+            else:
+                sample_quants = self.quants_by_variation["sample"]
+            if ensemble == "nvt" or ensemble == "indep":
                 sample_settings = self.sim_list[1]
             else:
                 sample_settings = self.sim_list[2]
-            sample_MD = SampleRun(settings=self.sim_list[1])
+            sample_MD = SampleRun(settings=sample_settings, sample_data=sample_quants)
             logger.info("Sampling structure")
-            sample_data = sample_MD.run(equil_struct, sample_settings.num_steps)
-
-        if variation == "stretch":
-            stretch_MD = StrecthRun(settings=self.sim_list[1])
-            logger.info("Running stretch sequence")
+            if self.sim_list[0]:
+                sample_data = sample_MD.run(atomic_structure=self.equil_struct, num_steps=sample_settings.num_steps, store_traj=store_traj)
+            else:
+                sample_data = sample_MD.run(atomic_structure=atomic_structure, num_steps=sample_settings.num_steps, store_traj=store_traj)
             sample_data.storeTxtFile()
-            C_matrix = stretch_MD.run(equil_struct)
+
+        elif variation == "stretch":
+            stretch_settings = self.sim_list[1]
+            stretch_MD = StrecthRun(settings=stretch_settings)
+            logger.info("Running stretch sequence")
+            if self.sim_list[0]:
+                C_matrix = stretch_MD.run(atomic_structure=self.equil_struct)
+            else:
+                C_matrix = stretch_MD.run(atomic_structure=atomic_structure)
 
         logger.info("MD done")
         logger.info(f"Stored results in {equil_struct.label}/Outputfiles")
 
 
-def _simulations_to_run(sim_list, cat_resp, quants = None):
-    order_of_operations = []
-    candidate_run_variations = []
-    categorized_compatibility = cat_resp
+    def _simulations_to_run(self, sim_list, cat_resp, quants = None):
+        order_of_operations = []
+        candidate_run_variations = []
+        categorized_compatibility = cat_resp
 
-    if sim_list[0]:
-        order_of_operations.append({"npt": ["equil"]})
+        if sim_list[0]:
+            order_of_operations.append({"npt": ["equil"]})
 
-    if quants:
-        for deps in categorized_compatibility:
-            for q in quants:
-                q = q.lower()
-                logger.debug(f"q: {q}")
-                """
-                if q in deps["equil"]:
-                    if "equil" not in candidate_run_variations:
-                        candidate_run_variations.append("equil")
-                """
-                if q in deps["sample"]:
-                    if "sample" not in candidate_run_variations:
-                        candidate_run_variations.append("sample")
-                if q in deps["stretch"] :
-                    if "stretch" not in candidate_run_variations:
-                        candidate_run_variations.append("stretch")
-                """
-                if q in deps["any"] :
-                    if "any" not in candidate_run_variations:
-                        candidate_run_variations.append("any")
-                """
+        if quants:
+            for deps in categorized_compatibility:
+                quants_by_deps = []
+                for q in quants:
+                    q = q.lower()
+                    if q in deps["any"] :
+                        if q not in quants_by_deps:
+                            quants_by_deps.append(q)
+                            self.quants_by_variation["any"].append(q)
+                        if "any" not in candidate_run_variations:
+                            candidate_run_variations.append("any")
 
-            if candidate_run_variations:
-                if categorized_compatibility.index(deps) == 0:
-                    order_of_operations.append({"nvt": candidate_run_variations})
-                elif categorized_compatibility.index(deps) == 1:
-                    order_of_operations.append({"npt": candidate_run_variations})
-                elif categorized_compatibility.index(deps) == 2:
-                    order_of_operations.append({"indep": candidate_run_variations})
-            candidate_run_variations = []
+                    if q in deps["sample"]:
+                        if q not in quants_by_deps:
+                            self.quants_by_variation["sample"].append(q)
+                            quants_by_deps.append(q)
+                        if "sample" not in candidate_run_variations:
+                            candidate_run_variations.append("sample")
 
-    logger.debug(f"Order of operations: {order_of_operations}")
+                    if q in deps["stretch"]:
+                        if q not in quants_by_deps:
+                            self.quants_by_variation["stretch"].append(q)
+                            quants_by_deps.append(q)
+                        if "stretch" not in candidate_run_variations:
+                            candidate_run_variations.append("stretch")
 
-    return order_of_operations
+                if candidate_run_variations:
+                    if categorized_compatibility.index(deps) == 0:
+                        order_of_operations.append({"nvt": candidate_run_variations})
+                    elif categorized_compatibility.index(deps) == 1:
+                        order_of_operations.append({"npt": candidate_run_variations})
+                    elif categorized_compatibility.index(deps) == 2:
+                        order_of_operations.append({"indep": candidate_run_variations})
+                candidate_run_variations = []
+
+        return order_of_operations
