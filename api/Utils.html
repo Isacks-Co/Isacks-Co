@@ -1,0 +1,558 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Utils package &mdash; Computational physics project - TFYA99  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Visualizer module" href="Visualizer.html" />
+    <link rel="prev" title="SimulationInput module" href="SimulationInput.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            Computational physics project - TFYA99
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="modules.html">SourceCode</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="ASEWrappers.html">ASEWrappers package</a></li>
+<li class="toctree-l2"><a class="reference internal" href="HTP.html">HTP module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="MDClasses.html">MDClasses module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="MolecularDynamics.html">MolecularDynamics module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="PostProcessing.html">PostProcessing module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="PreProcessing.html">PreProcessing module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="QuantityCalculator.html">QuantityCalculator module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="SimulationInput.html">SimulationInput module</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Utils package</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#submodules">Submodules</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#module-Utils.LJRegistry">Utils.LJRegistry module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#Utils.LJRegistry.LJParams"><code class="docutils literal notranslate"><span class="pre">LJParams()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#Utils.LJRegistry.calcMaxRc"><code class="docutils literal notranslate"><span class="pre">calcMaxRc()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#module-Utils.equilibriumCondition">Utils.equilibriumCondition module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#Utils.equilibriumCondition.EquilibriumCondition"><code class="docutils literal notranslate"><span class="pre">EquilibriumCondition</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#module-Utils.exportCifs">Utils.exportCifs module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#Utils.exportCifs.get_defect_cif"><code class="docutils literal notranslate"><span class="pre">get_defect_cif()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#module-Utils.inputParser">Utils.inputParser module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#Utils.inputParser.InputParser"><code class="docutils literal notranslate"><span class="pre">InputParser</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#Utils.inputParser.SingleMetavarHelpFormatter"><code class="docutils literal notranslate"><span class="pre">SingleMetavarHelpFormatter</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#module-Utils.logger">Utils.logger module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#Utils.logger.CustomFormatter"><code class="docutils literal notranslate"><span class="pre">CustomFormatter</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#Utils.logger.loggerSetup"><code class="docutils literal notranslate"><span class="pre">loggerSetup()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#module-Utils.numerics">Utils.numerics module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#Utils.numerics.fitter"><code class="docutils literal notranslate"><span class="pre">fitter()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#Utils.numerics.numericalDerivative"><code class="docutils literal notranslate"><span class="pre">numericalDerivative()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#Utils.numerics.secondOrderNumericalDerivative"><code class="docutils literal notranslate"><span class="pre">secondOrderNumericalDerivative()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#Utils.numerics.sortRealignAndFilter"><code class="docutils literal notranslate"><span class="pre">sortRealignAndFilter()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#module-Utils.plotting">Utils.plotting module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#Utils.plotting.fitter"><code class="docutils literal notranslate"><span class="pre">fitter()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#Utils.plotting.numericalDerivative"><code class="docutils literal notranslate"><span class="pre">numericalDerivative()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#Utils.plotting.plot"><code class="docutils literal notranslate"><span class="pre">plot()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#Utils.plotting.secondOrderNumericalDerivative"><code class="docutils literal notranslate"><span class="pre">secondOrderNumericalDerivative()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#Utils.plotting.sortRealignAndFilter"><code class="docutils literal notranslate"><span class="pre">sortRealignAndFilter()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#module-Utils.stretchFunctions">Utils.stretchFunctions module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#Utils.stretchFunctions.calculateCMatrix"><code class="docutils literal notranslate"><span class="pre">calculateCMatrix()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#Utils.stretchFunctions.secondOrderNumericalDerivative"><code class="docutils literal notranslate"><span class="pre">secondOrderNumericalDerivative()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#module-Utils.unitConversions">Utils.unitConversions module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#Utils.unitConversions.GPascalToAu"><code class="docutils literal notranslate"><span class="pre">GPascalToAu()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#Utils.unitConversions.a1ToM1"><code class="docutils literal notranslate"><span class="pre">a1ToM1()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#Utils.unitConversions.a2ToM2"><code class="docutils literal notranslate"><span class="pre">a2ToM2()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#Utils.unitConversions.a3ToM3"><code class="docutils literal notranslate"><span class="pre">a3ToM3()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#Utils.unitConversions.atomicMassTokg"><code class="docutils literal notranslate"><span class="pre">atomicMassTokg()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#Utils.unitConversions.auToGPascal"><code class="docutils literal notranslate"><span class="pre">auToGPascal()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#Utils.unitConversions.auToPascal"><code class="docutils literal notranslate"><span class="pre">auToPascal()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#Utils.unitConversions.evToJ"><code class="docutils literal notranslate"><span class="pre">evToJ()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#Utils.unitConversions.hartreePerbohr3ToJPerM3"><code class="docutils literal notranslate"><span class="pre">hartreePerbohr3ToJPerM3()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#Utils.unitConversions.jToEv"><code class="docutils literal notranslate"><span class="pre">jToEv()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#Utils.unitConversions.kgToAtomicMass"><code class="docutils literal notranslate"><span class="pre">kgToAtomicMass()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#Utils.unitConversions.m2ToA2"><code class="docutils literal notranslate"><span class="pre">m2ToA2()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#Utils.unitConversions.m3ToA3"><code class="docutils literal notranslate"><span class="pre">m3ToA3()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#Utils.unitConversions.mToA"><code class="docutils literal notranslate"><span class="pre">mToA()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#Utils.unitConversions.pascalToAu"><code class="docutils literal notranslate"><span class="pre">pascalToAu()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#Utils.unitConversions.selfDiffusionCoeffAuToSI"><code class="docutils literal notranslate"><span class="pre">selfDiffusionCoeffAuToSI()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#Utils.unitConversions.specificHeatAuToSI"><code class="docutils literal notranslate"><span class="pre">specificHeatAuToSI()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#module-Utils">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="Visualizer.html">Visualizer module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="cifRun.html">cifRun module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="testingSPHINx.html">testingSPHINx module</a></li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">Computational physics project - TFYA99</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="modules.html">SourceCode</a></li>
+      <li class="breadcrumb-item active">Utils package</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/api/Utils.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="utils-package">
+<h1>Utils package<a class="headerlink" href="#utils-package" title="Link to this heading"></a></h1>
+<section id="submodules">
+<h2>Submodules<a class="headerlink" href="#submodules" title="Link to this heading"></a></h2>
+</section>
+<section id="module-Utils.LJRegistry">
+<span id="utils-ljregistry-module"></span><h2>Utils.LJRegistry module<a class="headerlink" href="#module-Utils.LJRegistry" title="Link to this heading"></a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="Utils.LJRegistry.LJParams">
+<span class="sig-prename descclassname"><span class="pre">Utils.LJRegistry.</span></span><span class="sig-name descname"><span class="pre">LJParams</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">material</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">epsilon_eV</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sigma_A</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rc_A</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ro_A</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#Utils.LJRegistry.LJParams" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="Utils.LJRegistry.calcMaxRc">
+<span class="sig-prename descclassname"><span class="pre">Utils.LJRegistry.</span></span><span class="sig-name descname"><span class="pre">calcMaxRc</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">atoms</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">margin</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.001</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#Utils.LJRegistry.calcMaxRc" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</section>
+<section id="module-Utils.equilibriumCondition">
+<span id="utils-equilibriumcondition-module"></span><h2>Utils.equilibriumCondition module<a class="headerlink" href="#module-Utils.equilibriumCondition" title="Link to this heading"></a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="Utils.equilibriumCondition.EquilibriumCondition">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">Utils.equilibriumCondition.</span></span><span class="sig-name descname"><span class="pre">EquilibriumCondition</span></span><a class="headerlink" href="#Utils.equilibriumCondition.EquilibriumCondition" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="Utils.equilibriumCondition.EquilibriumCondition.checkInternalPressureStable">
+<em class="property"><span class="k"><span class="pre">static</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">checkInternalPressureStable</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">list_of_internal_pressure</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tol</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.001</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#Utils.equilibriumCondition.EquilibriumCondition.checkInternalPressureStable" title="Link to this definition"></a></dt>
+<dd><p>Used to check if the difference in  internal pressure is below threshold
+:returns: true if the difference is below threshold</p>
+<blockquote>
+<div><p>false if the difference is above threshold</p>
+</div></blockquote>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="Utils.equilibriumCondition.EquilibriumCondition.checkStable">
+<em class="property"><span class="k"><span class="pre">static</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">checkStable</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">list_of_values</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tol</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1e-05</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#Utils.equilibriumCondition.EquilibriumCondition.checkStable" title="Link to this definition"></a></dt>
+<dd><p>Used to check if energy oscillates around certain value, then we probably found the equilibrium,
+meant to input either a list of MSD values or energy, which unlike internal pressure don’t have to oscillate
+around 0.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>true if the difference is below threshold
+false if the difference is above threshold</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="module-Utils.exportCifs">
+<span id="utils-exportcifs-module"></span><h2>Utils.exportCifs module<a class="headerlink" href="#module-Utils.exportCifs" title="Link to this heading"></a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="Utils.exportCifs.get_defect_cif">
+<span class="sig-prename descclassname"><span class="pre">Utils.exportCifs.</span></span><span class="sig-name descname"><span class="pre">get_defect_cif</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">host_name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">defect_name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">db_path</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'../../defect/defects.sqlite'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">out_dir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'cif_out'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#Utils.exportCifs.get_defect_cif" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</section>
+<section id="module-Utils.inputParser">
+<span id="utils-inputparser-module"></span><h2>Utils.inputParser module<a class="headerlink" href="#module-Utils.inputParser" title="Link to this heading"></a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="Utils.inputParser.InputParser">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">Utils.inputParser.</span></span><span class="sig-name descname"><span class="pre">InputParser</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">args</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">['/opt/hostedtoolcache/Python/3.12.12/x64/bin/sphinx-build',</span> <span class="pre">'-M',</span> <span class="pre">'html',</span> <span class="pre">'.',</span> <span class="pre">'_build']</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#Utils.inputParser.InputParser" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="Utils.inputParser.InputParser.addArguments">
+<span class="sig-name descname"><span class="pre">addArguments</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#Utils.inputParser.InputParser.addArguments" title="Link to this definition"></a></dt>
+<dd><p>Whenever a new setting is added, add the corresponding flag here.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="Utils.inputParser.InputParser.parseList">
+<span class="sig-name descname"><span class="pre">parseList</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">arg</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#Utils.inputParser.InputParser.parseList" title="Link to this definition"></a></dt>
+<dd><p>Help function to make sure list arguments are working.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="Utils.inputParser.SingleMetavarHelpFormatter">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">Utils.inputParser.</span></span><span class="sig-name descname"><span class="pre">SingleMetavarHelpFormatter</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">prog</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">indent_increment</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_help_position</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">24</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">width</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#Utils.inputParser.SingleMetavarHelpFormatter" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">HelpFormatter</span></code></p>
+<p>Formatter to only get one metavar</p>
+</dd></dl>
+
+</section>
+<section id="module-Utils.logger">
+<span id="utils-logger-module"></span><h2>Utils.logger module<a class="headerlink" href="#module-Utils.logger" title="Link to this heading"></a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="Utils.logger.CustomFormatter">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">Utils.logger.</span></span><span class="sig-name descname"><span class="pre">CustomFormatter</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">fmt</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">datefmt</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">style</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'%'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">validate</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">defaults</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#Utils.logger.CustomFormatter" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">Formatter</span></code></p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="Utils.logger.CustomFormatter.COLORS">
+<span class="sig-name descname"><span class="pre">COLORS</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{10:</span> <span class="pre">'\x1b[36m',</span> <span class="pre">20:</span> <span class="pre">'\x1b[32m',</span> <span class="pre">30:</span> <span class="pre">'\x1b[33m',</span> <span class="pre">40:</span> <span class="pre">'\x1b[31m',</span> <span class="pre">50:</span> <span class="pre">'\x1b[41m'}</span></em><a class="headerlink" href="#Utils.logger.CustomFormatter.COLORS" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="Utils.logger.CustomFormatter.RESET">
+<span class="sig-name descname"><span class="pre">RESET</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'\x1b[0m'</span></em><a class="headerlink" href="#Utils.logger.CustomFormatter.RESET" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="Utils.logger.CustomFormatter.format">
+<span class="sig-name descname"><span class="pre">format</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">record</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#Utils.logger.CustomFormatter.format" title="Link to this definition"></a></dt>
+<dd><p>Format the specified record as text.</p>
+<p>The record’s attribute dictionary is used as the operand to a
+string formatting operation which yields the returned string.
+Before formatting the dictionary, a couple of preparatory steps
+are carried out. The message attribute of the record is computed
+using LogRecord.getMessage(). If the formatting string uses the
+time (as determined by a call to usesTime(), formatTime() is
+called to format the event time. If there is exception information,
+it is formatted using formatException() and appended to the message.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="Utils.logger.loggerSetup">
+<span class="sig-prename descclassname"><span class="pre">Utils.logger.</span></span><span class="sig-name descname"><span class="pre">loggerSetup</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">debug</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#Utils.logger.loggerSetup" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</section>
+<section id="module-Utils.numerics">
+<span id="utils-numerics-module"></span><h2>Utils.numerics module<a class="headerlink" href="#module-Utils.numerics" title="Link to this heading"></a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="Utils.numerics.fitter">
+<span class="sig-prename descclassname"><span class="pre">Utils.numerics.</span></span><span class="sig-name descname"><span class="pre">fitter</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">y</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">deg</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">14</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">resolution</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#Utils.numerics.fitter" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="Utils.numerics.numericalDerivative">
+<span class="sig-prename descclassname"><span class="pre">Utils.numerics.</span></span><span class="sig-name descname"><span class="pre">numericalDerivative</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">y</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">deg</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#Utils.numerics.numericalDerivative" title="Link to this definition"></a></dt>
+<dd><p>Compute the numerical derivative dy/dx given lists of x and y values.
+Uses central difference for interior points and forward/backward for endpoints.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>x</strong> (<em>list</em><em> or </em><em>array</em>) – x-values (must be increasing and same length as y)</p></li>
+<li><p><strong>y</strong> (<em>list</em><em> or </em><em>array</em>) – y-values</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>derivative values (same length as x)</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>list</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="Utils.numerics.secondOrderNumericalDerivative">
+<span class="sig-prename descclassname"><span class="pre">Utils.numerics.</span></span><span class="sig-name descname"><span class="pre">secondOrderNumericalDerivative</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">eps_list</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">U</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#Utils.numerics.secondOrderNumericalDerivative" title="Link to this definition"></a></dt>
+<dd><p>Approximate the mixed partial derivative ∂²U/(∂x ∂y) using available data.</p>
+<p>Supported inputs:
+- Case A: U is a 2D grid (n×n) of energies sampled on a common 1D grid <cite>eps_list</cite> along both axes.</p>
+<blockquote>
+<div><p>Then this function computes the central cross-difference mixed partial on interior points and returns its average.</p>
+</div></blockquote>
+<ul class="simple">
+<li><p>Case B: U is a list/tuple of two 1D energy traces, U=[U1(x), U2(y)],
+each sampled on the same grid <cite>eps_list</cite>, with x == y.</p></li>
+</ul>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Average mixed partial estimate (or diagonal pure second in the identical-traces case).</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>float</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="Utils.numerics.sortRealignAndFilter">
+<span class="sig-prename descclassname"><span class="pre">Utils.numerics.</span></span><span class="sig-name descname"><span class="pre">sortRealignAndFilter</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x_list</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">y_list</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filter</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">resolution</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#Utils.numerics.sortRealignAndFilter" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</section>
+<section id="module-Utils.plotting">
+<span id="utils-plotting-module"></span><h2>Utils.plotting module<a class="headerlink" href="#module-Utils.plotting" title="Link to this heading"></a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="Utils.plotting.fitter">
+<span class="sig-prename descclassname"><span class="pre">Utils.plotting.</span></span><span class="sig-name descname"><span class="pre">fitter</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">y</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">deg</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">14</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">resolution</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#Utils.plotting.fitter" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="Utils.plotting.numericalDerivative">
+<span class="sig-prename descclassname"><span class="pre">Utils.plotting.</span></span><span class="sig-name descname"><span class="pre">numericalDerivative</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">y</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">deg</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#Utils.plotting.numericalDerivative" title="Link to this definition"></a></dt>
+<dd><p>Compute the numerical derivative dy/dx given lists of x and y values.
+Uses central difference for interior points and forward/backward for endpoints.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>x</strong> (<em>list</em><em> or </em><em>array</em>) – x-values (must be increasing and same length as y)</p></li>
+<li><p><strong>y</strong> (<em>list</em><em> or </em><em>array</em>) – y-values</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>derivative values (same length as x)</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>list</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="Utils.plotting.plot">
+<span class="sig-prename descclassname"><span class="pre">Utils.plotting.</span></span><span class="sig-name descname"><span class="pre">plot</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">y</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">x_label</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'x'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">y_label</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'y'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">save_as</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#Utils.plotting.plot" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="Utils.plotting.secondOrderNumericalDerivative">
+<span class="sig-prename descclassname"><span class="pre">Utils.plotting.</span></span><span class="sig-name descname"><span class="pre">secondOrderNumericalDerivative</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">eps_list</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">U</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#Utils.plotting.secondOrderNumericalDerivative" title="Link to this definition"></a></dt>
+<dd><p>Approximate the mixed partial derivative ∂²U/(∂x ∂y) using available data.</p>
+<p>Supported inputs:
+- Case A: U is a 2D grid (n×n) of energies sampled on a common 1D grid <cite>eps_list</cite> along both axes.</p>
+<blockquote>
+<div><p>Then this function computes the central cross-difference mixed partial on interior points and returns its average.</p>
+</div></blockquote>
+<ul class="simple">
+<li><p>Case B: U is a list/tuple of two 1D energy traces, U=[U1(x), U2(y)],
+each sampled on the same grid <cite>eps_list</cite>, with x == y.</p></li>
+</ul>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Average mixed partial estimate (or diagonal pure second in the identical-traces case).</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>float</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="Utils.plotting.sortRealignAndFilter">
+<span class="sig-prename descclassname"><span class="pre">Utils.plotting.</span></span><span class="sig-name descname"><span class="pre">sortRealignAndFilter</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x_list</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">y_list</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filter</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">resolution</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#Utils.plotting.sortRealignAndFilter" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</section>
+<section id="module-Utils.stretchFunctions">
+<span id="utils-stretchfunctions-module"></span><h2>Utils.stretchFunctions module<a class="headerlink" href="#module-Utils.stretchFunctions" title="Link to this heading"></a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="Utils.stretchFunctions.calculateCMatrix">
+<span class="sig-prename descclassname"><span class="pre">Utils.stretchFunctions.</span></span><span class="sig-name descname"><span class="pre">calculateCMatrix</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">strech_sequence</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#Utils.stretchFunctions.calculateCMatrix" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="Utils.stretchFunctions.secondOrderNumericalDerivative">
+<span class="sig-prename descclassname"><span class="pre">Utils.stretchFunctions.</span></span><span class="sig-name descname"><span class="pre">secondOrderNumericalDerivative</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">eps_list</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">U</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#Utils.stretchFunctions.secondOrderNumericalDerivative" title="Link to this definition"></a></dt>
+<dd><p>Approximate the mixed partial derivative ∂²U/(∂x ∂y) using available data.</p>
+<p>Supported inputs:
+- Case A: U is a 2D grid (n×n) of energies sampled on a common 1D grid <cite>eps_list</cite> along both axes.</p>
+<blockquote>
+<div><p>Then this function computes the central cross-difference mixed partial on interior points and returns its average.</p>
+</div></blockquote>
+<ul class="simple">
+<li><p>Case B: U is a list/tuple of two 1D energy traces, U=[U1(x), U2(y)],
+each sampled on the same grid <cite>eps_list</cite>, with x == y.</p></li>
+</ul>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Average mixed partial estimate (or diagonal pure second in the identical-traces case).</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>float</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+<section id="module-Utils.unitConversions">
+<span id="utils-unitconversions-module"></span><h2>Utils.unitConversions module<a class="headerlink" href="#module-Utils.unitConversions" title="Link to this heading"></a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="Utils.unitConversions.GPascalToAu">
+<span class="sig-prename descclassname"><span class="pre">Utils.unitConversions.</span></span><span class="sig-name descname"><span class="pre">GPascalToAu</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">pressure_GPa</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#Utils.unitConversions.GPascalToAu" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="Utils.unitConversions.a1ToM1">
+<span class="sig-prename descclassname"><span class="pre">Utils.unitConversions.</span></span><span class="sig-name descname"><span class="pre">a1ToM1</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">length_a</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#Utils.unitConversions.a1ToM1" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="Utils.unitConversions.a2ToM2">
+<span class="sig-prename descclassname"><span class="pre">Utils.unitConversions.</span></span><span class="sig-name descname"><span class="pre">a2ToM2</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">area_a2</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#Utils.unitConversions.a2ToM2" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="Utils.unitConversions.a3ToM3">
+<span class="sig-prename descclassname"><span class="pre">Utils.unitConversions.</span></span><span class="sig-name descname"><span class="pre">a3ToM3</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">volume_a3</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#Utils.unitConversions.a3ToM3" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="Utils.unitConversions.atomicMassTokg">
+<span class="sig-prename descclassname"><span class="pre">Utils.unitConversions.</span></span><span class="sig-name descname"><span class="pre">atomicMassTokg</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mass_au</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#Utils.unitConversions.atomicMassTokg" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="Utils.unitConversions.auToGPascal">
+<span class="sig-prename descclassname"><span class="pre">Utils.unitConversions.</span></span><span class="sig-name descname"><span class="pre">auToGPascal</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">pressure_au</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#Utils.unitConversions.auToGPascal" title="Link to this definition"></a></dt>
+<dd><p>Convert pressure from eV/Å^3 to GPa.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="Utils.unitConversions.auToPascal">
+<span class="sig-prename descclassname"><span class="pre">Utils.unitConversions.</span></span><span class="sig-name descname"><span class="pre">auToPascal</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">pressure_au</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#Utils.unitConversions.auToPascal" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="Utils.unitConversions.evToJ">
+<span class="sig-prename descclassname"><span class="pre">Utils.unitConversions.</span></span><span class="sig-name descname"><span class="pre">evToJ</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">energy_eV</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#Utils.unitConversions.evToJ" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="Utils.unitConversions.hartreePerbohr3ToJPerM3">
+<span class="sig-prename descclassname"><span class="pre">Utils.unitConversions.</span></span><span class="sig-name descname"><span class="pre">hartreePerbohr3ToJPerM3</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">energy_hartreePerbohr3</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#Utils.unitConversions.hartreePerbohr3ToJPerM3" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="Utils.unitConversions.jToEv">
+<span class="sig-prename descclassname"><span class="pre">Utils.unitConversions.</span></span><span class="sig-name descname"><span class="pre">jToEv</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">energy_J</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#Utils.unitConversions.jToEv" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="Utils.unitConversions.kgToAtomicMass">
+<span class="sig-prename descclassname"><span class="pre">Utils.unitConversions.</span></span><span class="sig-name descname"><span class="pre">kgToAtomicMass</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mass_kg</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#Utils.unitConversions.kgToAtomicMass" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="Utils.unitConversions.m2ToA2">
+<span class="sig-prename descclassname"><span class="pre">Utils.unitConversions.</span></span><span class="sig-name descname"><span class="pre">m2ToA2</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">area_m2</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#Utils.unitConversions.m2ToA2" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="Utils.unitConversions.m3ToA3">
+<span class="sig-prename descclassname"><span class="pre">Utils.unitConversions.</span></span><span class="sig-name descname"><span class="pre">m3ToA3</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">volume_m3</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#Utils.unitConversions.m3ToA3" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="Utils.unitConversions.mToA">
+<span class="sig-prename descclassname"><span class="pre">Utils.unitConversions.</span></span><span class="sig-name descname"><span class="pre">mToA</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">length_m</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#Utils.unitConversions.mToA" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="Utils.unitConversions.pascalToAu">
+<span class="sig-prename descclassname"><span class="pre">Utils.unitConversions.</span></span><span class="sig-name descname"><span class="pre">pascalToAu</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">pressure_Pa</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#Utils.unitConversions.pascalToAu" title="Link to this definition"></a></dt>
+<dd><p>Convert pressure from Pa to eV/Å^3.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="Utils.unitConversions.selfDiffusionCoeffAuToSI">
+<span class="sig-prename descclassname"><span class="pre">Utils.unitConversions.</span></span><span class="sig-name descname"><span class="pre">selfDiffusionCoeffAuToSI</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">D_au</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#Utils.unitConversions.selfDiffusionCoeffAuToSI" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="Utils.unitConversions.specificHeatAuToSI">
+<span class="sig-prename descclassname"><span class="pre">Utils.unitConversions.</span></span><span class="sig-name descname"><span class="pre">specificHeatAuToSI</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">Cv_au</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#Utils.unitConversions.specificHeatAuToSI" title="Link to this definition"></a></dt>
+<dd><p>Convert specific heat from eV/(amu·K) to J/(kg·K).</p>
+</dd></dl>
+
+</section>
+<section id="module-Utils">
+<span id="module-contents"></span><h2>Module contents<a class="headerlink" href="#module-Utils" title="Link to this heading"></a></h2>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="SimulationInput.html" class="btn btn-neutral float-left" title="SimulationInput module" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="Visualizer.html" class="btn btn-neutral float-right" title="Visualizer module" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Isacks &amp; Co.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

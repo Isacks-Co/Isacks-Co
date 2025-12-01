@@ -1,0 +1,200 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PreProcessing module &mdash; Computational physics project - TFYA99  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="QuantityCalculator module" href="QuantityCalculator.html" />
+    <link rel="prev" title="PostProcessing module" href="PostProcessing.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            Computational physics project - TFYA99
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="modules.html">SourceCode</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="ASEWrappers.html">ASEWrappers package</a></li>
+<li class="toctree-l2"><a class="reference internal" href="HTP.html">HTP module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="MDClasses.html">MDClasses module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="MolecularDynamics.html">MolecularDynamics module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="PostProcessing.html">PostProcessing module</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">PreProcessing module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#PreProcessing.PreProcessing"><code class="docutils literal notranslate"><span class="pre">PreProcessing</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#PreProcessing.PreProcessing.checkDistances"><code class="docutils literal notranslate"><span class="pre">PreProcessing.checkDistances()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#PreProcessing.PreProcessing.checkLattice"><code class="docutils literal notranslate"><span class="pre">PreProcessing.checkLattice()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#PreProcessing.PreProcessing.createSettings"><code class="docutils literal notranslate"><span class="pre">PreProcessing.createSettings()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#PreProcessing.PreProcessing.getIntegrator"><code class="docutils literal notranslate"><span class="pre">PreProcessing.getIntegrator()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#PreProcessing.PreProcessing.getPotential"><code class="docutils literal notranslate"><span class="pre">PreProcessing.getPotential()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#PreProcessing.PreProcessing.readAtomicStructure"><code class="docutils literal notranslate"><span class="pre">PreProcessing.readAtomicStructure()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#PreProcessing.PreProcessing.readSettings"><code class="docutils literal notranslate"><span class="pre">PreProcessing.readSettings()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#PreProcessing.PreProcessing.sanityCheckAtomicStructure"><code class="docutils literal notranslate"><span class="pre">PreProcessing.sanityCheckAtomicStructure()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#PreProcessing.PreProcessing.sanityCheckSettings"><code class="docutils literal notranslate"><span class="pre">PreProcessing.sanityCheckSettings()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="QuantityCalculator.html">QuantityCalculator module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="SimulationInput.html">SimulationInput module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="Utils.html">Utils package</a></li>
+<li class="toctree-l2"><a class="reference internal" href="Visualizer.html">Visualizer module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="cifRun.html">cifRun module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="testingSPHINx.html">testingSPHINx module</a></li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">Computational physics project - TFYA99</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="modules.html">SourceCode</a></li>
+      <li class="breadcrumb-item active">PreProcessing module</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/api/PreProcessing.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="module-PreProcessing">
+<span id="preprocessing-module"></span><h1>PreProcessing module<a class="headerlink" href="#module-PreProcessing" title="Link to this heading"></a></h1>
+<dl class="py class">
+<dt class="sig sig-object py" id="PreProcessing.PreProcessing">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">PreProcessing.</span></span><span class="sig-name descname"><span class="pre">PreProcessing</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">args</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#PreProcessing.PreProcessing" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Class to handle all preprocessing for the MD simulation
+Idea is that this class stores all information in the two objects settings and atoms which are supposed to input
+for the MD class</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="PreProcessing.PreProcessing.checkDistances">
+<span class="sig-name descname"><span class="pre">checkDistances</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#PreProcessing.PreProcessing.checkDistances" title="Link to this definition"></a></dt>
+<dd><p>Checks that interatomic distances are reasonable. No atomic overlap</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="PreProcessing.PreProcessing.checkLattice">
+<span class="sig-name descname"><span class="pre">checkLattice</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#PreProcessing.PreProcessing.checkLattice" title="Link to this definition"></a></dt>
+<dd><p>Check that the lattice is valid.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="PreProcessing.PreProcessing.createSettings">
+<span class="sig-name descname"><span class="pre">createSettings</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#PreProcessing.PreProcessing.createSettings" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="PreProcessing.PreProcessing.getIntegrator">
+<span class="sig-name descname"><span class="pre">getIntegrator</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ensemble</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#PreProcessing.PreProcessing.getIntegrator" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="PreProcessing.PreProcessing.getPotential">
+<span class="sig-name descname"><span class="pre">getPotential</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#PreProcessing.PreProcessing.getPotential" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="PreProcessing.PreProcessing.readAtomicStructure">
+<span class="sig-name descname"><span class="pre">readAtomicStructure</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">input_structure</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#PreProcessing.PreProcessing.readAtomicStructure" title="Link to this definition"></a></dt>
+<dd><p>Reads atomic structure from a file, and extend cell according to supercell setting</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="PreProcessing.PreProcessing.readSettings">
+<span class="sig-name descname"><span class="pre">readSettings</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">input_settings</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#PreProcessing.PreProcessing.readSettings" title="Link to this definition"></a></dt>
+<dd><p>Reads settings from json file, checks all expected settings present. Overwrite settings file if a terminal flag is set.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="PreProcessing.PreProcessing.sanityCheckAtomicStructure">
+<span class="sig-name descname"><span class="pre">sanityCheckAtomicStructure</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#PreProcessing.PreProcessing.sanityCheckAtomicStructure" title="Link to this definition"></a></dt>
+<dd><p>Sanity check for the input atomic structure.
+Such as valid lattice angles, constants and atomic positions</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="PreProcessing.PreProcessing.sanityCheckSettings">
+<span class="sig-name descname"><span class="pre">sanityCheckSettings</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#PreProcessing.PreProcessing.sanityCheckSettings" title="Link to this definition"></a></dt>
+<dd><p>Sanity check for the settings.json file. Makes sure that we only use EMT for
+valid metals. Also checks that relevant values are non-negative.</p>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="PostProcessing.html" class="btn btn-neutral float-left" title="PostProcessing module" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="QuantityCalculator.html" class="btn btn-neutral float-right" title="QuantityCalculator module" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Isacks &amp; Co.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
