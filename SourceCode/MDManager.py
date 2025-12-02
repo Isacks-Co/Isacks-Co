@@ -26,16 +26,15 @@ class MDManager:
         self.order_of_operations = self._simulations_to_run(sim_list, self.catergorized_compatibility, quants)
         self.equil_struct = None
         self.C_matrix = None
+        self.indep_quant_can_leech = False
 
 
     def run(self, atomic_structure, init_vel=False, store_traj=False):
         for sim in self.order_of_operations:
-            logger.debug(f"Running {sim}")
             for ensemble, variations in sim.items():
-                logger.debug(f"Variations: {variations}")
                 for var in variations:
-                    if var != "any":
-                        self.simulate(ensemble=ensemble, variation=var, atomic_structure=atomic_structure, init_vel=init_vel, store_traj=store_traj)
+                    self.simulate(ensemble=ensemble, variation=var, atomic_structure=atomic_structure, init_vel=init_vel, store_traj=store_traj)
+
         logger.info("MD done")
         logger.info(f"Stored results in {atomic_structure.label}/Outputfiles")
 
@@ -47,9 +46,10 @@ class MDManager:
             logger.info("Relaxing structure")
             self.equil_struct = equil_MD.run(atomic_structure=atomic_structure, num_steps=equil_settings.num_steps, init_vel=init_vel, store_traj=store_traj)
 
-        elif variation == "sample":
+        elif (variation == "sample" or variation == "any") and self.indep_quant_can_leech == False:
             if ensemble == "nvt" or ensemble == "indep":
                 sample_settings = self.sim_list[1]
+                self.indep_quant_can_leech = True
             else:
                 sample_settings = self.sim_list[2]
             sample_MD = SampleRun(settings=sample_settings, sample_data="all")                      #TODO: Sampling data during run doesn't write to file atm

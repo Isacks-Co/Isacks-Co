@@ -129,7 +129,6 @@ class PreProcessing:
                     ro = self.settings["Simulations_config"]["Potential"]["Parameters"]["RO"]
 
                 lj_params = LJParams(material=material, epsilon_eV=epsilon, sigma_A=sigma, rc_A=rc, ro_A=ro)
-                print("LJ PARAMS:", lj_params)
                 return LennardJonesPotential(atomic_numbers=atomic_num, epsilons=[lj_params["epsilon_eV"]],
                                              sigmas=[lj_params["sigma_A"]], rc=lj_params["rc_A"])
             case "EMT":

@@ -37,9 +37,9 @@ def main():
         quantitites_to_compute = PP.settings["Compute_quantities"]
         log.info(f" Quantities to compute: \n {quantitites_to_compute} \n")
         SimulationSetup = MDManager(settings_list, quantitites_to_compute)
-        log.info(f"\n                       Order of operations for this run:")
+        log.info(f"\n        Simulations to perform this run: \n")
         for i in range(len(SimulationSetup.order_of_operations)):
-            log.info(f"\n                       {i})     {SimulationSetup.order_of_operations[i]}")
+            log.info(f"        ╰┈➤     {SimulationSetup.order_of_operations[i]} \n")
 
         atomic_structure = PP.atomic_structure
     except Exception as err:
