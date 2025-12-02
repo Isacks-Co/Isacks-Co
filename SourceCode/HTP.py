@@ -38,7 +38,7 @@ if __name__ == "__main__":
     Saves the initial and final configurations in a cif file.
     """
     # Adjustable parameters
-    num_steps = 3000
+    num_steps = 100
     temp_k = 0
     friction = 0.1
     time_steps = 1
@@ -55,7 +55,14 @@ if __name__ == "__main__":
     
     mace_potential = MACEPotential(mace_path)
     settings = SimulationInput.SimulationSettings(num_steps, mace_potential, lang_int)
-
+    defect_index = ""
+    
+    try:
+        with open("defect_info", "r", encoding="utf-8") as f:
+            defect_index = int(f.readline().rstrip("\n"))
+    except Exception as err:
+        log.error(f"No defect info file found")
+    
     # Load in the initial structure
     try:
         atomic_structure = AtomicStructure.fromFile(path=poscar_path, potential=mace_potential)
@@ -65,6 +72,9 @@ if __name__ == "__main__":
     # For the atomic structure from wrapper for the initial structure
     E_pre = atomic_structure.potential_energy
     atomic_structure_atoms = atomic_structure.getAtoms()
+    
+    sorted_z_list = sorted([row[2] for row in atomic_structure_atoms.get_positions()])
+    pre_factor = sorted_z_list[-1] - sorted_z_list[0] 
     httk_pre = ase_glue.ase_atoms_to_structure(atomic_structure_atoms, hall_symbol="P 1")
     httk_pre.io.save("pre_structure.cif")
 
@@ -77,9 +87,14 @@ if __name__ == "__main__":
     # Save the equilibrium structure and save it in a cif file
     E_post = equil_structure.potential_energy
     equil_structure_atoms = equil_structure.getAtoms()
+    sorted_z_list = sorted([row[2] for row in equil_structure_atoms.get_positions()])
+    post_factor = sorted_z_list[-1] - sorted_z_list[0]
+    expansion_factor = post_factor/pre_factor
+
     httk_post = ase_glue.ase_atoms_to_structure(equil_structure_atoms, hall_symbol="P 1")
     httk_post.io.save("post_structure.cif")
 
     with open("energies.txt", "w") as f:
         f.write(f"E_before  {E_pre:.10f}\n")
         f.write(f"E_after   {E_post:.10f}\n")
+        f.write(f"Expansion factor {expansion_factor:.10f}\n")
