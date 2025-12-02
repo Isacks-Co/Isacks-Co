@@ -38,7 +38,7 @@ if __name__ == "__main__":
     Saves the initial and final configurations in a cif file.
     """
     # Adjustable parameters
-    num_steps = 100
+    num_steps = 3000
     temp_k = 0
     friction = 0.1
     time_steps = 1
