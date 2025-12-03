@@ -118,7 +118,7 @@ class EquilibriumRun(MDBase):
     
     def _check_equilibrium(self):
         if len(self.equil_data) > 100:
-            if EquilibriumCondition.checkStable(self.equil_data[-100:], 0.01):
+            if EquilibriumCondition.checkStable(self.equil_data[-100:], 0.05):
                 
                 raise StopIteration(f"Equil reached")
     def _saveData(self, atomic_structure):

@@ -20,11 +20,9 @@ for d in leaf_dirs:
     for file in os.listdir(d):
         fullpath = os.path.join(d, file)
         if file.endswith(".json"):
-            #print(fullpath)
 
             with open(fullpath) as json_file:
                 data = json.load(json_file)
-                #print(data)
 
                 if "MDScreenResult" in data:
                     info = data["MDScreenResult"]
@@ -41,4 +39,4 @@ for d in leaf_dirs:
                         depth=info["depth"],
                         expansion_factor=info["expansion_factor"],
                         defect_index=info["defect_index"])
-
+CommitAndClose(backend)

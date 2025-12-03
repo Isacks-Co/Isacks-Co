@@ -25,6 +25,7 @@ import logging
 import SimulationInput
 import sys
 import json
+import numpy as np
 from ASEWrappers import LangevinIntegrator, MACEPotential, AtomicStructure
 from MDClasses import EquilibriumRun
 from httk.external import ase_glue
@@ -58,7 +59,7 @@ if __name__ == "__main__":
 
     try:
         with open("key", "r", encoding="utf-8") as f:
-            key = int(f.readline(r.strip("\n")))
+            key = int(f.readline().rstrip("\n"))
 
         with open("defect_info", "r", encoding="utf-8") as f:
             defect_index = int(f.readline().rstrip("\n"))
@@ -89,15 +90,16 @@ if __name__ == "__main__":
     E_post = equil_structure.potential_energy
 
     # Calculate the expansion factor
-    equil_structure_atoms = equil_structure.getAtoms().get.positions()
-    sorted_z_list = sorted([row[2] for row in equil_structure_atoms])
+    equil_structure_atoms = equil_structure.getAtoms()
+    sorted_z_list = sorted([row[2] for row in equil_structure_atoms.get_positions()])
     post_factor = sorted_z_list[-1] - sorted_z_list[0]
     expansion_factor = post_factor / pre_factor
 
     # Calculate the depth of the defect
-    defect_z = equil_structure_atoms[defect_index][2]
-    equil_structure_atoms.pop(defect_index)
-    sorted_z_list = sorted([row[2] for row in equil_structure_atoms])
+    host_array = equil_structure_atoms.get_positions()
+    defect_z = host_array[defect_index][2]
+    host_array = np.delete(host_array, defect_index, 0)
+    sorted_z_list = sorted([row[2] for row in host_array])
     depth = sorted_z_list[-1] - defect_z
 
     # Save the equilibrium structure and save it in a cif file
@@ -111,11 +113,11 @@ if __name__ == "__main__":
         },
         "MDAbadParameters": {
             "key": key,
-            "depth" : depth,
-            "expansion_factor" : expansion_factor,
-            "defect_index" : defect_index,
+            "depth": depth,
+            "expansion_factor": expansion_factor,
+            "defect_index": defect_index,
         }
     }
 
-    with open("result", "w", encoding="utf-8") as f:
-        f.write(json.dumps(result, indent = 4))
+with open("result.json", "w", encoding="utf-8") as f:
+    f.write(json.dumps(result, indent=4))

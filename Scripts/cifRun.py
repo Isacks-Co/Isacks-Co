@@ -75,6 +75,6 @@ if __name__ == "__main__":
         host_name="MoTe2",
         defect_name="C_",
         db_path="../../defect/defects.sqlite",
-        out_root="../../httk-test/Runs",
+        out_root="../../MD_runs/Runs",
         template_name="template",
     )
