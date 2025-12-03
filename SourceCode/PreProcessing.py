@@ -124,6 +124,10 @@ class PreProcessing:
                                              sigmas=[lj_params["sigma_A"]], rc=lj_params["rc_A"])
             case "EMT":
                 return EMTPotential()
+            
+            case "MACE":
+                
+                return MACEPotential()
 
             case "MACE":
                 return MACEPotential(model_path=self.settings["Simulations_config"]["Potential"]["Parameters"]["Path"])

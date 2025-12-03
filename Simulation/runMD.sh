@@ -13,6 +13,11 @@ touch sampledata.txt
 
 python3 ../../../SourceCode/MolecularDynamics.py ../SetupFiles/settings.json
 
+
+
+python3 ../../../SourceCode/MolecularDynamics.py ../SetupFiles/atomic_structure* ../SetupFiles/settings.json
+
+
 if [[ $flag == "-P" ]]; then
     cd ../..
     bash postprocessing.sh currentSimulation
