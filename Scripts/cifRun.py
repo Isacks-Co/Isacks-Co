@@ -38,8 +38,7 @@ def get_defect_cif(
 
         if not defect_cell.defect_name.startswith(defect_name):
             continue
-        print(defect_cell.defect_name)
-        print(abad_parameters.defect_index)
+
         struct = defect_cell.defect_structure
 
         run_name = f"{host_name_pbe}_{defect_cell.defect_name}"
@@ -55,10 +54,15 @@ def get_defect_cif(
         # CIF-file gets put in folder that create_batch_task made
         cif_filename = f"{run_name}.cif"
         full_path = os.path.abspath(os.path.join(dir_path, cif_filename))
+
+        key_file_path = dir_path + "/key"
         defect_info_file_path = dir_path + "/defect_info"
 
         with open(defect_info_file_path, "w", encoding="utf-8") as f:
             f.write(str(abad_parameters.defect_index))
+
+        with open(key_file_path, "w", encoding="utf-8") as f:
+            f.write(str(defect_cell.key))
 
         
         httk.save(struct, full_path)
