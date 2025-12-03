@@ -24,10 +24,15 @@ import re
 
 import httk.db
 from abad_classes import *
-from classes import DefectInfo
-from MDClasses import MDDelta, MDScreenResult, MDAbadParameters
+from classes import DefectInfo, ScreenResult
 
+from DBClasses import MDDelta, MDScreenResult, MDAbadParameters
 from MDDefectUtils import notDoneMDRuns, notDoneDelta
+
+
+def getDopant(defect_name):  # might be easier to use (or less chaotic)
+    return re.match(r"^([^_]+)", defect_name).group(1)
+
 
 INF = 10000000
 
@@ -45,8 +50,9 @@ dopant_list = []
 
 # Find all hosts materials and dopant in database
 for match in search:
-    host = str(match[0][0].host_name)
-    dopant = re.match(r"^([^_]+)", match[0][0].defect_name).group(1)
+    info = match[0][0]
+    host = str(info.host_name)
+    dopant = getDopant(info.defect_name)
 
     if host not in host_list:
         host_list.append(host)
@@ -72,12 +78,20 @@ for host in host_list:
     search.output(search_screenresult, 'screenresult')
     search.output(search_abad, 'abad')
 
+    # collect everything once in list, instead of doing match every single time which is 1 query per host PER defect
+    combined_results = []
+    for match in search:
+        defect_info = match[0][0]
+        screenresult = match[0][1]
+        abad = match[0][2]
+        combined_results.append((defect_info, screenresult, abad))
+
     # Loop over a specific host and dopant combination
     for dopant in dopant_list:
 
         # Check if we are missing any simulation for combinaton of host and dopant
-        if any((missing[0] == host and re.match(r"^([^_]+)", missing[1]).group(1) == dopant) for missing in
-               missing_runs):
+        if any(missing_host == host and getDopant(missing_defect) == dopant
+               for missing_host, missing_defect in missing_runs):
             print(f"{host} : {dopant} are missing simulations. No Delta calculated")
             continue
 
@@ -88,19 +102,18 @@ for host in host_list:
         adatom_lowest, interstital_lowest = INF, INF
         adatom_defect, interstital_defect = "", ""
         adatom_key, interstital_key = "", ""
-        for match in search:
-            defect_info = match[0][0]
-            screenresult = match[0][1]
-            abad = match[0][2]
 
-            if re.match(r"^([^_]+)", defect_info.defect_name).group(1) != dopant:
+        for defect_info, screenresult, abad in combined_results:
+
+            if getDopant(defect_info.defect_name) != dopant:
                 continue
 
             # Skip values from simulation that exploded
             if abad.expansion_factor > 1.8:
                 continue
 
-            if re.match(r"^.*_ads\d+$", defect_info.defect_name) and screenresult.total_energy_coarse < adatom_lowest:
+            if re.match(r"^.*_ads\d+$",
+                        defect_info.defect_name) and screenresult.total_energy_coarse < adatom_lowest:
                 adatom_lowest = screenresult.total_energy_coarse
                 adatom_defect = defect_info.defect_name
                 adatom_key = defect_info.key
@@ -131,3 +144,5 @@ for host in host_list:
 
 for delta in delta_to_push:
     store.save(delta)
+# backend.commit() #to push all the "saves" at the end dont do once for every save
+# backend.close()

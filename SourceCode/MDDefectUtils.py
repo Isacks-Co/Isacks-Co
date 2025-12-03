@@ -23,7 +23,7 @@
 from abad_classes import Delta
 from classes import DefectCell, ScreenResult
 
-from MDClasses import MDDelta, MDScreenResult
+from DBClasses import MDDelta, MDScreenResult
 
 
 def getAllDefectKeys(store):
@@ -49,17 +49,13 @@ def getMDKeys(store):
     search = store.searcher()
     search_MD_cell = search.variable(MDScreenResult)
 
-    search.output(search_MD_cell.host_name, "host")
-    search.output(search_MD_cell.defect_name, "defect")
     search.output(search_MD_cell.defect_key, "defect_key")
 
     all_md_keys = set()
     for match, header in search:
-        host_name = match[0]
-        defect_name = match[1]
-        key = match[2]
+        key = match[0]
 
-        all_md_keys.add((host_name, defect_name, key))
+        all_md_keys.add(key)
 
     return all_md_keys
 
