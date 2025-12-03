@@ -89,7 +89,6 @@
 <li class="toctree-l4"><a class="reference internal" href="#Utils.plotting.fitter"><code class="docutils literal notranslate"><span class="pre">fitter()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#Utils.plotting.numericalDerivative"><code class="docutils literal notranslate"><span class="pre">numericalDerivative()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#Utils.plotting.plot"><code class="docutils literal notranslate"><span class="pre">plot()</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="#Utils.plotting.secondOrderNumericalDerivative"><code class="docutils literal notranslate"><span class="pre">secondOrderNumericalDerivative()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#Utils.plotting.sortRealignAndFilter"><code class="docutils literal notranslate"><span class="pre">sortRealignAndFilter()</span></code></a></li>
 </ul>
 </li>
@@ -179,11 +178,15 @@
 <dl class="py method">
 <dt class="sig sig-object py" id="Utils.equilibriumCondition.EquilibriumCondition.checkInternalPressureStable">
 <em class="property"><span class="k"><span class="pre">static</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">checkInternalPressureStable</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">list_of_internal_pressure</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tol</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.001</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#Utils.equilibriumCondition.EquilibriumCondition.checkInternalPressureStable" title="Link to this definition"></a></dt>
-<dd><p>Used to check if the difference in  internal pressure is below threshold
-:returns: true if the difference is below threshold</p>
-<blockquote>
-<div><p>false if the difference is above threshold</p>
-</div></blockquote>
+<dd><p>Used to check if the difference in internal pressure is below threshold.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>True if the difference is below threshold; False otherwise.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>bool</p>
+</dd>
+</dl>
 </dd></dl>
 
 <dl class="py method">
@@ -368,29 +371,6 @@ Uses central difference for interior points and forward/backward for endpoints.<
 <dd></dd></dl>
 
 <dl class="py function">
-<dt class="sig sig-object py" id="Utils.plotting.secondOrderNumericalDerivative">
-<span class="sig-prename descclassname"><span class="pre">Utils.plotting.</span></span><span class="sig-name descname"><span class="pre">secondOrderNumericalDerivative</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">eps_list</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">U</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#Utils.plotting.secondOrderNumericalDerivative" title="Link to this definition"></a></dt>
-<dd><p>Approximate the mixed partial derivative ∂²U/(∂x ∂y) using available data.</p>
-<p>Supported inputs:
-- Case A: U is a 2D grid (n×n) of energies sampled on a common 1D grid <cite>eps_list</cite> along both axes.</p>
-<blockquote>
-<div><p>Then this function computes the central cross-difference mixed partial on interior points and returns its average.</p>
-</div></blockquote>
-<ul class="simple">
-<li><p>Case B: U is a list/tuple of two 1D energy traces, U=[U1(x), U2(y)],
-each sampled on the same grid <cite>eps_list</cite>, with x == y.</p></li>
-</ul>
-<dl class="field-list simple">
-<dt class="field-odd">Returns<span class="colon">:</span></dt>
-<dd class="field-odd"><p>Average mixed partial estimate (or diagonal pure second in the identical-traces case).</p>
-</dd>
-<dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p>float</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py function">
 <dt class="sig sig-object py" id="Utils.plotting.sortRealignAndFilter">
 <span class="sig-prename descclassname"><span class="pre">Utils.plotting.</span></span><span class="sig-name descname"><span class="pre">sortRealignAndFilter</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x_list</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">y_list</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filter</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">resolution</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#Utils.plotting.sortRealignAndFilter" title="Link to this definition"></a></dt>
 <dd></dd></dl>
@@ -407,18 +387,20 @@ each sampled on the same grid <cite>eps_list</cite>, with x == y.</p></li>
 <dt class="sig sig-object py" id="Utils.stretchFunctions.secondOrderNumericalDerivative">
 <span class="sig-prename descclassname"><span class="pre">Utils.stretchFunctions.</span></span><span class="sig-name descname"><span class="pre">secondOrderNumericalDerivative</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">eps_list</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">U</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#Utils.stretchFunctions.secondOrderNumericalDerivative" title="Link to this definition"></a></dt>
 <dd><p>Approximate the mixed partial derivative ∂²U/(∂x ∂y) using available data.</p>
-<p>Supported inputs:
-- Case A: U is a 2D grid (n×n) of energies sampled on a common 1D grid <cite>eps_list</cite> along both axes.</p>
-<blockquote>
-<div><p>Then this function computes the central cross-difference mixed partial on interior points and returns its average.</p>
-</div></blockquote>
+<p>Supported inputs:</p>
 <ul class="simple">
-<li><p>Case B: U is a list/tuple of two 1D energy traces, U=[U1(x), U2(y)],
-each sampled on the same grid <cite>eps_list</cite>, with x == y.</p></li>
+<li><p><strong>Case A:</strong> U is a 2D grid (n×n) of energies sampled on a common 1D grid</p></li>
 </ul>
+<p><cite>eps_list</cite> along both axes. Then this function computes the central
+cross-difference mixed partial on interior points and returns its average.</p>
+<ul class="simple">
+<li><p><strong>Case B:</strong> U is a list/tuple of two 1D energy traces, U=[U1(x), U2(y)],</p></li>
+</ul>
+<p>each sampled on the same grid <cite>eps_list</cite>, with x == y.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Returns<span class="colon">:</span></dt>
-<dd class="field-odd"><p>Average mixed partial estimate (or diagonal pure second in the identical-traces case).</p>
+<dd class="field-odd"><p>Average mixed partial estimate (or diagonal pure second in the
+identical-traces case).</p>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
 <dd class="field-even"><p>float</p>
