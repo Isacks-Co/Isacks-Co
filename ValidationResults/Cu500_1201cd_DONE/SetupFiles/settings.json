@@ -1,0 +1,17 @@
+{
+
+
+  "Temperature": 300,
+  "Timestep": 1,
+  "Number_of_steps": 20000,
+
+  "Potential": "LJ",
+
+  "Friction": 0.05,
+  "Pressure": 0,
+  "Tdamp": 10,
+  "Pdamp": 100,
+
+  "Supercells": [5,5,5]
+
+}
