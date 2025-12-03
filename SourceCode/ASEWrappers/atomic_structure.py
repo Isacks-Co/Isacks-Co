@@ -219,7 +219,6 @@ class AtomicStructure:
         Computes MSD in relation to some reference structure
         In:
             (AtomicStructure) : reference structure
-
         Out: 
             (int) : Mean square displacement over all atoms
         """
