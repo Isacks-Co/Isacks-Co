@@ -1,6 +1,7 @@
 import os
 import sys
 import json
+import bz2
 from MDStoreUtils import saveMDScreenResult, saveMDAbadParameters, CommitAndClose
 import httk.db
 
@@ -19,9 +20,9 @@ for current_dir, subdirs, files in os.walk(root):
 for d in leaf_dirs:
     for file in os.listdir(d):
         fullpath = os.path.join(d, file)
-        if file.endswith(".json"):
+        if file.endswith(".json.bz2"):
 
-            with open(fullpath) as json_file:
+            with bz2.open(fullpath) as json_file:
                 data = json.load(json_file)
 
                 if "MDScreenResult" in data:
@@ -29,7 +30,7 @@ for d in leaf_dirs:
                     saveMDScreenResult(
                         store =store,
                         defect_key=info["key"],
-                        total_energy=info["total_energy_coarse"])
+                        total_energy=info["energy"])
 
                 if "MDAbadParameters" in data:
                     info = data["MDAbadParameters"]
