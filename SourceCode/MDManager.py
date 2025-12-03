@@ -105,4 +105,7 @@ class MDManager:
                         order_of_operations.append({"indep": candidate_run_variations})
                 candidate_run_variations = []
 
-        return order_of_operations
+        if not order_of_operations:
+            raise ValueError("No compatible simulations found, check your settings file")
+        else:
+            return order_of_operations
