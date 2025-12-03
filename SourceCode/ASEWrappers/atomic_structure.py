@@ -216,12 +216,15 @@ class AtomicStructure:
 
     def computeMSD(self, orig_struct):
         """
-        Computes MSD in relation to some reference structure
-        In:
-            (AtomicStructure) : reference structure
-        Out: 
-            (int) : Mean square displacement over all atoms
+        Computes MSD in relation to a reference structure.
+
+        Args:
+            reference (AtomicStructure): Reference structure.
+
+        Returns:
+            int: Mean square displacement over all atoms.
         """
+
         if not isinstance(orig_struct, AtomicStructure):
             raise TypeError("orig_struct needs to be type AtomicStructure")
         r_0 = orig_struct.positions
