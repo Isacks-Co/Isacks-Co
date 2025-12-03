@@ -33,14 +33,10 @@ def saveMDDefectCell(store, host_name, defect_name, defect_key, structure):
     store.save(cell)
 
 
-def saveMDScreenResult(store, defect_key, folder_name, total_energy, max_relaxation, avg_relaxation):
+def saveMDScreenResult(store, defect_key, total_energy):
     result = MDScreenResult(
         defect_key=int(defect_key),
-        computation=None,
-        defect_folder_name=folder_name,
         total_energy_coarse=total_energy,
-        max_relaxation=max_relaxation,
-        average_relaxation=avg_relaxation
     )
     store.save(result)
 
