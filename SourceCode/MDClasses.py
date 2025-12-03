@@ -31,6 +31,10 @@ from copy import copy
 
 
 class MDBase:
+    """
+    Abstract class for MDRunner objects
+    
+    """
     def __init__(self, settings):
         self.integrator = settings.integrator
         self.sample_data = None
