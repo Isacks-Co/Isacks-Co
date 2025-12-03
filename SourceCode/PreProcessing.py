@@ -27,7 +27,7 @@ import numpy as np
 import sys
 from ASEWrappers import AtomicStructure
 from ASEWrappers import VelocityVerletIntegrator, LangevinIntegrator, IsotropicMTKNPTIntegrator
-from ASEWrappers.potential import EMTPotential, LennardJonesPotential
+from ASEWrappers.potential import EMTPotential, LennardJonesPotential, MACEPotential
 from Utils import LJParams
 from Utils.inputParser import InputParser
 from ase.io import read
@@ -134,6 +134,9 @@ class PreProcessing:
             case "EMT":
                 return EMTPotential()
 
+            case "MACE":
+                return MACEPotential(model_path=self.settings["Simulations_config"]["Potential"]["Parameters"]["Path"])
+
     def getIntegrator(self, ensemble):
         match ensemble:
             case "NVE":
@@ -153,7 +156,7 @@ class PreProcessing:
     def createSettings(self):
         sim_list = []
         potential = self.getPotential()
-        self.npt_settings = SimulationSettings(num_steps=self.settings["Simulations_config"]["Number_of_steps"], potential=potential,
+        self.npt_settings = SimulationSettings(num_steps=10000, potential=potential,
                                                  integrator=self.getIntegrator("NPT"))
         self.nvt_settings = SimulationSettings(num_steps=self.settings["Simulations_config"]["Number_of_steps"], potential=potential,
                                                   integrator=self.getIntegrator("NVT"))

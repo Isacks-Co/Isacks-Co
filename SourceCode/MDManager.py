@@ -20,8 +20,8 @@ class MDManager:
         self.sim_list = sim_list
         self.quants = quants
         q_sims_nvt_deps = {"equil": ["p_i", "b", "g", "cvt", "debye"], "sample": ["cvt"], "stretch": ["p_i", "b", "debye"], "any": []}
-        q_sims_npt_deps ={"equil": [], "sample": ["lat_const"], "stretch": [], "any": []}
-        q_sims_indep_of_ensemble = {"equil": ["e_coh", "l_crit"], "sample": ["e_coh"], "stretch": [] , "any": ["msd", "l_crit"]}
+        q_sims_npt_deps ={"equil": [], "sample": [], "stretch": [], "any": []}
+        q_sims_indep_of_ensemble = {"equil": ["e_coh", "l_crit", "lat_const"], "sample": ["e_coh"], "stretch": [] , "any": ["msd", "l_crit"]}
         self.catergorized_compatibility = [q_sims_nvt_deps, q_sims_npt_deps, q_sims_indep_of_ensemble]
         self.order_of_operations = self._simulations_to_run(sim_list, self.catergorized_compatibility, quants)
         self.equil_struct = None
