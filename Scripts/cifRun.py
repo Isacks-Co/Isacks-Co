@@ -12,7 +12,7 @@ from httk.atomistic import Structure
 
 def get_defect_cif(
         host_name,
-        defect_name,
+        defect_name = None,
         db_path="../../defect/defects.sqlite",
         out_root="Runs",
         template_name="template",  # httk-task-template
@@ -36,8 +36,9 @@ def get_defect_cif(
         defect_cell = match[0]
         abad_parameters = match[1]
 
-        if not defect_cell.defect_name.startswith(defect_name):
-            continue
+        if defect_name is not None:
+            if not defect_cell.defect_name.startswith(defect_name):
+                continue
 
         struct = defect_cell.defect_structure
 
@@ -73,7 +74,6 @@ def get_defect_cif(
 if __name__ == "__main__":
     get_defect_cif(
         host_name="MoTe2",
-        defect_name="C_",
         db_path="../../defect/defects.sqlite",
         out_root="../../MD_runs/Runs",
         template_name="template",
