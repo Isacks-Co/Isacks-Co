@@ -169,15 +169,20 @@ def secondOrderNumericalDerivative(eps_list, U):
     Approximate the mixed partial derivative ∂²U/(∂x ∂y) using available data.
 
     Supported inputs:
-    - Case A: U is a 2D grid (n×n) of energies sampled on a common 1D grid `eps_list` along both axes.
-      Then this function computes the central cross-difference mixed partial on interior points and returns its average.
 
-    - Case B: U is a list/tuple of two 1D energy traces, U=[U1(x), U2(y)],
-      each sampled on the same grid `eps_list`, with x == y.
+    - **Case A:** U is a 2D grid (n×n) of energies sampled on a common 1D grid
+    `eps_list` along both axes. Then this function computes the central
+    cross-difference mixed partial on interior points and returns its average.
+
+    - **Case B:** U is a list/tuple of two 1D energy traces, U=[U1(x), U2(y)],
+    each sampled on the same grid `eps_list`, with x == y.
 
     Returns:
-        float: Average mixed partial estimate (or diagonal pure second in the identical-traces case).
+
+        float: Average mixed partial estimate (or diagonal pure second in the
+        identical-traces case).
     """
+
     x = list(eps_list).copy()
     y = list(eps_list).copy()
 

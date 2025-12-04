@@ -32,11 +32,12 @@ class EquilibriumCondition:
     @staticmethod
     def checkInternalPressureStable(list_of_internal_pressure, tol=1e-3, ):
         """
-        Used to check if the difference in  internal pressure is below threshold
-        return:
-            true if the difference is below threshold
-            false if the difference is above threshold
+        Used to check if the difference in internal pressure is below threshold.
+
+        Returns:
+            bool: True if the difference is below threshold; False otherwise.
         """
+
         mean_pressure = np.mean(list_of_internal_pressure)
         delta = np.abs(np.max(list_of_internal_pressure) - np.min(list_of_internal_pressure))
         return (delta <= tol) and (np.isclose(mean_pressure, 0, atol=tol))
