@@ -1,0 +1,16 @@
+{
+
+
+  "Temperature": 300,
+  "Timestep": 1,
+  "Number_of_steps": 300,
+
+  "Potential": "MACE",
+
+  "Friction": 0.05,
+  "Pressure": 0,
+  "Tdamp": 100,
+  "Pdamp": 1000,
+
+  "Supercells": [2,2,2]
+}
