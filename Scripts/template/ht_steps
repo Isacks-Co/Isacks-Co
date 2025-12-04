@@ -26,6 +26,7 @@ echo "== ht_steps for preinit run, step: $STEP"
 if [ "$STEP" == "start" ]; then
 
     cp ../*.cif .
+    cp ../defect_info ../key .
 
     HT_TASK_ATOMIC_SECTION_START
 
