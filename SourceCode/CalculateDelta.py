@@ -28,6 +28,7 @@ from classes import DefectInfo, ScreenResult
 
 from DBClasses import MDDelta, MDScreenResult, MDAbadParameters
 from MDDefectUtils import notDoneMDRuns, notDoneDelta
+from MDStoreUtils import CommitAndClose
 
 
 def getDopant(defect_name):  # might be easier to use (or less chaotic)
@@ -91,7 +92,7 @@ for host in host_list:
 
         # Check if we are missing any simulation for combinaton of host and dopant
         if any(missing_host == host and getDopant(missing_defect) == dopant
-               for missing_host, missing_defect in missing_runs):
+               for missing_host, missing_defect, key in missing_runs):
             print(f"{host} : {dopant} are missing simulations. No Delta calculated")
             continue
 
@@ -144,5 +145,5 @@ for host in host_list:
 
 for delta in delta_to_push:
     store.save(delta)
-# backend.commit() #to push all the "saves" at the end dont do once for every save
-# backend.close()
+
+CommitAndClose(backend)

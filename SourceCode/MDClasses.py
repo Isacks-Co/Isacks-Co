@@ -119,7 +119,7 @@ class EquilibriumRun(MDBase):
     def _check_equilibrium(self):
         if len(self.equil_data) > 100:
             if EquilibriumCondition.checkStable(self.equil_data[-100:], 0.01):
-                
+                print(f"Stopped with equilibrium after {len(self.equil_data)}")
                 raise StopIteration(f"Equil reached")
     def _saveData(self, atomic_structure):
         self.equil_data.append(atomic_structure.potential_energy)

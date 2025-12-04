@@ -24,11 +24,11 @@
 import logging
 import SimulationInput
 import sys
+import json
+import numpy as np
 from ASEWrappers import LangevinIntegrator, MACEPotential, AtomicStructure
 from MDClasses import EquilibriumRun
 from httk.external import ase_glue
-
-
 
 if __name__ == "__main__":
 
@@ -47,22 +47,26 @@ if __name__ == "__main__":
 
     poscar_path = sys.argv[1]
     mace_path = sys.argv[2]
-    try: 
+    try:
         lang_int = LangevinIntegrator(time_steps, temp_k, time_steps)
     except Exception as err:
         log.error(f"Integrator cannot be loaded: {err}")
         exit(1)
-    
+
     mace_potential = MACEPotential(mace_path)
     settings = SimulationInput.SimulationSettings(num_steps, mace_potential, lang_int)
-    defect_index = ""
-    
+    key, defect_index = 0, 0
+
     try:
+        with open("key", "r", encoding="utf-8") as f:
+            key = int(f.readline().rstrip("\n"))
+
         with open("defect_info", "r", encoding="utf-8") as f:
             defect_index = int(f.readline().rstrip("\n"))
+
     except Exception as err:
-        log.error(f"No defect info file found")
-    
+        log.error(f"Info files not found")
+
     # Load in the initial structure
     try:
         atomic_structure = AtomicStructure.fromFile(path=poscar_path, potential=mace_potential)
@@ -72,29 +76,48 @@ if __name__ == "__main__":
     # For the atomic structure from wrapper for the initial structure
     E_pre = atomic_structure.potential_energy
     atomic_structure_atoms = atomic_structure.getAtoms()
-    
+
     sorted_z_list = sorted([row[2] for row in atomic_structure_atoms.get_positions()])
-    pre_factor = sorted_z_list[-1] - sorted_z_list[0] 
+    pre_factor = sorted_z_list[-1] - sorted_z_list[0]
     httk_pre = ase_glue.ase_atoms_to_structure(atomic_structure_atoms, hall_symbol="P 1")
     httk_pre.io.save("pre_structure.cif")
 
     # Run the simulation
-    
-    equil_MD = EquilibriumRun(settings= settings)
-    equil_structure = equil_MD.run(atomic_structure,settings.num_steps, check_conv=True)
-    
 
-    # Save the equilibrium structure and save it in a cif file
+    equil_MD = EquilibriumRun(settings=settings)
+    equil_structure = equil_MD.run(atomic_structure, settings.num_steps, check_conv=True)
+
     E_post = equil_structure.potential_energy
+
+    # Calculate the expansion factor
     equil_structure_atoms = equil_structure.getAtoms()
     sorted_z_list = sorted([row[2] for row in equil_structure_atoms.get_positions()])
     post_factor = sorted_z_list[-1] - sorted_z_list[0]
-    expansion_factor = post_factor/pre_factor
+    expansion_factor = post_factor / pre_factor
 
+    # Calculate the depth of the defect
+    host_array = equil_structure_atoms.get_positions()
+    defect_z = host_array[defect_index][2]
+    host_array = np.delete(host_array, defect_index, 0)
+    sorted_z_list = sorted([row[2] for row in host_array])
+    depth = sorted_z_list[-1] - defect_z
+
+    # Save the equilibrium structure and save it in a cif file
     httk_post = ase_glue.ase_atoms_to_structure(equil_structure_atoms, hall_symbol="P 1")
     httk_post.io.save("post_structure.cif")
 
-    with open("energies.txt", "w") as f:
-        f.write(f"E_before  {E_pre:.10f}\n")
-        f.write(f"E_after   {E_post:.10f}\n")
-        f.write(f"Expansion factor {expansion_factor:.10f}\n")
+    result = {
+        "MDScreenResult": {
+            "key": key,
+            "energy": E_post,
+        },
+        "MDAbadParameters": {
+            "key": key,
+            "depth": depth,
+            "expansion_factor": expansion_factor,
+            "defect_index": defect_index,
+        }
+    }
+
+with open("result.json", "w", encoding="utf-8") as f:
+    f.write(json.dumps(result, indent=4))
