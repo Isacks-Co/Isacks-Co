@@ -71,7 +71,7 @@ if __name__ == "__main__":
     try:
         atomic_structure = AtomicStructure.fromFile(path=poscar_path, potential=mace_potential)
         # Get lattice parameter
-        cell = atomic_structure.get.cell.cellpar()
+        cell = atomic_structure.cell
         a_len, b_len = np.linalg.norm(cell[0]), np.linalg.norm(cell[1])
         lattice_constant =  (a_len + b_len) / 2
 

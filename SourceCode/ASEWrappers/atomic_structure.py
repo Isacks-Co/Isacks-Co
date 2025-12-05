@@ -142,7 +142,7 @@ class AtomicStructure:
 
     @property
     def cell(self):
-        return self._atoms.cell.array.copy()
+        return self._atoms.cell.cellpar().copy()
 
     @cell.setter
     def cell(self, new_cell):
