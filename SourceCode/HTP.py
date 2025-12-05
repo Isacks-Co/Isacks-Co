@@ -70,6 +70,11 @@ if __name__ == "__main__":
     # Load in the initial structure
     try:
         atomic_structure = AtomicStructure.fromFile(path=poscar_path, potential=mace_potential)
+        # Get lattice parameter
+        cell = atomic_structure.get.cell.cellpar()
+        a_len, b_len = np.linalg.norm(cell[0]), np.linalg.norm(cell[1])
+        lattice_constant =  (a_len + b_len) / 2
+
     except Exception as err:
         log.error(f"Cannot read the atomic structure, check if you have atomic a structure file: {err}")
         exit(1)
@@ -116,6 +121,7 @@ if __name__ == "__main__":
             "depth": depth,
             "expansion_factor": expansion_factor,
             "defect_index": defect_index,
+            "lattice_constant": lattice_constant,
         }
     }
 
