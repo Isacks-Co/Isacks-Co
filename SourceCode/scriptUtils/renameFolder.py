@@ -42,4 +42,5 @@ if __name__ == "__main__":
     new_path = os.path.join(os.path.dirname(dir_path), f"{safe_name}_DONE")
 
     # Rename the folder
-    os.rename(dir_path, new_path)
+    if not os.path.exists(new_path):
+        os.rename(dir_path, new_path)

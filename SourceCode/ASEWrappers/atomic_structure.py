@@ -26,7 +26,7 @@ from ase import Atoms
 from ase.io import read
 from ase.md.velocitydistribution import MaxwellBoltzmannDistribution, Stationary, ZeroRotation
 
-from .potential import Potential
+from .potential import Potential, LennardJonesPotential
 
 
 class AtomicStructure:
@@ -46,10 +46,16 @@ class AtomicStructure:
         self._label = self._generateHashLabel(special_label) if label == None else label
 
     @classmethod
-    def fromFile(cls, path, pbc=True, supercells=[1, 1, 1], potential: Potential = None):
+    def fromFile(cls, path, pbc=[True, True, True], supercells=[1, 1, 1], potential: Potential = None):
         atoms = read(path) * supercells
         atoms.calc = potential.getASEPotentialCalculator()
-        atoms.pbc = pbc
+        if isinstance(pbc, bool):
+            atoms.pbc = [pbc, pbc, pbc]
+        else:
+            if len(pbc) == 3:
+                atoms.pbc = pbc
+            else:
+                raise ValueError("pbc needs to be a single boolean or a list of three booleans")
         return cls(atoms)
 
     # Standard dunder methods
