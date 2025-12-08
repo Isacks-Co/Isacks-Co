@@ -27,6 +27,12 @@ from DBClasses import MDDelta, MDScreenResult
 
 
 def getAllDefectKeys(store):
+    """
+    Function to get all defect keys from DefectCell.
+    Args:
+        store (SqlStore): the store object is connected to the backend database and allows for data to be extracted
+            and stored.
+    """
     search = store.searcher()
     search_defectcell = search.variable(DefectCell)
 

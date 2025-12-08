@@ -86,7 +86,8 @@ class MDScreenResult(httk.Result):
 
 class MDDelta(httk.HttkObject):
     # Stores delta value, most stable defect
-    @httk.httk_typed_init({'host': str, 'dopant': str, 'defect': str, 'key': int, 'delta': float})
+    @httk.httk_typed_init({'host': str, 'dopant': str, 'defect': str, 'key': int, 'delta': float},
+                          index = ["key"])
     def __init__(self, host, dopant, defect, key, delta):
         self.host = host
         self.dopant = dopant
@@ -95,9 +96,11 @@ class MDDelta(httk.HttkObject):
         self.delta = delta
 
 class MDAbadParameters(httk.HttkObject):
-    @httk.httk_typed_init({'key': int, 'depth': float, 'expansion_factor': float, 'defect_index': int})
-    def __init__(self, key, depth, expansion_factor, defect_index):
+    @httk.httk_typed_init({'key': int, 'depth': float, 'expansion_factor': float, 'defect_index': int},
+                          index = ["key"])
+    def __init__(self, key, depth, expansion_factor, defect_index, lattice_constant):
         self.key = key
         self.depth = depth
         self.expansion_factor = expansion_factor
         self.defect_index = defect_index
+        self.lattice_constant = lattice_constant

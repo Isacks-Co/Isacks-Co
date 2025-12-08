@@ -37,7 +37,7 @@ fi
 ####################### relax1 ############################
 if [ "$STEP" == "relax" ]; then
 
-   
+    rm pre_structure.cif post_structure.cif
     $VASP_EXECUTE $VASP_PSEUDOLIB 
     HT_TASK_ATOMIC_SECTION_START
 
