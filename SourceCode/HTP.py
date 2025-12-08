@@ -90,7 +90,7 @@ if __name__ == "__main__":
     # Run the simulation
 
     equil_MD = EquilibriumRun(settings=settings)
-    equil_structure = equil_MD.run(atomic_structure, settings.num_steps, check_conv=True)
+    equil_structure = equil_MD.run(atomic_structure, settings.num_steps, store_traj = False, check_conv=True)
 
     E_post = equil_structure.potential_energy
 
