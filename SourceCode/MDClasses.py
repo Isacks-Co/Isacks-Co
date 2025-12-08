@@ -113,7 +113,7 @@ class EquilibriumRun(MDBase):
         self.sample_data = ["E_pot"]
         self.equil_data = []
 
-    def run(self,atomic_structure: AtomicStructure ,num_steps,init_vel = False,store_traj = True, check_conv = False):
+    def run(self,atomic_structure: AtomicStructure ,num_steps,init_vel = false,store_traj = True, check_conv = False):
         """
         The function that attaches other functions such as converge control etc and starts the EquilibriumRun simulation.
         Args:
@@ -128,7 +128,6 @@ class EquilibriumRun(MDBase):
 
         if store_traj:
             self._SaveASETrajectory(atomic_structure)
-
         if check_conv:
             self.integrator.attach(lambda: self._saveData(atomic_structure),1)
             self.integrator.attach(self._check_equilibrium,10)
@@ -151,7 +150,7 @@ class EquilibriumRun(MDBase):
         Function to save the data from the ASE atoms object.
         """
         self.equil_data.append(atomic_structure.potential_energy)
-        
+
 class SampleRun(MDBase):
     def __init__(self, settings : SimulationSettings):
         super().__init__(settings)

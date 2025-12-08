@@ -20,4 +20,5 @@ if [[ $flag == "-P" ]]; then
 fi
 
 cd ../
+
 python3 ../../SourceCode/scriptUtils/renameFolder.py OutputFiles/sampledata.txt
