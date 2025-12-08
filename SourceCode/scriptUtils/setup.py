@@ -43,7 +43,9 @@ if __name__ == "__main__":
     output_files.mkdir(exist_ok=True)
     # Move structure file
     print(structure_file)
-    shutil.copy(str(structure_file), str(setup_files / f"atomic_structure.{str(structure_file).rsplit(".", 1)[1]}"))
+    print(current_dir)
+    print(f"{str(setup_files)}/atomic_structure.{str(structure_file).rsplit('.', 1)[1]}")
+    shutil.copy(f"{str(structure_file)}", f"{str(setup_files)}/atomic_structure.{str(structure_file).rsplit('.', 1)[1]}")
 
 
 

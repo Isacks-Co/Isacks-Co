@@ -23,6 +23,7 @@
 
 import json
 import logging
+import glob
 import numpy as np
 import sys
 from ASEWrappers import AtomicStructure
@@ -49,10 +50,10 @@ class PreProcessing:
         self.argparser = InputParser(args)
 
         # Init settings and atomic structure
-
+        print("***",glob.glob("../SetupFiles/atomic_structure*")[0])
         self.settings = self.readSettings(self.argparser.args["input_settings"])
-
-        self.atomic_structure = self.readAtomicStructure("../SetupFiles/POSCAR")
+        
+        self.atomic_structure = self.readAtomicStructure(glob.glob("../SetupFiles/atomic_structure*")[0])
 
         # Physical check of the input
         self.sanityCheckAtomicStructure()
@@ -78,6 +79,7 @@ class PreProcessing:
         return temp_settings
 
     def readAtomicStructure(self, input_structure):
+        #print("asdas",atomic_structure)
         """Reads atomic structure from a file, and extend cell according to supercell setting"""
         try:
             atomic_structure = AtomicStructure.fromFile(input_structure, pbc=self.settings["Simulations_config"]["PBC"],
@@ -97,7 +99,7 @@ class PreProcessing:
     def getPotential(self):  # TODO FIX
         match self.settings["Simulations_config"]["Potential"]["Kind"]:
             case "LJ":
-                atoms = read("../SetupFiles/POSCAR")
+                atoms = read(glob.glob("../SetupFiles/atomic_structure*")[0])
 
                 atomic_num = [(atoms.get_atomic_numbers()[0])]
                 atomic_symbols = atoms.get_chemical_symbols()
