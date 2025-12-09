@@ -22,10 +22,9 @@
 
 
 import os
-import torch
 from asap3 import EMT
 from asap3 import LennardJones as asap_LJ
-from mace.calculators import MACECalculator
+
 
 
 class Potential:
@@ -68,6 +67,7 @@ class EMTPotential(Potential):
 
 
 class MACEPotential(Potential):
+    
     def __init__(self, model_path=os.path.dirname(
         os.path.dirname(os.path.abspath(__file__))) + "/MACEModels/mace-mpa-0-medium.model"):
         super().__init__()
@@ -75,7 +75,8 @@ class MACEPotential(Potential):
         self.model_path = model_path
 
     def getASEPotentialCalculator(self):
-        import os, warnings
+        import os, warnings, torch
+        from mace.calculators import MACECalculator
         os.environ["TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD"] = "1"
         warnings.filterwarnings(
             "ignore",

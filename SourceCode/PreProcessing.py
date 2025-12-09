@@ -28,7 +28,7 @@ import numpy as np
 import sys
 from ASEWrappers import AtomicStructure
 from ASEWrappers import VelocityVerletIntegrator, LangevinIntegrator, BerendsenNPTIntegrator
-from ASEWrappers.potential import EMTPotential, LennardJonesPotential, MACEPotential
+from ASEWrappers.potential import EMTPotential, LennardJonesPotential
 from Utils import LJParams
 from Utils.inputParser import InputParser
 from ase.io import read
@@ -50,7 +50,6 @@ class PreProcessing:
         self.argparser = InputParser(args)
 
         # Init settings and atomic structure
-        print("***",glob.glob("../SetupFiles/atomic_structure*")[0])
         self.settings = self.readSettings(self.argparser.args["input_settings"])
         
         self.atomic_structure = self.readAtomicStructure(glob.glob("../SetupFiles/atomic_structure*")[0])
@@ -74,12 +73,15 @@ class PreProcessing:
                 raise ValueError(f"Got unexpected setting input: {key}")
             elif self.argparser.args[key] != None:
                 temp_settings[key] = self.argparser.args[key]
+            elif type(temp_settings[key]) == dict:
+                for key2 in temp_settings[key].keys():
+                    if self.argparser.args[key2] != None:
+                        temp_settings[key][key2] = self.argparser.args[key2]
 
         log.debug("Settings loaded: %r", temp_settings)
         return temp_settings
 
     def readAtomicStructure(self, input_structure):
-        #print("asdas",atomic_structure)
         """Reads atomic structure from a file, and extend cell according to supercell setting"""
         try:
             atomic_structure = AtomicStructure.fromFile(input_structure, pbc=self.settings["Simulations_config"]["PBC"],
@@ -127,11 +129,9 @@ class PreProcessing:
             case "EMT":
                 return EMTPotential()
             
-            case "MACE":
-                
-                return MACEPotential()
 
             case "MACE":
+                from ASEWrappers import MACEPotential
                 return MACEPotential(model_path=self.settings["Simulations_config"]["Potential"]["Parameters"]["Path"])
 
     def getIntegrator(self, ensemble):

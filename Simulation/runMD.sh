@@ -2,7 +2,8 @@
 
 
 file1="$1"
-flag="$2"
+shift
+args="$@"
 # Get current directory
 current_dir=$(pwd)
 
@@ -11,18 +12,9 @@ bash setup.sh $file1
 cd currentSimulation/OutputFiles
 touch sampledata.txt
 
-python3 ../../../SourceCode/MolecularDynamics.py ../SetupFiles/settings.json
+python3 ../../../SourceCode/MolecularDynamics.py ../SetupFiles/settings.json $args
 
 
-
-
-
-
-if [[ $flag == "-P" ]]; then
-    cd ../..
-    bash postprocessing.sh currentSimulation
-    cd currentSimulation/OutputFiles
-fi
 
 cd ../
 
