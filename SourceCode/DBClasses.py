@@ -36,29 +36,28 @@ class MDDefectInfos(httk.HttkObject):
     # Class to primary search for info on the specific defect, contains info on host- and defect names, types etc
     # Might not be as useful to us, since we probably only need newDefectCell
     # Could be fun to implement in the pipeline either way
-
+    """
+    Class primarly used to store and search data such as defect type, configuration etc.
+    """
     @httk.httk_typed_init(
         {'key': int, 'host_name': str, 'defect_name': str, 'defect_type': str, 'configuration': str, 'vacancy': bool,
          'substitutional': bool, 'interstitial': bool}, index=['key', 'defect_name', 'defect_type', 'configuration',
                                                                'vacancy', 'substitutional', 'interstitial'])
     def __init__(self, key, host_name, defect_name, defect_type, configuration, vacancy, substitutional, interstitial):
-        # I removed some of the parameters, they seem redundant, check sqlite if you want them back
         self.key = key
         self.host_name = host_name
-        # unique name for the defect
         self.defect_name = defect_name
-        # and where in the supercell it is localated
         self.defect_type = defect_type
-        # unique hash for the defect
         self.configuration = configuration
-        # defect info
         self.vacancy = vacancy
         self.substitutional = substitutional
         self.interstitial = interstitial
 
 
 class MDDefectCell(httk.HttkObject):
-    # Contains the relaxed structure and related info
+    """
+    Class to store relaxed defect cell data .
+    """
     @httk.httk_typed_init({'host_name': str, 'defect_structure': Structure, 'defect_name': str,
                            'key': int},
                           index=['defect_name', 'key'])
@@ -70,7 +69,10 @@ class MDDefectCell(httk.HttkObject):
 
 
 class MDScreenResult(httk.Result):
-    # Stores relaxation energy and info
+    """
+    Class to store the energy (total_energy_coarse) for the relaxed cell.
+
+    """
     @httk.httk_typed_init({
         'defect_key': int,
         'computation': httk.Computation,
@@ -85,7 +87,11 @@ class MDScreenResult(httk.Result):
 
 
 class MDDelta(httk.HttkObject):
-    # Stores delta value, most stable defect
+    """
+    Class to store the delta value calculated from the results from the Molecular dynamic simulation, and the belonging
+    defect and host.
+
+    """
     @httk.httk_typed_init({'host': str, 'dopant': str, 'defect': str, 'key': int, 'delta': float},
                           index = ["key"])
     def __init__(self, host, dopant, defect, key, delta):
@@ -96,6 +102,10 @@ class MDDelta(httk.HttkObject):
         self.delta = delta
 
 class MDAbadParameters(httk.HttkObject):
+    """
+    Class to store some util data used for calculations later on, such as depth, expansion factor and lattice constant.
+
+    """
     @httk.httk_typed_init({'key': int, 'depth': float, 'expansion_factor': float, 'defect_index': int},
                           index = ["key"])
     def __init__(self, key, depth, expansion_factor, defect_index, lattice_constant):

@@ -146,6 +146,12 @@ class PreProcessing:
                 )
 
     def createSimulationList(self):
+        """
+        Function that creates a simulation list wherer each element dictates a specific run and settings for that run.
+
+        Returns:
+            simulation_list (list) : A list of String describing simulation and SimulationSettings objects
+        """
         simulation_list = []
         potential = self.getPotential()
         NEED_STRETCH = ["Moduli", "Debye"]
