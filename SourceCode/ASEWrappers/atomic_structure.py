@@ -62,8 +62,8 @@ class AtomicStructure:
             raise ValueError("Atoms object needs to have an attached calculator")
         self._label = self._generateHashLabel(special_label) if label == None else label
 
-        # Create sample file if not present. Write the label on top.
-        if not os.path.exists("sampledata.txt"):
+        # Write the label on top of sampledata if it exists.
+        if os.path.exists("sampledata.txt") and os.path.getsize("sampledata.txt") == 0:
             with open(f"sampledata.txt", "w") as f:
                 f.write(f"{self._label}\n")
 

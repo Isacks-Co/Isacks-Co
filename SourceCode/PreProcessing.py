@@ -168,11 +168,12 @@ class PreProcessing:
             else:
                 sample_flag = True
 
-        if stretch_flag:
-            simulation_list.append(["Stretch" , self.npt_settings])
-
         if sample_flag:
             simulation_list.append(["Sample", self.nvt_settings])
+
+        if stretch_flag:
+            simulation_list.append(["Stretch" , self.nvt_settings])
+
         log.info("Simulation steps that will run:")
         for simulation in simulation_list:
             log.info(f"        ╰┈➤     {simulation[0]} \n")

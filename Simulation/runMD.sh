@@ -9,6 +9,7 @@ current_dir=$(pwd)
 bash setup.sh $file1
 
 cd currentSimulation/OutputFiles
+touch sampledata.txt
 
 python3 ../../../SourceCode/MolecularDynamics.py ../SetupFiles/settings.json
 
