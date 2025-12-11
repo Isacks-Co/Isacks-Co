@@ -224,8 +224,7 @@ class AtomicStructure:
     def get_all_distances(self):
         return self._atoms.get_all_distances()
 
-    @property
-    def cohesive_energy(self, potential_energy):
+    def cohesive_energy(self, potential_energy = None):
 
         """
         Calculate the cohesive energy per atom. 
@@ -242,6 +241,9 @@ class AtomicStructure:
 
             atom.calc = self._atoms.calc
             e_atoms += atom.get_potential_energy()
+
+        if not potential_energy:
+            potential_energy = self.potential_energy
 
         e_coh = (e_atoms - potential_energy) / number
 
