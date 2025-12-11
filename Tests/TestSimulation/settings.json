@@ -2,12 +2,12 @@
   "Physical_environment" : {"Temperature": 300, "Pressure": 0.01 },
   "Simulations_config" : {"Timestep": 1,  "Number_of_steps": 1000,  "PBC" : [true, true, true],
   "Potential": { "Kind": "EMT", "Parameters": {"Path":"/home/isac/Isacks-Co/SourceCode/MACEModels/mace-mpa-0-medium.model"}},
-  "Supercells": [2,2,2], "Tdamp": 100, "Pdamp": 1000, "Friction": 0.01
+  "Supercells": [2,2,2], "Compressibility": 0.0050, "Friction": 0.01
   },
 
   "Input_structure" : "gold.vasp",
 
 
   "Find_equilibrium" : true,
-  "Compute_quantities" : ["E_coh", "B", "Lat_const", "CVT", "Debye", "MSD", "L_crit"]
+  "Compute_quantities" : ["E_coh", "Moduli", "Lat_const", "CVT", "Debye", "MSD", "L_crit"]
 }

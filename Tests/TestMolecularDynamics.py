@@ -29,6 +29,7 @@ from MolecularDynamics import main as MolecularDynamics
 from TestBase import TestBase
 import subprocess
 import pathlib
+import unittest
 
 
 
@@ -48,12 +49,24 @@ class TestMolecularDynamics(TestBase):
         super().setUp()
 
     def testFullProgram(self):
-        command = ["./" + self.script_name, "settings.json"]
-        subprocess.run(command,
-        cwd=self.SIMULATION_DIR,  # Execute the command as if launched from this directory
-        capture_output=True,
-        text=True,
-        check=True)
-        # Now we get a result in the TestSimulation folder, i think.
+        try:
+            command = ["./" + self.script_name, "settings.json"]
+            subprocess.run(command,
+            cwd=self.SIMULATION_DIR,  # Execute the command as if launched from this directory
+            capture_output=True,
+            text=True,
+            check=True)
+        
+        except subprocess.CalledProcessError as e:
+            pytest.fail(
+            f"Simulation script failed with exit code {e.returncode}.\n"
+            f"STDOUT:\n{e.stdout}\n"
+            f"STDERR:\n{e.stderr}"
+        )
+        
+    # If the code reaches here, the script exited with 0, and the test passes.
+    assert True
+if __name__ == "__main__":
+    unittest.main()
 
 
