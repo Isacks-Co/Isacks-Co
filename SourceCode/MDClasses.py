@@ -55,6 +55,13 @@ class MDBase:
         data_traj.append(frame)
 
     def _SaveASETrajectory(self, atomic_structure: AtomicStructure, interval=1):
+        """
+        Function to save the ASE trajectory
+        Args:
+            atomic_structure (AtomicStructure): The atomic structure object containing our atoms, and other relevant
+            information
+            interval (int, optional): The interval between frames. Defaults to 1.
+        """
         traj = Trajectory(filename=f"{self.run_type}.traj", mode="w", atoms=atomic_structure.getAtoms())
         self.integrator.attach(traj.write, interval)
 
@@ -107,7 +114,15 @@ class EquilibriumRun(MDBase):
         self.equil_data = []
 
     def run(self,atomic_structure: AtomicStructure ,num_steps,init_vel = False,store_traj = True, check_conv = False):
-        
+        """
+        The function that attaches other functions such as converge control etc and starts the EquilibriumRun simulation.
+        Args:
+            atomic_structure (AtomicStructure): The atomic stucture that we use in the simulation
+            num_steps (int): The number of steps to run
+            init_vel (bool, optional): Whether or not to initialize the velocity. Defaults to False.
+            store_traj (bool, optional): Whether or not to store the trajectory. Defaults to True.
+            check_conv (bool, optional): Whether or not to check the convergence. Defaults to False.
+        """
         if init_vel:
             atomic_structure.setVelocitiesMB(self.integrator.temperature_K)
 
@@ -124,11 +139,17 @@ class EquilibriumRun(MDBase):
         return atomic_structure
     
     def _check_equilibrium(self):
+        """
+        Function to check if the equilibrium condition is met.
+        """
         if len(self.equil_data) > 100:
             if EquilibriumCondition.checkStable(self.equil_data[-100:], 0.01):
                 print(f"Stopped with equilibrium after {len(self.equil_data)}")
                 raise StopIteration(f"Equil reached")
     def _saveData(self, atomic_structure):
+        """
+        Function to save the data from the ASE atoms object.
+        """
         self.equil_data.append(atomic_structure.potential_energy)
         
 class SampleRun(MDBase):
@@ -142,6 +163,14 @@ class SampleRun(MDBase):
 
 
     def run(self, atomic_structure: AtomicStructure, num_steps, store_traj=False):
+        """
+        The function that attaches other functions such as converge control etc and starts the SampleRun simulation.
+        Args:
+            atomic_structure (AtomicStructure): The atomic structure that we use in the simulation
+            num_steps (int): The number of steps to run
+            store_traj (bool, optional): Whether or not to store the trajectory. Defaults to False.
+
+        """
         data_traj = DataTrajectory(atomic_structure)
         if store_traj:
             self._SaveASETrajectory(atomic_structure)
@@ -160,7 +189,12 @@ class StretchRun(MDBase):  # TODO Finish this
         self.run_type = "Stretch"
 
     def run(self, atomic_structure: AtomicStructure):
+        """
+         The function that attaches other functions such as converge control etc and starts the Stretchrun simulation.
+         Args:
+            atomic_structure (AtomicStructure): The atomic structure that we use in the simulation
 
+         """
         strains = np.linspace(-0.005, 0.005, 5)  # TODO Not hardcoded ?
         cell0 = atomic_structure.cell
         stress0 = atomic_structure.stress
@@ -204,6 +238,13 @@ class StretchRun(MDBase):  # TODO Finish this
         return
 
     def appendStress(self, atoms, stress_list, stress0):
+        """
+        Function to append stress from the atoms to a list.
+        Args:
+            atoms (AtomicStructure): The atomic structure that we use in the simulation
+            stress_list (list): The list containing stress values
+            stress0 (float) : The initial stress
+        """
         # Help function for appending stresses during _stretchCell runs
         stress = atoms.stress - stress0
 

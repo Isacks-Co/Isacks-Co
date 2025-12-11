@@ -31,6 +31,11 @@ logger = logging.getLogger(__name__)
 
 
 def getChemicalPotential(element: str):
+    """
+    Function to calculate the chemical potential of the given element, by using the approximated value from E_pot/N
+    Args:
+        element (str): The element from the periodic table
+    """
     material_bulk = []
     try:
         material_bulk = bulk(element)

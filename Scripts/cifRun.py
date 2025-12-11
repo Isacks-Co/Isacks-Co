@@ -17,6 +17,15 @@ def get_defect_cif(
         out_root="Runs",
         template_name="template",  # httk-task-template
 ):
+    """
+    Function to extract the defect structure from the database and saving as a cif file.
+    Args:
+        host_name (str): The name of the host
+        defect_name (str): The name of the defect
+        db_path (str): The path to the database
+        out_root (str): The root of the output directory
+        template_name (str): The name of the template folder
+    """
     os.makedirs(out_root, exist_ok=True)
 
     backend = httk.db.backend.Sqlite(db_path)
