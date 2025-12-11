@@ -2,12 +2,12 @@
   "Physical_environment" : {"Temperature": 300, "Pressure": 0 },
   "Simulations_config" : {"Timestep": 1,  "Number_of_steps": 10000,  "PBC" : [false, true, false],
   "Potential": { "Kind": "LJ", "Parameters": {"Material": "Ar","epsilon_eV": 0.0103, "sigma": 3.405, "RC": 2.5, "RO": 0.9}},
-  "Supercells": [9,9,9], "Tdamp": 100, "Pdamp": 1000, "Friction": 0.05
+  "Supercells": [9,9,9], "Compressibility": 0.0073, "Friction": 0.05
   },
 
   "Input_structure" : "../AtomicStructure/POSCAR",
 
 
   "Find_equilibrium" : true,
-  "Compute_quantities" : ["E_coh", "B", "Lat_const", "CVT", "Debye", "MSD", "L_crit"]
+  "Compute_quantities" : ["E_coh", "Moduli", "Lat_const", "CVT", "Debye", "MSD", "D","L_crit"]
 }

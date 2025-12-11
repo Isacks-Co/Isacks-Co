@@ -120,7 +120,7 @@ class BerendsenNPTIntegrator(Integrator):
         self.pressure = pressure
         self.compressibility = compressibility
         self.integrator_partial = partial(NPTBerendsen, timestep=self.timestep * fs, temperature_K=self.temperature_K,
-                                          pressure_au=self.pressure * GPa, compressibility=self.compressibility / GPa)
+                                          pressure_au=self.pressure * GPa, compressibility_au=self.compressibility / GPa)
 
     @property
     def ensemble(self):

@@ -22,11 +22,16 @@
 
 import hashlib
 import numpy as np
+import logging
+import os
 from ase import Atoms
 from ase.io import read
 from ase.md.velocitydistribution import MaxwellBoltzmannDistribution, Stationary, ZeroRotation
+from ase.neighborlist import NeighborList, natural_cutoffs
 
 from .potential import Potential
+
+logger = logging.getLogger(__name__)
 
 
 class AtomicStructure:
@@ -56,6 +61,11 @@ class AtomicStructure:
         else:
             raise ValueError("Atoms object needs to have an attached calculator")
         self._label = self._generateHashLabel(special_label) if label == None else label
+
+        # Write the label on top of sampledata if it exists.
+        if os.path.exists("sampledata.txt") and os.path.getsize("sampledata.txt") == 0:
+            with open(f"sampledata.txt", "w") as f:
+                f.write(f"{self._label}\n")
 
     @classmethod
     def fromFile(cls, path, pbc=[True, True, True], supercells=[1, 1, 1], potential: Potential = None):
@@ -187,19 +197,34 @@ class AtomicStructure:
         return self._atoms.get_volume()
 
     @property
-    def cell(self):
+    def cellpar(self):
         return self._atoms.cell.cellpar().copy()
+
+    @property
+    def cell(self):
+        return self._atoms.cell.array.copy()
 
     @cell.setter
     def cell(self, new_cell):
         self._atoms.set_cell(new_cell, scale_atoms=True)
 
     @property
+    def get_cell(self):
+        return self._atoms.get_cell()
+
+    @property
     def symbols(self):
         return self._atoms.get_chemical_symbols()
 
     @property
-    def cohesive_energy(self):
+    def get_atomic_numbers(self):
+        return self._atoms.get_atomic_numbers()
+
+    @property
+    def get_all_distances(self):
+        return self._atoms.get_all_distances()
+
+    def cohesive_energy(self, potential_energy = None):
 
         """
         Calculate the cohesive energy per atom. 
@@ -217,9 +242,10 @@ class AtomicStructure:
             atom.calc = self._atoms.calc
             e_atoms += atom.get_potential_energy()
 
-        e_bulk = self.potential_energy
+        if not potential_energy:
+            potential_energy = self.potential_energy
 
-        e_coh = (e_atoms - e_bulk) / number
+        e_coh = (e_atoms - potential_energy) / number
 
         return e_coh
 
@@ -276,6 +302,45 @@ class AtomicStructure:
         r_0 = orig_struct.positions
         r_n = self.positions
         return np.mean((r_0 - r_n) ** 2)
+
+    def computeNearestNeighbour(self):
+        """Calculate the distance of nearest neighbor in the structure. Chooses the closest distance between all atoms
+        and takes the mean.
+        Loop structure: Each atom -> neighbors to current atom
+        """
+        INF = 1e9
+        NN_list = []
+
+        cutoff = natural_cutoffs(self._atoms)
+        neighbor_list = NeighborList(cutoff, bothways=True)
+        neighbor_list.update(self._atoms)
+
+        for current_atom in range(self._atoms.get_global_number_of_atoms()):
+            # Loop over all atoms in and find their nearest neighbor
+            indices, offsets = neighbor_list.get_neighbors(current_atom)
+            nearest_distance = INF
+
+            # First object seems to be the atom itself, don't loop over it
+            for neighbor_index, offset in zip(indices[1:], offsets[1:]):
+                # Create a vector between current_atom and the neighbors in the list, save the shortest distance
+                NN_vector = self._atoms.positions[neighbor_index] + offset @ self._atoms.get_cell() - \
+                            self._atoms.positions[
+                                current_atom]
+                distance = np.sqrt(NN_vector.dot(NN_vector))
+                logger.info(distance)
+
+                if distance < nearest_distance:
+                    nearest_distance = distance
+
+            if nearest_distance == INF:
+                error_msg = f"Could not calculate NN distance, didn't find any NN for atom {current_atom}"
+                logger.error(error_msg)
+                return
+
+            NN_list.append(nearest_distance)
+        NN_mean_distance = np.mean(NN_list)
+        logger.debug(f"Mean value of nearest neighbor : {NN_mean_distance} å")
+        return NN_mean_distance
 
     def _generateHashLabel(self, special_label):
         """
