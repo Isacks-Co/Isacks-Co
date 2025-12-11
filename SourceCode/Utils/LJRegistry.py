@@ -39,7 +39,19 @@ LJ_DB = {
 
 
 def LJParams(material: str, *, epsilon_eV=None, sigma_A=None, rc_A=None,
-             ro_A=None):  # So you can call this function without any argument? What happens? Should probably remove None on material
+             ro_A=None):
+    """
+    Help function to set sigma, epsilon and rCutoff for the given materials in the LJ_DB dictionary.
+    Args:
+        material (str): The material to set sigma, epsilon and rCutoff
+        epsilon_eV (float, optional): The epsilon eVf rom the potential well
+        sigma_A (float, optional): The sigma A from the potential well
+        rc_A (float, optional): The cutoff radius
+        ro_A (float, optional): The smooth of radius
+    Returns:
+        dict: The sigma, epsilon and rCutoff values
+
+    """
     if material != "":
         base = LJ_DB.get(material.lower())
         if not base:
@@ -65,6 +77,14 @@ def LJParams(material: str, *, epsilon_eV=None, sigma_A=None, rc_A=None,
 
 
 def calcMaxRc(atoms, margin=1e-3):
+    """
+    Function to calculate the maximal rcutoff allowed.
+    Args:
+        atoms : the atomobject to calculate the radius from
+
+    Returns:
+        float: The maximum rcutoff allowed
+    """
     a, b, c, alpha, betta, gamma = atoms.cell.cellpar()
     pbc = atoms.get_pbc()
     periodic_lengths = [L for L, is_p in zip((a, b, c), pbc) if is_p]  # if not periodic, just use rc as it is
