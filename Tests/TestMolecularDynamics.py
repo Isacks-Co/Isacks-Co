@@ -64,8 +64,8 @@ class TestMolecularDynamics(TestBase):
             f"STDERR:\n{e.stderr}"
         )
         
-    # If the code reaches here, the script exited with 0, and the test passes.
-    assert True
+        # If the code reaches here, the script exited with 0, and the test passes.
+        assert True
 if __name__ == "__main__":
     unittest.main()
 
