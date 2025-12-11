@@ -76,11 +76,16 @@ class MACEPotential(Potential):
 
     def getASEPotentialCalculator(self):
         import os, warnings, torch
-        from mace.calculators import MACECalculator
+        
         os.environ["TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD"] = "1"
         warnings.filterwarnings(
             "ignore",
             message="Environment variable TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD detected, since the`weights_only` argument was not explicitly passed to `torch.load`, forcing weights_only=False.",
         )
+        warnings.filterwarnings(
+            "ignore",
+            message="cuequivariance or cuequivariance_torch is not available. Cuequivariance acceleration will be disabled."
+)
+        from mace.calculators import MACECalculator
         device = "cuda" if torch.cuda.is_available() else "cpu"
         return MACECalculator(model_paths=self.model_path, device=device, default_dtype="float64", head="default")

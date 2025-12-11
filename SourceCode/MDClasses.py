@@ -199,7 +199,7 @@ class StretchRun(MDBase):  # TODO Finish this
         strains = np.linspace(-0.005, 0.005, 5)  # TODO Not hardcoded ?
         cell0 = atomic_structure.cell
         stress0 = atomic_structure.stress
-        hold_steps = 10  # TODO Not hardcoded ?
+        hold_steps = 25  # TODO Not hardcoded ?
         equil_atoms = copy(atomic_structure)
         calculator = atomic_structure.potential
 

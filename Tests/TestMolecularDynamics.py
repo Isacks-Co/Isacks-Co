@@ -27,6 +27,9 @@ import sys
 sys.path.append("../SourceCode")
 from MolecularDynamics import main as MolecularDynamics
 from TestBase import TestBase
+import subprocess
+import pathlib
+
 
 
 logger = logging.getLogger(__name__)
@@ -36,26 +39,21 @@ class TestMolecularDynamics(TestBase):
     """Run some simulations. Was previously used in TestQuantityCalculator but not anymore.
     May be used in TestPostProcessing later on or removed
     NOTE: Currently out of the CI action on github"""
-
+    def __init__(self, methodName = "runTest"):
+        super().__init__(methodName)
+        self.BASE_DIR = pathlib.Path(__file__).parent
+        self.SIMULATION_DIR = self.BASE_DIR / "TestSimulation"
+        self.script_name = "runMD.sh"
     def setUp(self):
         super().setUp()
 
-    def testMeltedCu(self):
-        sys.argv = [sys.argv[0], "TestAtomicStructure/Cu_fcc.vasp", "TestSettings/meltedSettings.json"]
-        MolecularDynamics()
+    def testFullProgram(self):
+        command = ["./" + self.script_name, "settings.json"]
+        subprocess.run(command,
+        cwd=self.SIMULATION_DIR,  # Execute the command as if launched from this directory
+        capture_output=True,
+        text=True,
+        check=True)
+        # Now we get a result in the TestSimulation folder, i think.
 
-    def testSolidCu(self):
-        sys.argv = [sys.argv[0], "TestAtomicStructure/Cu_fcc.vasp", "TestSettings/solidSettings.json"]
-        MolecularDynamics()
 
-    def testNearZeroCu(self):
-        sys.argv = [sys.argv[0], "TestAtomicStructure/Cu_fcc.vasp", "TestSettings/nearZeroSettings.json"]
-        MolecularDynamics()
-
-    def testBccCu(self):
-        sys.argv = [sys.argv[0], "TestAtomicStructure/Cr_bcc.vasp", "TestSettings/chromiumSettings.json"]
-        MolecularDynamics()
-
-    def testNPTCopper(self):
-        sys.argv = [sys.argv[0], "TestAtomicStructure/Cu_fcc.vasp", "TestSettings/NPTCopperSettings.json"]
-        MolecularDynamics()
