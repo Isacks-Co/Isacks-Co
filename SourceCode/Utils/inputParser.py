@@ -79,6 +79,8 @@ class InputParser():
                                     help="Potential as a string (EMT, LJ, MACE)")
         self.argparser.add_argument("-TS", "--Timestep", metavar="<TIMESTEP>", type=float,
                                     help="Timestep as a float (fs)")
+        self.argparser.add_argument("-C", "--Compressibility", metavar="<TIMESTEP>", type=float,
+                                    help="Compressibility as a float (GPA)")
         self.argparser.add_argument("-µ", "--Friction", metavar="<FRICTION>", type=float,
                                     help="Friction coefficent as a float (For NVT)")
         self.argparser.add_argument("-TD", "--Tdamp", metavar="<TDAMP>", type=float, help="Tdamp as a float (For NPT)")
@@ -90,7 +92,7 @@ class InputParser():
         self.argparser.add_argument("-N", "--Number_of_steps", metavar="<NUMBER_OF_STEPS>", type=str,
                                     help="Total number of timesteps as an integer")
         self.argparser.add_argument("--debug", action="store_true", help="Debug")
-        self.argparser.add_argument("-FE", "--Find_equilibrium", action="store_true", help="Bool of whether to find equilibrium or not")
+        self.argparser.add_argument("-FE", "--Find_equilibrium", type=bool, help="Bool of whether to find equilibrium or not")
 
     def parseList(self, arg):
         """Help function to make sure list arguments are working."""
