@@ -39,7 +39,7 @@ logger = logging.getLogger(__name__)
 class TestMolecularDynamics(TestBase):
     """Run some simulations. Was previously used in TestQuantityCalculator but not anymore.
     May be used in TestPostProcessing later on or removed
-    NOTE: Currently out of the CI action on github"""
+    """
     def __init__(self, methodName = "runTest"):
         super().__init__(methodName)
         self.BASE_DIR = pathlib.Path(__file__).parent
