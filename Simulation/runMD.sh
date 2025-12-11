@@ -19,5 +19,4 @@ if [[ $flag == "-P" ]]; then
 fi
 
 cd ../
-touch OutputFiles/sampledata.txt
 python3 ../../SourceCode/scriptUtils/renameFolder.py OutputFiles/sampledata.txt

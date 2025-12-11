@@ -34,14 +34,18 @@ class SimulationSettings:
         
     """
 
-    def __init__(self, num_steps: int, potential: Potential, integrator: Integrator):
+    def __init__(self, num_steps: int, potential: Potential, integrator: Integrator, ensemble: str, sample_nn: bool):
         self.num_steps = num_steps
         self.integrator = integrator
         self.potential = potential
+        self.ensemble = ensemble
+        self.sample_nn = sample_nn
 
     def __str__(self):
         return (
             f"Number of steps: {self.num_steps} fs \n"
             f"Potential: {self.potential} \n"
             f"Integrator: {self.integrator}\n"
+            f"Ensemble: {self.ensemble}\n"
+            f"Sample nearest neighbour: {self.sample_nn}\n"
         )

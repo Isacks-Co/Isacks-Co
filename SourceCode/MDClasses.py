@@ -26,6 +26,7 @@ from ASEWrappers import AtomicStructure
 from ASEWrappers import DataTrajectory, Frame
 from Utils.equilibriumCondition import EquilibriumCondition
 from ase.io.trajectory import Trajectory
+from SimulationInput import SimulationSettings
 from ase.units import fs
 from copy import copy
 import logging
@@ -89,9 +90,13 @@ class MDBase:
         if name == "MSD":
             MSD = atomic_structure.computeMSD(initial_atomic_structure)
             return MSD
-        if name == "E_coh":
-            E_coh = atomic_structure.cohesive_energy
-            return E_coh
+
+        if name == "P_internal":
+            P_internal = atomic_structure.internal_pressure
+            return P_internal
+
+        if name == "NN":
+            return atomic_structure.computeNearestNeighbour()
 
 
 class EquilibriumRun(MDBase):
@@ -108,8 +113,6 @@ class EquilibriumRun(MDBase):
 
         if store_traj:
             self._SaveASETrajectory(atomic_structure)
-        #self.integrator.attach(lambda: self._storeFrame(atomic_strucuture=atomic_structure,data_traj = data_traj),1)
-        #self.integrator.attach(lambda: self._check_equilibrium(dataframe=data_traj),1)
 
         if check_conv:
             self.integrator.attach(lambda: self._saveData(atomic_structure),1)
@@ -129,10 +132,14 @@ class EquilibriumRun(MDBase):
         self.equil_data.append(atomic_structure.potential_energy)
         
 class SampleRun(MDBase):
-    def __init__(self, settings, sample_data="all"):
+    def __init__(self, settings : SimulationSettings):
         super().__init__(settings)
         self.run_type = "Sample"
-        self.sample_data = ["T", "E_tot", "E_kin", "E_pot", "V", "MSD"] if sample_data == "all" else sample_data
+        self.sample_data = ["T", "E_tot", "E_kin", "E_pot", "V", "MSD", "P_internal"]
+
+        if settings.sample_nn:
+            self.sample_data.append("NN")
+
 
     def run(self, atomic_structure: AtomicStructure, num_steps, store_traj=False):
         data_traj = DataTrajectory(atomic_structure)
@@ -142,11 +149,12 @@ class SampleRun(MDBase):
         self.integrator.attach(lambda: self._storeFrame(atomic_strucuture=atomic_structure, data_traj=data_traj), 1)
 
         self.integrator.run(atomic_structure, num_steps)
+        data_traj.storeTxtFile()
         # TODO Add equil check / Fail check
-        return data_traj
+        return
 
 
-class StrecthRun(MDBase):  # TODO Finish this
+class StretchRun(MDBase):  # TODO Finish this
     def __init__(self, settings):
         super().__init__(settings)
         self.run_type = "Stretch"
@@ -193,7 +201,7 @@ class StrecthRun(MDBase):  # TODO Finish this
             for alpha in range(6):
                 C[alpha, beta] = np.polyfit(strains, sigmas[:, alpha], 1)[0]
         np.save(f"cmatrix", C)
-        return C
+        return
 
     def appendStress(self, atoms, stress_list, stress0):
         # Help function for appending stresses during _stretchCell runs

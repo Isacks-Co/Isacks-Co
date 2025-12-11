@@ -26,7 +26,7 @@ import logging
 import numpy as np
 import sys
 from ASEWrappers import AtomicStructure
-from ASEWrappers import VelocityVerletIntegrator, LangevinIntegrator, IsotropicMTKNPTIntegrator
+from ASEWrappers import VelocityVerletIntegrator, LangevinIntegrator, BerendsenNPTIntegrator
 from ASEWrappers.potential import EMTPotential, LennardJonesPotential, MACEPotential
 from Utils import LJParams
 from Utils.inputParser import InputParser
@@ -55,8 +55,8 @@ class PreProcessing:
         self.atomic_structure = self.readAtomicStructure("../SetupFiles/POSCAR")
 
         # Physical check of the input
-        # self.sanityCheckAtomicStructure() #TODO Problems with new structure
-        # self.sanityCheckSettings()
+        self.sanityCheckAtomicStructure()
+        self.sanityCheckSettings()
 
     def readSettings(self, input_settings):
         """Reads settings from json file, checks all expected settings present. Overwrite settings file if a terminal flag is set."""
@@ -85,15 +85,6 @@ class PreProcessing:
                                                         potential=self.getPotential())
             return atomic_structure
 
-            # TODO Add this again if neseded
-            log.info("Reading atomic structure from: %s", input_structure)
-            atoms = read(input_structure) * tuple(self.settings["Simulations_config"]["Supercells"])
-            atoms.pbc = True  # TODO, Hard coded pbc always true for now.
-
-            with open(input_structure, "r") as file:  # Manually read the first line and add as a comment.
-                structure_name = file.readline().strip()
-                atoms.info["comment"] = structure_name
-            return atoms
         except FileNotFoundError:
             log.error("Structure file not found: %s", input_structure)
             raise FileNotFoundError(f"File {input_structure} not found, please check it exists")
@@ -148,35 +139,53 @@ class PreProcessing:
                                           friction=self.settings["Simulations_config"]["Friction"])
 
             case "NPT":
-                return IsotropicMTKNPTIntegrator(timestep=self.settings["Simulations_config"]["Timestep"],
-                                                 temperature_K=self.settings["Physical_environment"]["Temperature"],
-                                                 pressure=self.settings["Physical_environment"]["Pressure"], pdamp=self.settings["Simulations_config"]["Pdamp"],
-                                                 tdamp=self.settings["Simulations_config"]["Tdamp"])
+                return BerendsenNPTIntegrator(timestep = self.settings["Simulations_config"]["Timestep"],
+                                              temperature_K = self.settings["Physical_environment"]["Temperature"],
+                                              pressure = self.settings["Physical_environment"]["Pressure"],
+                                              compressibility = self.settings["Simulations_config"]["Compressibility"]
+                )
 
-    def createSettings(self):
-        sim_list = []
+    def createSimulationList(self):
+        simulation_list = []
         potential = self.getPotential()
+        NEED_STRETCH = ["Moduli", "Debye"]
+
         self.npt_settings = SimulationSettings(num_steps=10000, potential=potential,
-                                                 integrator=self.getIntegrator("NPT"))
+                                                 integrator=self.getIntegrator("NPT"), ensemble = "NPT", sample_nn = False)
+
+        nn_sample_necessary = True if "L_crit" in self.settings["Compute_quantities"] else False
         self.nvt_settings = SimulationSettings(num_steps=self.settings["Simulations_config"]["Number_of_steps"], potential=potential,
-                                                  integrator=self.getIntegrator("NVT"))
+                                                  integrator=self.getIntegrator("NVT"), ensemble = "NVT", sample_nn = nn_sample_necessary)
 
         if self.settings["Find_equilibrium"]:
-            sim_list.append(self.npt_settings)
-        else:
-            sim_list.append(False)
+            simulation_list.append(["Equilibrium", self.npt_settings])
 
-        sim_list.append(self.nvt_settings)
-        sim_list.append(self.npt_settings)
-        return sim_list
 
-    def sanityCheckSettings(self):  # TODO Put in the respective classes like integrator and atomic structure
+        stretch_flag, sample_flag = False, False
+        for element in self.settings["Compute_quantities"]:
+            if element in NEED_STRETCH:
+                stretch_flag = True
+            else:
+                sample_flag = True
+
+        if stretch_flag:
+            simulation_list.append(["Stretch" , self.npt_settings])
+
+        if sample_flag:
+            simulation_list.append(["Sample", self.nvt_settings])
+        log.info("Simulation steps that will run:")
+        for simulation in simulation_list:
+            log.info(f"        ╰┈➤     {simulation[0]} \n")
+
+        return simulation_list
+
+    def sanityCheckSettings(self):
         """
         Sanity check for the settings.json file. Makes sure that we only use EMT for
-        valid metals. Also checks that relevant values are non-negative.
+        valid metals. Also checks that relevant values is given.
         """
-        if self.settings["Potential"]["Kind"] == "EMT":
-            elements = self.atoms.get_atomic_numbers()
+        if self.settings["Simulations_config"]["Potential"]["Kind"] == "EMT":
+            elements = self.atomic_structure.get_atomic_numbers
 
             if not np.all(np.isin(elements, [13, 28, 29, 46, 47, 78,
                                              79])):  # Check if the elements are supported for EMT potential
@@ -193,6 +202,8 @@ class PreProcessing:
             raise ValueError(f"Invalid friction: Friction has to be non-negative")
         elif self.settings["Simulations_config"]["Number_of_steps"] < 0 or not isinstance(self.settings["Simulations_config"]["Number_of_steps"], int):
             raise ValueError(f"Invalid number of steps: Has to be a positive integer")
+        elif self.settings["Simulations_config"]["Number_of_steps"] <= 100:
+            raise ValueError(f"Invalid number of steps: Has to sample over more than 100 steps")
 
     def sanityCheckAtomicStructure(self):
         """
@@ -206,7 +217,7 @@ class PreProcessing:
         """
         Check that the lattice is valid.
         """
-        cell = self.atoms.get_cell()
+        cell = self.atomic_structure.get_cell
         angles = cell.angles()
 
         lengths = np.array([a / i for a, i in zip(cell.lengths(), self.settings["Simulations_config"]["Supercells"])])
@@ -220,8 +231,8 @@ class PreProcessing:
         """
         Checks that interatomic distances are reasonable. No atomic overlap
         """
-        if len(self.atoms) <= 5000:  # Gets really expensive to compute interatomic distances at larger numbers
-            distances_matrix = self.atoms.get_all_distances()
+        if len(self.atomic_structure) <= 5000:  # Gets really expensive to compute interatomic distances at larger numbers
+            distances_matrix = self.atomic_structure.get_all_distances
             upper_indeces = np.triu_indices(len(distances_matrix), k=1)
             flat_distances = distances_matrix[upper_indeces]
             if np.any(

@@ -81,23 +81,17 @@ class QuantityCalculator:
         Compute self diffusion coefficient from the slope of MSD over a large timeperiod
         Unit: Å^2/fs
         """
-
         # Find the actual elapsed time
         timestep_list = []
         for i in range(len(msd_list)):
             timestep = i * sample_spacing
             timestep_list.append([timestep, i])
 
-        if len(timestep_list) > 100:  # Since early values of MSD are inaccurate
-            msd0 = msd_list[50]
-            msd_final = msd_list[-1]
-            t_0 = timestep_list[50][0]
-            t_end = timestep_list[-1][0]
-            D = (msd_final - msd0) / (t_end - t_0)
-
-        else:
-            logger.error("Too small sample size to calculate self-diffusion coefficient")
-            D = None
+        msd0 = msd_list[0]
+        msd_final = msd_list[-1]
+        t_0 = timestep_list[0][0]
+        t_end = timestep_list[-1][0]
+        D = (msd_final - msd0) / (t_end - t_0)
 
         return D / 6  # Å^2/fs
 
@@ -119,9 +113,9 @@ class QuantityCalculator:
         return Theta_D
 
     @staticmethod
-    def computeLindemannIndex(msd, nearest_neighour_d):
+    def computeLindemannIndex(msd, nearest_neighbour):
 
-        return np.sqrt(msd) / nearest_neighour_d
+        return np.sqrt(msd) / nearest_neighbour
 
     @staticmethod
     def calculateModuli(C_matrix):

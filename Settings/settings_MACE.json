@@ -1,0 +1,13 @@
+{
+  "Physical_environment" : {"Temperature": 300, "Pressure": 0 },
+  "Simulations_config" : {"Timestep": 1,  "Number_of_steps": 100,  "PBC" : true,
+  "Potential": { "Kind": "MACE", "Parameters" :  {"Path" : "../../../../mace-mpa-0-medium.model" }},
+  "Supercells": [2,2,2], "Compressibility": 0.0073, "Friction": 0.05
+  },
+
+  "Input_structure" : "../AtomicStructure/POSCAR",
+
+
+  "Find_equilibrium" : true,
+  "Compute_quantities" : ["E_coh", "Moduli", "Lat_const", "CVT", "Debye", "MSD", "D","L_crit"]
+}
