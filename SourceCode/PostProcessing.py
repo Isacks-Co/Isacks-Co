@@ -63,7 +63,7 @@ class PostProcessing():
             data = json.load(file)
         quantities_to_compute = data["Compute_quantities"]
         equil_struct = AtomicStructure(Trajectory(f"{folder}/Equil.traj")[-1], data["Simulations_config"]["Supercells"])
-
+        equil_struct.potential = getPotential(data)
         return cls(equil_struct, df, C_matrix, quantities_to_compute)
 
     def computeDerivedQuantities(self):
@@ -72,8 +72,7 @@ class PostProcessing():
         debye_flag = False
         for quantity in self.quantities_to_compute:
             match quantity:
-                case "E_coh":
-                    pass
+
                 case "Moduli":
                     B, G, E = QC.calculateModuli(C_matrix=self.C_matrix)
                     B = auToGPascal(B)
@@ -106,7 +105,7 @@ class PostProcessing():
                     data["D"] = D
 
                 case "E_coh":
-                    data["E_coh"] = self.equil_struct.cohesive_energy(self.dataframe["E_pot"])
+                    data["E_coh"] = self.equil_struct.cohesive_energy()
 
             if debye_flag:
                 T_D = QC.computeDebyeTemperature(self.time_averages["V"], sum(self.equil_struct.masses),
@@ -132,6 +131,46 @@ class PostProcessing():
             for line in formatted:
                 f.write(line + "\n")  # each formatted row
 
+def getPotential(settings):
+    from ASEWrappers import LennardJonesPotential, EMTPotential, MACEPotential
+    match settings["Simulations_config"]["Potential"]["Kind"]:
+
+        case "LJ":
+            from ase.io import read
+            import glob
+            from Utils import LJParams
+
+            atoms = read(glob.glob("../SetupFiles/atomic_structure*")[0])
+
+            atomic_num = [(atoms.get_atomic_numbers()[0])]
+            atomic_symbols = atoms.get_chemical_symbols()
+            epsilon = None
+            sigma = None
+            rc = None
+            ro = None
+            if "Material" in settings["Simulations_config"]["Potential"]["Parameters"]:
+                material = settings["Simulations_config"]["Potential"]["Parameters"]["Material"]
+            else:
+                material = sorted(set(atomic_symbols))[0]
+
+            if "epsilon_eV" in settings["Simulations_config"]["Potential"]["Parameters"]:
+                epsilon = settings["Simulations_config"]["Potential"]["Parameters"]["epsilon_eV"]
+            if "sigma" in settings["Simulations_config"]["Potential"]["Parameters"]:
+                sigma = settings["Simulations_config"]["Potential"]["Parameters"]["sigma"]
+            if "RC" in settings["Simulations_config"]["Potential"]["Parameters"]:
+                rc = settings["Simulations_config"]["Potential"]["Parameters"]["RC"]
+            if "RO" in settings["Simulations_config"]["Potential"]["Parameters"]:
+                ro = settings["Simulations_config"]["Potential"]["Parameters"]["RO"]
+
+            lj_params = LJParams(material=material, epsilon_eV=epsilon, sigma_A=sigma, rc_A=rc, ro_A=ro)
+            return LennardJonesPotential(atomic_numbers=atomic_num, epsilons=[lj_params["epsilon_eV"]],
+                                         sigmas=[lj_params["sigma_A"]], rc=lj_params["rc_A"])
+        case "EMT":
+            return EMTPotential()
+
+        case "MACE":
+            from ASEWrappers import MACEPotential
+            return MACEPotential(model_path=settings["Simulations_config"]["Potential"]["Parameters"]["Path"])
 
 if __name__ == "__main__":
     post = PostProcessing.fromFiles(sys.argv[1], sys.argv[2])

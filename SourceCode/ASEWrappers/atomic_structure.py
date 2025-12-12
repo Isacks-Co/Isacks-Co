@@ -131,7 +131,8 @@ class AtomicStructure:
         Args:
             new_pot (Potential): Calculator to assign to the atoms object.
         """
-        self._atoms.calc = new_pot
+
+        self._atoms.calc = new_pot.getASEPotentialCalculator()
 
     @property
     def positions(self):
@@ -308,10 +309,11 @@ class AtomicStructure:
         for symbol in self._atoms.get_chemical_symbols():
             atom = Atoms(symbol, positions=[[0, 0, 0]], cell=[10, 10, 10], pbc=False)
             atom.calc = self._atoms.calc
+
             e_atoms += atom.get_potential_energy()
 
-        if not potential_energy:
-            potential_energy = self.potential_energy
+
+        potential_energy = self.potential_energy
 
         e_coh = (e_atoms - potential_energy) / number
         return e_coh
