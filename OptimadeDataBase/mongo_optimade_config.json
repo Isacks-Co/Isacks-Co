@@ -1,0 +1,18 @@
+{
+  "insert_test_data": false,
+  "database_backend": "mongodb",
+  "mongo_database": "molecular_dynamics_db",
+  "mongo_collection": "structures",
+"aliases": {
+    "structures": {
+      "structure_features": "structure_features",
+      "id": "id",
+      "last_modified": "last_modified"
+    }
+  },
+  "provider": {
+    "prefix": "mydb",
+    "name": "Isaks-Co",
+    "description": "OPTIMADE API for molecular dynamics structures"
+  }
+}

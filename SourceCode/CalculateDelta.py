@@ -37,9 +37,7 @@ def getDopant(defect_name):  # might be easier to use (or less chaotic)
 
 INF = 10000000
 
-delta_to_push = []
-
-backend = httk.db.backend.Sqlite('../../defect/defects.sqlite')
+backend = httk.db.backend.Sqlite('../../defects_result.sqlite')
 store = httk.db.store.SqlStore(backend)
 search = store.searcher()
 
@@ -135,15 +133,12 @@ for host in host_list:
         print(
             f"Delta for {host} - {dopant} : {delta} eV, with material {interstital_defect if delta < 0 else adatom_defect}.")
 
-        delta_to_push.append(MDDelta(
+        store.save(MDDelta(
             host=host,
             dopant=dopant,
             defect=interstital_defect if delta < 0 else adatom_defect,
             key=interstital_key if delta < 0 else adatom_key,
             delta=delta,
         ))
-
-for delta in delta_to_push:
-    store.save(delta)
 
 CommitAndClose(backend)
