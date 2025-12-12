@@ -1,3 +1,6 @@
 pydantic>=2.0.0
 uvicorn
 pymongo
+fastapi
+'optimade[http-client]'
+pip install pyyaml
