@@ -171,7 +171,10 @@ class PreProcessing:
 
         if self.settings["Find_equilibrium"]:
             simulation_list.append(["Equilibrium", self.npt_settings])
-
+        else:
+            from ase.io.trajectory import Trajectory
+            traj = Trajectory("Equil.traj", "w")
+            traj.write(self.atomic_structure.getAtoms())
 
         stretch_flag, sample_flag = False, False
         for element in self.settings["Compute_quantities"]:

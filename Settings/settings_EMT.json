@@ -1,13 +1,13 @@
 {
   "Physical_environment" : {"Temperature": 300, "Pressure": 0 },
-  "Simulations_config" : {"Timestep": 1,  "Number_of_steps": 1000,  "PBC" : true,
+  "Simulations_config" : {"Timestep": 1,  "Number_of_steps": 10000,  "PBC" : true,
   "Potential": { "Kind": "EMT"},
-  "Supercells": [3,3,3], "Compressibility": 0.0073, "Friction": 0.05
+  "Supercells": [8,8,8], "Compressibility": 0.0073, "Friction": 0.05
   },
 
-  "Input_structure" : "../AtomicStructure/FCC_Cu_UnitCell.vasp",
+  "Input_structure" : "../AtomicStructure/Au.poscar",
 
 
-  "Find_equilibrium" : true,
-  "Compute_quantities" : ["E_coh", "Moduli", "Lat_const", "CVT", "Debye", "MSD", "D","L_crit"]
+  "Find_equilibrium" : false,
+  "Compute_quantities" : ["E_coh", "Moduli", "Lat_const", "CVT", "Debye", "MSD", "D"]
 }
