@@ -106,147 +106,195 @@ class AtomicStructure:
         return AtomicStructure(self._atoms, label=self.label)
 
     # Properties. 
-
     @property
     def label(self):
-        """Label of the given structure
-
-        Returns:
-            (str): label of the structure
-        """
+        """str: Label of the structure."""
         return self._label
 
     @property
     def potential(self):
-        """Potential that is used
-
-        Returns:
-            (Potential): The structures potential
-        """
+        """Potential: Calculator object used to evaluate energies and forces."""
         return self._atoms.calc
 
     @potential.setter
     def potential(self, new_pot):
-        """Potential setter"""
+        """Set the potential calculator for the structure.
+
+        Args:
+            new_pot (Potential): Calculator to assign to the atoms object.
+        """
         self._atoms.calc = new_pot
 
     @property
     def positions(self):
-        """ Positions of all atoms
-
-        Returns:
-            list[Atoms]:
-        """
+        """numpy.ndarray: Cartesian positions of all atoms (Å)."""
         return self._atoms.get_positions()
 
     @positions.setter
     def positions(self, new_positions):
+        """Set atomic positions.
+
+        Args:
+            new_positions (array-like): New atomic coordinates (Å).
+        """
         self._atoms.set_positions(new_positions)
 
     @property
     def velocities(self):
+        """numpy.ndarray | None: Atomic velocities (Å/fs)."""
         vel = self._atoms.get_velocities()
         return vel.copy() if vel is not None else None
 
     @velocities.setter
     def velocities(self, new_vel):
+        """Set atomic velocities.
+
+        Args:
+            new_vel (array-like): Velocities for each atom (Å/fs).
+        """
         self._atoms.set_velocities(new_vel)
 
     @property
     def forces(self):
+        """numpy.ndarray: Forces acting on each atom (eV/Å).
+
+        Raises:
+            RuntimeError: If no potential calculator is defined.
+        """
         if self._atoms.calc is None:
             raise RuntimeError("Cannot get forces: no potential assigned")
         return self._atoms.get_forces()
 
     @property
     def stress(self):
+        """numpy.ndarray: Stress tensor in Voigt notation (eV/Å³).
+
+        Raises:
+            RuntimeError: If no potential calculator is defined.
+        """
         if self._atoms.calc is None:
             raise RuntimeError("Cannot get forces: no potential assigned")
         return self._atoms.get_stress(voigt=True)
 
     @property
     def masses(self):
+        """numpy.ndarray: Atomic masses (amu)."""
         return self._atoms.get_masses()
 
     @property
     def potential_energy(self):
+        """float: Total potential energy of the structure (eV).
+
+        Raises:
+            RuntimeError: If no potential calculator is defined.
+        """
         if self._atoms.calc is None:
             raise RuntimeError("Cannot get energy: no potential assigned")
         return self._atoms.get_potential_energy()
 
     @property
     def kinetic_energy(self):
+        """float: Total kinetic energy (eV).
+
+        Raises:
+            RuntimeError: If no potential calculator is defined.
+        """
         if self._atoms.calc is None:
             raise RuntimeError("Cannot get energy: no potential assigned")
         return self._atoms.get_kinetic_energy()
 
     @property
     def total_energy(self):
+        """float: Total energy (potential + kinetic) in eV.
+
+        Raises:
+            RuntimeError: If no potential calculator is defined.
+        """
         if self._atoms.calc is None:
             raise RuntimeError("Cannot get energy: no potential assigned")
         return self._atoms.get_total_energy()
 
     @property
     def temperature(self):
+        """float: Instantaneous temperature (K)."""
         if self._atoms.calc is None:
             raise RuntimeError("Cannot get energy: no potential assigned")
         return self._atoms.get_temperature()
 
     @property
     def volume(self):
+        """float: Volume of the cell (Å³)."""
         if self._atoms.calc is None:
             raise RuntimeError("Cannot get energy: no potential assigned")
         return self._atoms.get_volume()
 
     @property
     def cellpar(self):
+        """numpy.ndarray: Cell parameters (a, b, c, α, β, γ)."""
         return self._atoms.cell.cellpar().copy()
 
     @property
     def cell(self):
+        """numpy.ndarray: 3×3 cell matrix defining the simulation cell."""
         return self._atoms.cell.array.copy()
 
     @cell.setter
     def cell(self, new_cell):
+        """Set the atomic cell and scale positions.
+
+        Args:
+            new_cell (array-like): New 3×3 cell matrix.
+        """
         self._atoms.set_cell(new_cell, scale_atoms=True)
 
     @property
     def lattice_constant(self):
+        """float: Average in-plane lattice constant (Å)."""
         cell = self.cell / self.supercells
         a_len, b_len = np.linalg.norm(cell[0]), np.linalg.norm(cell[1])
         return (a_len + b_len) / 2
 
     @property
     def get_cell(self):
+        """numpy.ndarray: Return the cell matrix."""
         return self._atoms.get_cell()
 
     @property
     def symbols(self):
+        """list[str]: Chemical symbols of all atoms."""
         return self._atoms.get_chemical_symbols()
 
     @property
     def get_atomic_numbers(self):
+        """numpy.ndarray: Atomic numbers of all atoms."""
         return self._atoms.get_atomic_numbers()
 
     @property
     def get_all_distances(self):
+        """numpy.ndarray: Pairwise atomic distances (Å)."""
         return self._atoms.get_all_distances()
 
-    def cohesive_energy(self, potential_energy = None):
+    def cohesive_energy(self, potential_energy=None):
+        """Compute the cohesive energy per atom.
 
-        """
-        Calculate the cohesive energy per atom. 
-        This is done by computing the difference in energy between the separate atoms and the bulk structure 
-        
-        Unit: ev/atom
-        """
+        Cohesive energy is defined as the difference between the sum of isolated
+        atomic energies and the bulk structure energy, divided by the number
+        of atoms:
 
+            E_coh = (Σ E_atom − E_bulk) / N
+
+        Args:
+            potential_energy (float, optional): Bulk structure potential energy (eV).
+                If not provided, it is computed automatically.
+
+        Returns:
+            float: Cohesive energy per atom (eV/atom).
+        """
         number = self.__len__()
         e_atoms = 0
 
         for symbol in self._atoms.get_chemical_symbols():
             atom = Atoms(symbol, positions=[[0, 0, 0]], cell=[10, 10, 10], pbc=False)
-
             atom.calc = self._atoms.calc
             e_atoms += atom.get_potential_energy()
 
@@ -254,20 +302,19 @@ class AtomicStructure:
             potential_energy = self.potential_energy
 
         e_coh = (e_atoms - potential_energy) / number
-
         return e_coh
 
     @property
     def internal_pressure(self):
-        """
-        Compute internal pressure using atomic units internally.
-        Instantaneous: P = (1/3V) [ 2 N E_kin + sum_i r_i · f_i ]
-        Returns a mean over the instantaneous frames in the trajectory
-        Unit: ev/Å^3
-        """
+        """Compute the instantaneous internal pressure.
 
+        Formula:
+            P = (1 / (3V)) * (2 N E_kin + Σ rᵢ · fᵢ)
+
+        Returns:
+            float: Pressure in eV/Å³.
+        """
         N = len(self)
-
         e_kin_eV = self.kinetic_energy
         V_A3 = self.volume
         forces_eVA = self.forces
@@ -277,44 +324,45 @@ class AtomicStructure:
 
         return P_eVA3
 
-    # Help functions
-
     def setVelocitiesMB(self, temperature_K):
-        """
-        Sets the velocities of the structure at a given temperature accordint to a 
-        Maxwell-Boltzmann distribution. Also makes sure that the result
-        has no drift.
+        """Assign velocities from a Maxwell–Boltzmann distribution.
 
-        In:
-            (float) temperature_K: wanted temperature of the structure in Kelvin
-        """
-
-        MaxwellBoltzmannDistribution(self._atoms, temperature_K=temperature_K,
-                                     force_temp=True)  # Initialize velocity according to temperature_k
-        Stationary(self._atoms)  # Make sure center of mass has no linear momentum
-        ZeroRotation(self._atoms)  # Make sure center of mass has no angular momentum, might not be needed
-
-    def computeMSD(self, orig_struct):
-        """
-        Computes MSD in relation to a reference structure.
+        The procedure removes net linear and angular momentum.
 
         Args:
-            reference (AtomicStructure): Reference structure.
+            temperature_K (float): Target temperature in Kelvin.
+        """
+        MaxwellBoltzmannDistribution(self._atoms, temperature_K=temperature_K, force_temp=True)
+        Stationary(self._atoms)
+        ZeroRotation(self._atoms)
+
+    def computeMSD(self, orig_struct):
+        """Compute mean-square displacement relative to a reference structure.
+
+        Args:
+            orig_struct (AtomicStructure): Reference configuration.
 
         Returns:
-            int: Mean square displacement over all atoms.
-        """
+            float: Mean-square displacement (Å²).
 
+        Raises:
+            TypeError: If `orig_struct` is not an `AtomicStructure`.
+        """
         if not isinstance(orig_struct, AtomicStructure):
             raise TypeError("orig_struct needs to be type AtomicStructure")
+
         r_0 = orig_struct.positions
         r_n = self.positions
         return np.mean((r_0 - r_n) ** 2)
 
     def computeNearestNeighbour(self):
-        """Calculate the distance of nearest neighbor in the structure. Chooses the closest distance between all atoms
-        and takes the mean.
-        Loop structure: Each atom -> neighbors to current atom
+        """Compute the mean nearest-neighbor distance.
+
+        Returns:
+            float: Mean nearest-neighbor distance (Å).
+
+        Raises:
+            ValueError: If nearest neighbors cannot be found for an atom.
         """
         INF = 1e9
         NN_list = []
@@ -324,48 +372,58 @@ class AtomicStructure:
         neighbor_list.update(self._atoms)
 
         for current_atom in range(self._atoms.get_global_number_of_atoms()):
-            # Loop over all atoms in and find their nearest neighbor
             indices, offsets = neighbor_list.get_neighbors(current_atom)
             nearest_distance = INF
 
-            # First object seems to be the atom itself, don't loop over it
             for neighbor_index, offset in zip(indices[1:], offsets[1:]):
-                # Create a vector between current_atom and the neighbors in the list, save the shortest distance
-                NN_vector = self._atoms.positions[neighbor_index] + offset @ self._atoms.get_cell() - \
-                            self._atoms.positions[
-                                current_atom]
+                NN_vector = (
+                    self._atoms.positions[neighbor_index]
+                    + offset @ self._atoms.get_cell()
+                    - self._atoms.positions[current_atom]
+                )
                 distance = np.sqrt(NN_vector.dot(NN_vector))
-                logger.info(distance)
 
                 if distance < nearest_distance:
                     nearest_distance = distance
 
             if nearest_distance == INF:
-                error_msg = f"Could not calculate NN distance, didn't find any NN for atom {current_atom}"
-                logger.error(error_msg)
-                return
+                raise ValueError(
+                    f"No nearest neighbor found for atom {current_atom}"
+                )
 
             NN_list.append(nearest_distance)
-        NN_mean_distance = np.mean(NN_list)
-        logger.debug(f"Mean value of nearest neighbor : {NN_mean_distance} å")
-        return NN_mean_distance
+
+        return np.mean(NN_list)
 
     def _generateHashLabel(self, special_label):
-        """
-        Generates a semi-random hashlabel for the atomic structure.
-        In:
-            (str) special label : custom label added in the middle of the hashlabel
-        Out:
-            (str) hashlabel on the form (chemical formula)_(special label)_(semi-random hash)
+        """Generate a semi-random hash label for the structure.
+
+        Args:
+            special_label (str | None): Custom label inserted into the hash.
+
+        Returns:
+            str: Hash label of the form
+                `<formula>_<special>_<hash>`.
         """
         formula = self._atoms.get_chemical_formula()
-        data = (self._atoms.numbers.tobytes() + self._atoms.positions.tobytes() + np.random.bytes(4))
+        data = (
+            self._atoms.numbers.tobytes()
+            + self._atoms.positions.tobytes()
+            + np.random.bytes(4)
+        )
         short_hash = hashlib.md5(data).hexdigest()[:6]
-        if special_label == None:
+
+        if special_label is None:
             label = f"{formula}_{short_hash}"
         else:
             label = f"{formula}_{special_label}_{short_hash}"
+
         return label
 
-    def getAtoms(self):  # help function that should be used carefully
+    def getAtoms(self):
+        """Unsafe helper: return the underlying ASE Atoms object.
+
+        Returns:
+            ase.Atoms: Raw Atoms object (use with caution).
+        """
         return self._atoms
