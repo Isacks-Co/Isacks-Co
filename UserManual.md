@@ -77,6 +77,33 @@ The settings file consists of the following inputs:
 
 For all calculations the settings with (*) are required. For NPT, pressure and compressibility are also required. For NVT, friction is required. If a setting is missing.
 
+### Terminal inputs
+
+positional arguments:
+  input_settings                           Path to settings file
+
+options:
+  -h, --help                               show this help message and exit
+  -PE, --Physical_environment              Dict of temperature and pressure
+  -SC, --Simulations_config                Simulation-specific settings
+  -IS, --Input_structure                   Initial structure of material to be simulated
+  -CQ, --Compute_quantities                List of abbreviations for quantities to compute
+  -E, --Ensemble <ENSEMBLE>                Ensemble (NVE, NPT, NVT)
+  -T, --Temperature <TEMPERATURE>          Temperature in K
+  -P, --Pressure <PRESSURE>                Pressure in Pa
+  -PBC <PBC>                               PBC in each direction as a list of booleans
+  -POT, --Potential <POTENTIAL>            Potential as a string (EMT, LJ, MACE)
+  -TS, --Timestep <TIMESTEP>               Timestep as a float (fs)
+  -C, --Compressibility <TIMESTEP>         Compressibility as a float (GPA)
+  -µ, --Friction <FRICTION>                Friction coefficent as a float (For NVT)
+  -TD, --Tdamp <TDAMP>                     Tdamp as a float (For NPT)
+  -PD, --Pdamp <PDAMP>                     Pdamp as a float (For NPT)
+  -S, --Supercells <SUPERCELL>             Repetition of input cell e.g [3,3,3], use [1,1,1] for
+                                           only unit cell
+  -O, --Output_file <PATH>                 Path to where the output file will be written
+  -N, --Number_of_steps <NUMBER_OF_STEPS>  Total number of timesteps as an integer
+  --debug                                  Debug
+  -FE, --Find_equilibrium BOOL             Bool of whether to find equilibrium or not
 
 ## POSCAR
 This file includes the atomic configuration. It follows the VASP standard. 
