@@ -58,27 +58,28 @@ The settings file consists of the following inputs:
 ```
 ### Parameters:
 - Physical environment
-  - Temperature -  As a positive float (K) * 
+  - Temperature -  As a positive float (K) 
   - Pressure -  As a float (Pa) 
 
-  - Timestep - Time step as a float (fs) *
-  - Number_of_steps -  As an integer; Total number of steps as an integer *
+  - Timestep - Time step as a float (fs) 
+  - Number_of_steps -  As an integer; Total number of steps as an integer 
   - PBC - As a 1x3 list of booleans; Periodic boundary conditions in x,y,z direction
 - Potential
-  - Kind - As a string;  Which interatomic potential; LJ (Lennard Jones), EMT, MACE *
+  - Kind - As a string;  Which interatomic potential; LJ (Lennard Jones), EMT, MACE 
   - Parameters - Input parameters for Lennard Jones potential incl. Material, epsilon, sigma
 - Supercells 
-    - Supercell size - As a 1x3 list of integers; If you want a supercell the value 3 gives a 3 x 3 x 3 supercell. For a single unit cell use 0. *  
+    - Supercell size - As a 1x3 list of integers; If you want a supercell the value 3 gives a 3 x 3 x 3 supercell. For a single unit cell use 0. 
     - Friction -As a float;  Factor to describe the interaction with the thermostat/heat bath
 - Input structure - As a path; The cif/POSCAR file containing the atomic configuration
 
 - Find equilibrium - As a boolean; 
 - Compute quantities; As a list of strings; Containing all quantities that should be calculated
 
-For all calculations the settings with (*) are required. For NPT, pressure and compressibility are also required. For NVT, friction is required. If a setting is missing.
+For NPT, pressure and compressibility are also required. For NVT, friction is required. If a setting is missing.
 
-### Terminal inputs
-
+## Terminal inputs
+These are the different flags used for changing parameters through the terminal.
+```text
 positional arguments:
   input_settings                           Path to settings file
 
@@ -104,7 +105,7 @@ options:
   -N, --Number_of_steps <NUMBER_OF_STEPS>  Total number of timesteps as an integer
   --debug                                  Debug
   -FE, --Find_equilibrium BOOL             Bool of whether to find equilibrium or not
-
+```
 ## POSCAR
 This file includes the atomic configuration. It follows the VASP standard. 
 Below follows a minimal example.
