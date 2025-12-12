@@ -81,12 +81,10 @@ def get_defect_cif(
 
 
 if __name__ == "__main__":
+
     hosts = ["HfS2", "Hf2Te6", "H2Ge2", "Ge2", "Cr2I6", "CO2V2", "CO2Ti2", "CNb2O2",
              "CMo2O2", "C3Nb4","C2H2", "BiITe", "Bi2I6", "As2"] #Check github for your assigned hosts
-    for defect_name in hosts:
-
-
-        get_defect_cif(
+    get_defect_cif(
             host_name=defect_name,
             db_path="../../defect/defects.sqlite",
             out_root="../../MD_runs/Runs",

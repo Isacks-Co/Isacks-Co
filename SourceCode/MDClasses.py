@@ -129,6 +129,7 @@ class EquilibriumRun(MDBase):
         if store_traj:
             self._SaveASETrajectory(atomic_structure)
 
+
         if check_conv:
             self.integrator.attach(lambda: self._saveData(atomic_structure),1)
             self.integrator.attach(self._check_equilibrium,10)
@@ -198,7 +199,7 @@ class StretchRun(MDBase):  # TODO Finish this
         strains = np.linspace(-0.005, 0.005, 5)  # TODO Not hardcoded ?
         cell0 = atomic_structure.cell
         stress0 = atomic_structure.stress
-        hold_steps = 500  # TODO Not hardcoded ?
+        hold_steps = 25  # TODO Not hardcoded ?
         equil_atoms = copy(atomic_structure)
         calculator = atomic_structure.potential
 

@@ -23,11 +23,12 @@
 
 import json
 import logging
+import glob
 import numpy as np
 import sys
 from ASEWrappers import AtomicStructure
 from ASEWrappers import VelocityVerletIntegrator, LangevinIntegrator, BerendsenNPTIntegrator
-from ASEWrappers.potential import EMTPotential, LennardJonesPotential, MACEPotential
+from ASEWrappers.potential import EMTPotential, LennardJonesPotential
 from Utils import LJParams
 from Utils.inputParser import InputParser
 from ase.io import read
@@ -49,10 +50,9 @@ class PreProcessing:
         self.argparser = InputParser(args)
 
         # Init settings and atomic structure
-
         self.settings = self.readSettings(self.argparser.args["input_settings"])
-
-        self.atomic_structure = self.readAtomicStructure("../SetupFiles/POSCAR")
+        
+        self.atomic_structure = self.readAtomicStructure(glob.glob("../SetupFiles/atomic_structure*")[0])
 
         # Physical check of the input
         self.sanityCheckAtomicStructure()
@@ -73,6 +73,10 @@ class PreProcessing:
                 raise ValueError(f"Got unexpected setting input: {key}")
             elif self.argparser.args[key] != None:
                 temp_settings[key] = self.argparser.args[key]
+            elif type(temp_settings[key]) == dict:
+                for key2 in temp_settings[key].keys():
+                    if self.argparser.args[key2] != None:
+                        temp_settings[key][key2] = self.argparser.args[key2]
 
         log.debug("Settings loaded: %r", temp_settings)
         return temp_settings
@@ -97,7 +101,7 @@ class PreProcessing:
     def getPotential(self):  # TODO FIX
         match self.settings["Simulations_config"]["Potential"]["Kind"]:
             case "LJ":
-                atoms = read("../SetupFiles/POSCAR")
+                atoms = read(glob.glob("../SetupFiles/atomic_structure*")[0])
 
                 atomic_num = [(atoms.get_atomic_numbers()[0])]
                 atomic_symbols = atoms.get_chemical_symbols()
@@ -124,8 +128,10 @@ class PreProcessing:
                                              sigmas=[lj_params["sigma_A"]], rc=lj_params["rc_A"])
             case "EMT":
                 return EMTPotential()
+            
 
             case "MACE":
+                from ASEWrappers import MACEPotential
                 return MACEPotential(model_path=self.settings["Simulations_config"]["Potential"]["Parameters"]["Path"])
 
     def getIntegrator(self, ensemble):
@@ -156,7 +162,7 @@ class PreProcessing:
         potential = self.getPotential()
         NEED_STRETCH = ["Moduli", "Debye"]
 
-        self.npt_settings = SimulationSettings(num_steps=10000, potential=potential,
+        self.npt_settings = SimulationSettings(num_steps=2000, potential=potential,
                                                  integrator=self.getIntegrator("NPT"), ensemble = "NPT", sample_nn = False)
 
         nn_sample_necessary = True if "L_crit" in self.settings["Compute_quantities"] else False

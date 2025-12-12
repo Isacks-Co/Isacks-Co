@@ -22,10 +22,9 @@
 
 
 import os
-import torch
 from asap3 import EMT
 from asap3 import LennardJones as asap_LJ
-from mace.calculators import MACECalculator
+
 
 
 class Potential:
@@ -68,6 +67,7 @@ class EMTPotential(Potential):
 
 
 class MACEPotential(Potential):
+    
     def __init__(self, model_path=os.path.dirname(
         os.path.dirname(os.path.abspath(__file__))) + "/MACEModels/mace-mpa-0-medium.model"):
         super().__init__()
@@ -75,11 +75,17 @@ class MACEPotential(Potential):
         self.model_path = model_path
 
     def getASEPotentialCalculator(self):
-        import os, warnings
+        import os, warnings, torch
+        
         os.environ["TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD"] = "1"
         warnings.filterwarnings(
             "ignore",
             message="Environment variable TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD detected, since the`weights_only` argument was not explicitly passed to `torch.load`, forcing weights_only=False.",
         )
+        warnings.filterwarnings(
+            "ignore",
+            message="cuequivariance or cuequivariance_torch is not available. Cuequivariance acceleration will be disabled."
+)
+        from mace.calculators import MACECalculator
         device = "cuda" if torch.cuda.is_available() else "cpu"
         return MACECalculator(model_paths=self.model_path, device=device, default_dtype="float64", head="default")
