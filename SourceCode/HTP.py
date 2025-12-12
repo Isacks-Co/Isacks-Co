@@ -30,7 +30,7 @@ from ASEWrappers import LangevinIntegrator, MACEPotential, AtomicStructure
 from MDClasses import EquilibriumRun
 from httk.external import ase_glue
 
-if __name__ == "__main__":
+def main():
 
     """
     Runs the high-throughput program.
@@ -124,6 +124,8 @@ if __name__ == "__main__":
             "lattice_constant": lattice_constant,
         }
     }
-
-with open("result.json", "w", encoding="utf-8") as f:
-    f.write(json.dumps(result, indent=4))
+    return result
+if __name__=="__main__":
+    result = main()
+    with open("result.json", "w", encoding="utf-8") as f:
+        f.write(json.dumps(result, indent=4))
