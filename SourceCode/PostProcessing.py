@@ -58,11 +58,11 @@ class PostProcessing():
     @classmethod
     def fromFiles(cls, folder, settings_path):
         df = pd.read_fwf(f"{folder}/sampledata.txt", skiprows=1)
-        equil_struct = AtomicStructure(Trajectory(f"{folder}/Equil.traj")[-1])
         C_matrix = np.load(f"{folder}/cmatrix.npy")
         with open(join_path(folder, settings_path), 'r') as file:
             data = json.load(file)
         quantities_to_compute = data["Compute_quantities"]
+        equil_struct = AtomicStructure(Trajectory(f"{folder}/Equil.traj")[-1], data["Simulations_config"]["Supercells"])
 
         return cls(equil_struct, df, C_matrix, quantities_to_compute)
 
@@ -84,7 +84,7 @@ class PostProcessing():
                     data["E"] = E
 
                 case "Lat_const":
-                    pass
+                    data["Lat_const"] = self.equil_struct.lattice_constant
 
                 case "CVT":
                     Cv = specificHeatAuToSI(
