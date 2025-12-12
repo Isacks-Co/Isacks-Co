@@ -28,20 +28,54 @@ from MDManager import MDManager
 
 
 def main():
+    """
+    Run preprocessing and launch molecular dynamics simulations.
+
+    This function initializes preprocessing based on command-line arguments,
+    prepares simulation settings, and executes the simulations through the
+    MDManager interface.
+
+    Notes
+    -----
+    - Command-line arguments are passed directly to the PreProcessing class.
+    - Any failure during preprocessing or simulation execution results in a
+      logged exception and program termination.
+    """
+
     log = logging.getLogger(__name__)
+
+    # --------------------
+    # Preprocessing stage
+    # --------------------
     try:
+        # Parse input arguments and initialize preprocessing
         PP = PreProcessing(sys.argv)
 
-        log.info(f" Quantities to compute: \n {PP.settings["Compute_quantities"]} \n")
+        # Log quantities requested for computation
+        log.info(
+            f"Quantities to compute:\n {PP.settings['Compute_quantities']}\n"
+        )
+
+        # Generate simulation settings list
         settings_list = PP.createSimulationList()
+
+        # Retrieve atomic structure prepared during preprocessing
         atomic_structure = PP.atomic_structure
 
+        # Initialize MD manager with prepared settings
         SimulationSetup = MDManager(settings_list, atomic_structure)
+
     except Exception as err:
         log.exception(f"Preprocessing failed: {err}")
         exit(1)
+
+    # --------------------
+    # Simulation execution
+    # --------------------
     try:
+        # Run simulations and store trajectories
         SimulationSetup.run(store_traj=True)
+
     except Exception as err:
         log.exception(f"Simulation failed: {err}")
         exit(1)

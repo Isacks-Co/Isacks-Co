@@ -28,12 +28,17 @@ from DBClasses import MDDelta, MDScreenResult
 
 def getAllDefectKeys(store):
     """
-    Function to get all defect keys from DefectCell.
-    Args:
-        store (SqlStore): the store object is connected to the backend database and allows for data to be extracted
-            and stored.
-    Returns:
-        all_Keys (list) : A list of all the defect keys from the DefectCell table.
+    Get all defect keys from :class:`classes.DefectCell`.
+
+    Parameters
+    ----------
+    store : SqlStore
+        Store connected to the backend database.
+
+    Returns
+    -------
+    set[tuple[str, str, int]]
+        Set of ``(host_name, defect_name, key)`` tuples.
     """
     search = store.searcher()
     search_defectcell = search.variable(DefectCell)

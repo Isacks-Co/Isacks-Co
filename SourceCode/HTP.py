@@ -40,7 +40,6 @@ def main():
     # Adjustable parameters
     num_steps = 3000
     temp_k = 0
-    friction = 0.1
     time_steps = 1
 
     log = logging.getLogger(__name__)

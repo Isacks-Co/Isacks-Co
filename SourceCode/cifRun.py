@@ -35,6 +35,32 @@ def get_defect_cif(
         out_root="Runs",
         template_name="template",  # httk-task-template
 ):
+    """
+    Create HTTK run folders and write CIF files for matching defect structures.
+
+    Parameters
+    ----------
+    host_name : str
+        Base host identifier without the ``"_PBE"`` suffix (e.g. ``"As2"``).
+    defect_name : str
+        Defect name prefix to match (e.g. ``"C_"``).
+    db_path : str, optional
+        Path to the SQLite defect database.
+    out_root : str, optional
+        Root directory where run folders will be created.
+    template_name : str, optional
+        HTTK task template name passed to ``httk.task.create_batch_task``.
+
+    Returns
+    -------
+    None
+
+    Side Effects
+    ------------
+    - Creates directories under `out_root`.
+    - Writes one CIF file per matching defect inside its run directory.
+    - Creates HTTK batch task directories via ``create_batch_task``.
+    """
     os.makedirs(out_root, exist_ok=True)
 
     backend = httk.db.backend.Sqlite(db_path)

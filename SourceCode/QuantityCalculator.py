@@ -37,15 +37,41 @@ logger = logging.getLogger(__name__)
 
 class QuantityCalculator:
     """
-    Computes derived quantities from sequences of instantaneus data
+    Derived-quantity calculator for MD post-processing.
+
+    All methods are implemented as ``@staticmethod`` functions and do not
+    maintain internal state.
+
+    Notes
+    -----
+    Callers are responsible for providing consistent units. This class does
+    not validate units or sampling assumptions.
     """
+
 
     @staticmethod
     def computeSpecificHeatNVT(E_tot_seq, total_mass_amu, T):
-        """ 
-        Compute specific heat capacity as a time average of the total energy fluctuations 
-        over all frames.
-        Unit: ev/(amu*K) (amu = atomic mass unit)
+        """
+        Compute specific heat capacity from total energy fluctuations (NVT).
+
+        Parameters
+        ----------
+        E_tot_seq : array-like
+            Total energy time series (typically in eV).
+        total_mass_amu : float
+            Total mass of the system in atomic mass units (amu).
+        T : float
+            Temperature in Kelvin.
+
+        Returns
+        -------
+        float
+            Specific heat capacity in eV/(amu·K), assuming energies are in eV.
+
+        Notes
+        -----
+        This uses a fluctuation expression based on the variance of the total
+        energy time series.
         """
 
         E_tot_seq = np.array(E_tot_seq)
@@ -60,9 +86,21 @@ class QuantityCalculator:
     @staticmethod
     def computeSpecificHeatNVE(E_kin_seq, total_mass_amu, T):
         """
-        Compute specific heat capacity as a time average of the kinetic energy fluctuations 
-        over all frames. 
-        Unit: ev/(amu*K) (amu = atomic mass units)
+        Compute specific heat capacity from kinetic energy fluctuations (NVE).
+
+        Parameters
+        ----------
+        E_kin_seq : array-like
+            Kinetic energy time series (typically in eV).
+        total_mass_amu : float
+            Total mass of the system in atomic mass units (amu).
+        T : float
+            Temperature in Kelvin (used in the fluctuation expression).
+
+        Returns
+        -------
+        float
+            Specific heat capacity in eV/(amu·K), assuming energies are in eV.
         """
 
         e_kin_mean = np.mean(E_kin_seq)
@@ -74,12 +112,30 @@ class QuantityCalculator:
         return specific_heat
 
     @staticmethod
-    def computeSelfDiffusionCoefficient(msd_list,
-                                        sample_spacing):  # Needs constant temperature, for current implementation.
-
+    def computeSelfDiffusionCoefficient(msd_list, sample_spacing):
         """
-        Compute self diffusion coefficient from the slope of MSD over a large timeperiod
-        Unit: Å^2/fs
+        Estimate self-diffusion coefficient from mean-squared displacement (MSD).
+
+        Uses the Einstein relation with an endpoint slope estimate:
+
+            D ≈ (MSD_end - MSD_0) / (6 * (t_end - t_0))
+
+        Parameters
+        ----------
+        msd_list : array-like
+            Mean-squared displacement values (typically in Å^2).
+        sample_spacing : float
+            Time between MSD samples (typically in fs).
+
+        Returns
+        -------
+        float
+            Diffusion coefficient in Å^2/fs (if MSD is Å^2 and time is fs).
+
+        Notes
+        -----
+        This uses only the first and last MSD points. For better statistics,
+        a linear fit over a diffusive regime is often preferred.
         """
         # Find the actual elapsed time
         timestep_list = []
@@ -97,7 +153,33 @@ class QuantityCalculator:
 
     @staticmethod
     def computeDebyeTemperature(V_A3, mass_u, N, G, K):
+        """
+        Estimate the Debye temperature from density and elastic moduli.
 
+        Parameters
+        ----------
+        V_A3 : float
+            Volume in Å^3.
+        mass_u : float
+            Total mass in atomic mass units (u).
+        N : int
+            Number of atoms.
+        G : float
+            Shear modulus (unit consistency required).
+        K : float
+            Bulk modulus (same unit convention as G).
+
+        Returns
+        -------
+        float
+            Debye temperature in Kelvin.
+
+        Notes
+        -----
+        The factor ``/ 10.18`` is used as a unit conversion (comment suggests
+        conversion related to fs/Å). Ensure `G`, `K`, and density are consistent
+        with this convention.
+        """
         rho = (mass_u / V_A3)
 
         transversal_sound_velocity = np.sqrt(G / rho)
@@ -108,33 +190,75 @@ class QuantityCalculator:
         n = (N / V_A3)
 
         Theta_D = (hbar / kB) * ((6.0 * np.pi ** 2 * n) ** (
-                    1.0 / 3.0)) * sound_velocity / 10.18  # TODO move to unit conversion file  to fs/Å
+                    1.0 / 3.0)) * sound_velocity / 10.18
 
         return Theta_D
 
     @staticmethod
     def computeLindemannIndex(msd, nearest_neighbour):
+        """
+        Compute the Lindemann index.
 
+        Parameters
+        ----------
+        msd : float
+            Mean-squared displacement (typically in Å^2).
+        nearest_neighbour : float
+            Nearest-neighbour distance (typically in Å).
+
+        Returns
+        -------
+        float
+            Lindemann index (dimensionless).
+        """
         return np.sqrt(msd) / nearest_neighbour
 
     @staticmethod
     def calculateModuli(C_matrix):
+        """
+        Compute isotropic elastic moduli from a stiffness matrix.
+
+        Parameters
+        ----------
+        C_matrix : array-like of shape (6, 6)
+            Stiffness matrix in Voigt notation.
+
+        Returns
+        -------
+        tuple of float
+            ``(bulk_modulus, shear_modulus, youngs_modulus)``.
+        """
         bulk_modulus = (C_matrix[0, 0] + 2 * C_matrix[0, 1]) / 3
         G_shear = (C_matrix[3, 3] + C_matrix[4, 4] + C_matrix[5, 5] + C_matrix[1, 1] - C_matrix[0, 1]) / 5
         youngs_modulus = 9 * bulk_modulus * G_shear / (3 * bulk_modulus + G_shear)
         return bulk_modulus, G_shear, youngs_modulus
 
-    # TODO Still need to look at the stuf below this
-
     @staticmethod
-    def nearestNeighborsMean(atoms_sequence, start: int,
-                             end: int = None):  # TODO Look at this and make work without traj
-        """Calculate the mean distance of nearest neighbor in the structure for the last ten states of the simulation
-        Loop structure: Last ten states -> Each atom -> neighbors to current atom
-
-        (int) start : Index for the start of the interval that should be checked
-        (int) end : Index for the end of the interval that should be checked
+    def nearestNeighborsMean(atoms_sequence, start: int, end: int = None):
         """
+        Compute mean nearest-neighbour distance over a range of configurations.
+
+        For each configuration in the interval [start, end), builds an ASE
+        neighbour list using ``natural_cutoffs`` and computes each atom's
+        nearest-neighbour distance. The return value is the mean over all atoms
+        and all configurations in the interval.
+
+        Parameters
+        ----------
+        atoms_sequence : sequence of ase.Atoms
+            Sequence of atomic configurations.
+        start : int
+            Start index (inclusive).
+        end : int, optional
+            End index (exclusive). If None, uses ``start + 1``.
+
+        Returns
+        -------
+        float or None
+            Mean nearest-neighbour distance in Å, or None if no neighbours
+            could be found for some atom.
+        """
+
         if end is None:
             end = start + 1
         INF = 1e9
@@ -173,7 +297,34 @@ class QuantityCalculator:
         return NN_mean_distance
 
     @staticmethod
-    def computeBulkModulus(stretch_sequence):  # TODO Move so it is computed on the fly.
+    def computeBulkModulus(stretch_sequence):
+        """
+        Fit an equation of state to compute the bulk modulus.
+
+        Collects potential energy and volume from a stretch sequence, sorts by
+        volume, and fits a Birch–Murnaghan EOS using ASE's
+        :class:`ase.eos.EquationOfState`.
+
+        Parameters
+        ----------
+        stretch_sequence : sequence
+            Sequence of frames containing energy and volume information.
+
+        Returns
+        -------
+        float
+            Bulk modulus in GPa.
+
+        Side Effects
+        ------------
+        Writes an EOS plot image file named ``Ag-eos.png``.
+
+        Notes
+        -----
+        This function calls ``_get(frame, name)``, which must be provided by the
+        surrounding codebase.
+        """
+
         energies = []
         cells = []
         for frame in stretch_sequence:

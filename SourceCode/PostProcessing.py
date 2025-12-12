@@ -36,10 +36,25 @@ from QuantityCalculator import QuantityCalculator as QC
 
 class PostProcessing():
     """
-    Class responsible for handling the interface between the simulations and
-    the postprocessing task such as visualization and computataition of quantities.
-    Typically takes one or multiple trajectories and some flags for what to compute.
-    
+    Post-process simulation outputs to compute averaged and derived quantities.
+
+    The typical workflow is:
+    1. Load sample time series (e.g., ``sampledata.txt``) and optional matrices
+       (e.g., ``cmatrix.npy``).
+    2. Compute time averages over sampled quantities.
+    3. Compute derived quantities requested in the settings.
+    4. Write results to ``Quantities.csv``.
+
+    Parameters
+    ----------
+    equil_struct : AtomicStructure
+        Equilibrated structure used for structural quantities (e.g., lattice constant).
+    dataframe : pandas.DataFrame
+        Sampled time series containing columns such as energy, MSD, volume, etc.
+    C_matrix : numpy.ndarray
+        Elastic stiffness matrix (typically 6×6 in Voigt notation).
+    quantities_to_compute : list[str]
+        List of quantity identifiers that control what is computed.
     """
 
     def __init__(self, equil_struct, dataframe, C_matrix, quantities_to_compute):
@@ -47,9 +62,17 @@ class PostProcessing():
         self.dataframe = dataframe
         self.C_matrix = C_matrix
         self.time_averages = self.computeTimeAverages().to_frame().T
+        # Compute time averages immediately; stored as a 1-row DataFrame for easy concatenation.
         self.quantities_to_compute = quantities_to_compute
 
     def storeQuantities(self):
+        """
+        Compute and write requested quantities.
+
+        Drops the ``time`` column from the time-average table, computes derived
+        quantities based on `quantities_to_compute`, concatenates results, and
+        writes them to ``Quantities.csv``.
+        """
         self.time_averages = self.time_averages.drop(columns=["time"])
         self.derived_quants = self.computeDerivedQuantities()
 
@@ -57,6 +80,23 @@ class PostProcessing():
 
     @classmethod
     def fromFiles(cls, folder, settings_path):
+        """
+        Construct a PostProcessing instance from files on disk.
+
+        Parameters
+        ----------
+        folder : str
+            Folder containing MD output files (e.g., ``sampledata.txt``, ``cmatrix.npy``,
+            and trajectory files).
+        settings_path : str
+            Path to the JSON settings file relative to `folder`.
+
+        Returns
+        -------
+        PostProcessing
+            Initialized instance ready for computation and output.
+        """
+
         df = pd.read_fwf(f"{folder}/sampledata.txt", skiprows=1)
         C_matrix = np.load(f"{folder}/cmatrix.npy")
         with open(join_path(folder, settings_path), 'r') as file:
@@ -67,7 +107,19 @@ class PostProcessing():
         return cls(equil_struct, df, C_matrix, quantities_to_compute)
 
     def computeDerivedQuantities(self):
-        """Computes all the needed quantities that are present in quantities_to_compute."""
+        """
+        Compute derived quantities requested by `quantities_to_compute`.
+
+        Returns
+        -------
+        pandas.DataFrame
+            Single-row dataframe containing derived quantities as columns.
+
+        Notes
+        -----
+        Some quantities depend on others (e.g., Debye temperature depends on
+        elastic moduli). These dependencies are handled via internal flags.
+        """
         data = {}
         debye_flag = False
         for quantity in self.quantities_to_compute:
@@ -115,11 +167,36 @@ class PostProcessing():
         return pd.DataFrame(data)
 
     def computeTimeAverages(self):
+        """
+        Compute time-averaged values for all columns in the sample dataframe.
+
+        Returns
+        -------
+        pandas.Series
+            Mean of each column.
+        """
         return self.dataframe.mean()
 
     def writeQuantities(self, data: pd.DataFrame):
         """
-        Write labels and quantities to txt file. 
+        Write computed quantities to ``Quantities.csv``.
+
+        Parameters
+        ----------
+        data : pandas.DataFrame
+            DataFrame containing one row of values (columns are quantity names).
+
+        Returns
+        -------
+        None
+
+        Notes
+        -----
+        The output format is one line per quantity:
+
+            ``<Name>: <Value>``
+
+        Values are written using fixed-point formatting with 6 decimals.
         """
         data = data.T
 

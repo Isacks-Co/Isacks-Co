@@ -33,8 +33,24 @@ import logging
 log = logging.getLogger(__name__)
 class MDBase:
     """
-    Abstract class for MDRunner objects
-    
+    Base class for molecular dynamics run types.
+
+    Provides shared utilities for different MD workflows, including:
+    - sampling scalar quantities from an AtomicStructure
+    - storing sampled data in a DataTrajectory
+    - attaching ASE trajectory writers to an integrator
+
+    This class is not intended to be used directly, but to be subclassed
+    by concrete MD run implementations.
+
+    Attributes
+    ----------
+    integrator
+        ASE-style integrator used to advance the simulation.
+    sample_data : list or None
+        Names of quantities to sample during the run.
+    run_type : str or None
+        Name of the run mode, used for output file naming.
     """
     def __init__(self, settings):
         self.integrator = settings.integrator
@@ -42,6 +58,19 @@ class MDBase:
         self.run_type = None
 
     def _storeFrame(self, atomic_strucuture: AtomicStructure, data_traj: DataTrajectory):
+        """
+        Sample requested quantities and append a frame to a data trajectory.
+
+        The simulation time is inferred from the previous frame time and the
+        integrator timestep.
+
+        Parameters
+        ----------
+        atomic_strucuture : AtomicStructure
+            Current atomic configuration.
+        data_traj : DataTrajectory
+            Container storing sampled frames.
+        """
         if len(data_traj) == 0:
             time = 0
         else:
@@ -56,11 +85,18 @@ class MDBase:
 
     def _SaveASETrajectory(self, atomic_structure: AtomicStructure, interval=1):
         """
-        Function to save the ASE trajectory
-        Args:
-            atomic_structure (AtomicStructure): The atomic structure object containing our atoms, and other relevant
-            information
-            interval (int, optional): The interval between frames. Defaults to 1.
+        Attach an ASE trajectory writer to the integrator.
+
+        Parameters
+        ----------
+        atomic_structure : AtomicStructure
+            Structure whose ASE Atoms object is written to disk.
+        interval : int, optional
+            Number of MD steps between trajectory frames.
+
+        Notes
+        -----
+        The output file is named ``<run_type>.traj``.
         """
         traj = Trajectory(filename=f"{self.run_type}.traj", mode="w", atoms=atomic_structure.getAtoms())
         self.integrator.attach(traj.write, interval)
@@ -68,7 +104,26 @@ class MDBase:
     @staticmethod
     def _getAtomsData(atomic_structure: AtomicStructure, name, initial_atomic_structure: AtomicStructure):
         """
-        Help function for getting specific data from the ASE atoms object.
+        Extract a scalar quantity from an AtomicStructure.
+
+        Parameters
+        ----------
+        atomic_structure : AtomicStructure
+            Current structure state.
+        name : str
+            Name of the quantity to extract.
+        initial_atomic_structure : AtomicStructure
+            Reference structure used for displacement-based quantities.
+
+        Returns
+        -------
+        float or object
+            Extracted quantity corresponding to `name`.
+
+        Raises
+        ------
+        RuntimeError
+            If the structure has no associated potential.
         """
 
         if atomic_structure.potential is None:
@@ -107,6 +162,15 @@ class MDBase:
 
 
 class EquilibriumRun(MDBase):
+    """
+    Equilibration molecular dynamics run.
+
+    Runs the integrator until a fixed number of steps is reached or until
+    an equilibrium condition is satisfied. The equilibrium criterion depends
+    on the ensemble:
+    - NVT: potential energy stability
+    - other ensembles: internal pressure stability
+    """
     def __init__(self, settings):
         super().__init__(settings)
         self.run_type = "Equil"
@@ -115,13 +179,25 @@ class EquilibriumRun(MDBase):
 
     def run(self,atomic_structure: AtomicStructure ,num_steps,init_vel = True,store_traj = True, check_conv = False):
         """
-        The function that attaches other functions such as converge control etc and starts the EquilibriumRun simulation.
-        Args:
-            atomic_structure (AtomicStructure): The atomic stucture that we use in the simulation
-            num_steps (int): The number of steps to run
-            init_vel (bool, optional): Whether or not to initialize the velocity. Defaults to False.
-            store_traj (bool, optional): Whether or not to store the trajectory. Defaults to True.
-            check_conv (bool, optional): Whether or not to check the convergence. Defaults to False.
+        Run an equilibration simulation.
+
+        Parameters
+        ----------
+        atomic_structure : AtomicStructure
+            Structure to equilibrate (modified in-place).
+        num_steps : int
+            Maximum number of MD steps.
+        init_vel : bool, optional
+            If True, initialize velocities from a Maxwell–Boltzmann distribution.
+        store_traj : bool, optional
+            If True, write an ASE trajectory file.
+        check_conv : bool, optional
+            If True, check for equilibrium and stop early if satisfied.
+
+        Returns
+        -------
+        AtomicStructure
+            The equilibrated structure.
         """
         if init_vel:
             atomic_structure.setVelocitiesMB(self.integrator.temperature_K)
@@ -141,7 +217,11 @@ class EquilibriumRun(MDBase):
     
     def _check_equilibrium(self):
         """
-        Function to check if the equilibrium condition is met.
+        Check whether equilibrium has been reached.
+
+        Uses different stability criteria depending on the ensemble and
+        raises ``StopIteration`` to terminate the MD run if equilibrium
+        is detected.
         """
         if self.integrator.ensemble == "NVT":
             if len(self.equil_data) > 100:
@@ -158,7 +238,10 @@ class EquilibriumRun(MDBase):
 
     def _saveData(self, atomic_structure):
         """
-        Function to save the data from the ASE atoms object.
+        Store equilibration diagnostic data.
+
+        Depending on the ensemble, either potential energy or internal
+        pressure is appended to the equilibration history.
         """
         if self.integrator.ensemble == "NVT":
             self.equil_data.append(atomic_structure.potential_energy)
@@ -166,6 +249,12 @@ class EquilibriumRun(MDBase):
             self.equil_data.append(atomic_structure.internal_pressure * 160.21766208)
         
 class SampleRun(MDBase):
+    """
+    Production MD run for sampling thermodynamic and structural quantities.
+
+    Samples selected quantities at every MD step and stores them in a
+    DataTrajectory, which is written to disk at the end of the run.
+    """
     def __init__(self, settings : SimulationSettings):
         super().__init__(settings)
         self.run_type = "Sample"
@@ -177,12 +266,20 @@ class SampleRun(MDBase):
 
     def run(self, atomic_structure: AtomicStructure, num_steps, store_traj=False):
         """
-        The function that attaches other functions such as converge control etc and starts the SampleRun simulation.
-        Args:
-            atomic_structure (AtomicStructure): The atomic structure that we use in the simulation
-            num_steps (int): The number of steps to run
-            store_traj (bool, optional): Whether or not to store the trajectory. Defaults to False.
+        Run a sampling simulation.
 
+        Parameters
+        ----------
+        atomic_structure : AtomicStructure
+            Structure to simulate (modified in-place).
+        num_steps : int
+            Number of MD steps to run.
+        store_traj : bool, optional
+            If True, write an ASE trajectory file.
+
+        Returns
+        -------
+        None
         """
         data_traj = DataTrajectory(atomic_structure)
         if store_traj:
@@ -192,28 +289,43 @@ class SampleRun(MDBase):
 
         self.integrator.run(atomic_structure, num_steps)
         data_traj.storeTxtFile()
-        # TODO Add equil check / Fail check
         return
 
 
-class StretchRun(MDBase):  # TODO Finish this
+class StretchRun(MDBase):
+    """
+    Small-strain MD run for estimating elastic stiffness coefficients.
+
+    Applies a sequence of small strains, performs short MD holds for each
+    strain, averages the resulting stress, and fits stress–strain slopes
+    to construct a stiffness matrix.
+    """
     def __init__(self, settings):
         super().__init__(settings)
         self.run_type = "Stretch"
 
     def run(self, atomic_structure: AtomicStructure):
         """
-         The function that attaches other functions such as converge control etc and starts the Stretchrun simulation.
-         Args:
-            atomic_structure (AtomicStructure): The atomic structure that we use in the simulation
+        Run a strain sweep and compute an elastic stiffness matrix.
 
-         """
-        strains = np.linspace(-0.005, 0.005, 5)  # TODO Not hardcoded ?
+        Parameters
+        ----------
+        atomic_structure : AtomicStructure
+            Reference structure providing the initial cell and stress.
+
+        Returns
+        -------
+        None
+
+        Notes
+        -----
+        The resulting stiffness matrix is saved as ``cmatrix.npy``.
+        """
+        strains = np.linspace(-0.005, 0.005, 5)
         cell0 = atomic_structure.cell
         stress0 = atomic_structure.stress
-        hold_steps = 25  # TODO Not hardcoded ?
+        hold_steps = 25
         equil_atoms = copy(atomic_structure)
-        calculator = atomic_structure.potential
 
         C = np.zeros((6, 6))
         for beta in range(6):
@@ -252,11 +364,16 @@ class StretchRun(MDBase):  # TODO Finish this
 
     def appendStress(self, atoms, stress_list, stress0):
         """
-        Function to append stress from the atoms to a list.
-        Args:
-            atoms (AtomicStructure): The atomic structure that we use in the simulation
-            stress_list (list): The list containing stress values
-            stress0 (float) : The initial stress
+        Append stress deviation relative to a reference stress.
+
+        Parameters
+        ----------
+        atoms
+            Structure providing a stress tensor.
+        stress_list : list
+            List to which stress values are appended.
+        stress0
+            Reference stress subtracted from the current stress.
         """
         # Help function for appending stresses during _stretchCell runs
         stress = atoms.stress - stress0
