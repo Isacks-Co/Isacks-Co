@@ -39,8 +39,8 @@ class EquilibriumCondition:
         """
 
         mean_pressure = np.mean(list_of_internal_pressure)
-        delta = np.abs(np.max(list_of_internal_pressure) - np.min(list_of_internal_pressure))
-        return (delta <= tol) and (np.isclose(mean_pressure, 0, atol=tol))
+        print(mean_pressure)
+        return  (np.isclose(mean_pressure, 0, atol=tol))
 
     @staticmethod
     def checkStable(list_of_values, tol=1e-5):

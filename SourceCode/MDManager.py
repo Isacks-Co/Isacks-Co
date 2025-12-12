@@ -28,7 +28,8 @@ class MDManager:
                     equilibrium_run = EquilibriumRun(settings=settings)
                     logger.info("Running equilibrium simulation...")
                     self.atomic_structure = equilibrium_run.run(atomic_structure=self.atomic_structure,
-                                                                num_steps=settings.num_steps, store_traj=store_traj)
+                                                                num_steps=settings.num_steps, store_traj=store_traj,
+                                                                check_conv=True)
                 case "Stretch":
                     stretch_run = StretchRun(settings=settings)
                     logger.info("Running stretching simulation...")

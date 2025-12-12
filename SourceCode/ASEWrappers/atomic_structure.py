@@ -105,15 +105,23 @@ class AtomicStructure:
         """Creates a copy of the AtomicStructure object"""
         return AtomicStructure(self._atoms, label=self.label)
 
-    # Properties. 
+    # Properties.
     @property
     def label(self):
-        """str: Label of the structure."""
+        """Label of the given structure
+
+        Returns:
+            (str): label of the structure
+        """
         return self._label
 
     @property
     def potential(self):
-        """Potential: Calculator object used to evaluate energies and forces."""
+        """Potential that is used
+
+        Returns:
+            (Potential): The structures potential
+        """
         return self._atoms.calc
 
     @potential.setter
@@ -127,7 +135,11 @@ class AtomicStructure:
 
     @property
     def positions(self):
-        """numpy.ndarray: Cartesian positions of all atoms (Å)."""
+        """ Positions of all atoms
+
+        Returns:
+            list[Atoms]:
+        """
         return self._atoms.get_positions()
 
     @positions.setter
@@ -306,23 +318,18 @@ class AtomicStructure:
 
     @property
     def internal_pressure(self):
-        """Compute the instantaneous internal pressure.
-
-        Formula:
-            P = (1 / (3V)) * (2 N E_kin + Σ rᵢ · fᵢ)
+        """
+        Compute internal pressure using atomic units internally.
+        Instantaneous: P = (1/3V) [ 2 N E_kin + sum_i r_i · f_i ]
+        Returns a mean over the instantaneous frames in the trajectory
+        Unit: ev/Å^3
 
         Returns:
-            float: Pressure in eV/Å³.
+            P (float): Internal pressure
         """
-        N = len(self)
-        e_kin_eV = self.kinetic_energy
-        V_A3 = self.volume
-        forces_eVA = self.forces
-        positions_A = self.positions
-        sum_rf = np.sum(forces_eVA * positions_A)
-        P_eVA3 = (1.0 / (3.0 * V_A3)) * (2.0 * N * e_kin_eV + sum_rf)
 
-        return P_eVA3
+        P = abs(-self.stress[0:3].sum()/3)
+        return P
 
     def setVelocitiesMB(self, temperature_K):
         """Assign velocities from a Maxwell–Boltzmann distribution.
@@ -382,6 +389,7 @@ class AtomicStructure:
                     - self._atoms.positions[current_atom]
                 )
                 distance = np.sqrt(NN_vector.dot(NN_vector))
+
 
                 if distance < nearest_distance:
                     nearest_distance = distance

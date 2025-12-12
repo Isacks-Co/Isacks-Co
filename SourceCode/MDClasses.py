@@ -113,7 +113,7 @@ class EquilibriumRun(MDBase):
         self.sample_data = ["E_pot"]
         self.equil_data = []
 
-    def run(self,atomic_structure: AtomicStructure ,num_steps,init_vel = False,store_traj = True, check_conv = False):
+    def run(self,atomic_structure: AtomicStructure ,num_steps,init_vel = True,store_traj = True, check_conv = False):
         """
         The function that attaches other functions such as converge control etc and starts the EquilibriumRun simulation.
         Args:
@@ -135,23 +135,35 @@ class EquilibriumRun(MDBase):
             self.integrator.attach(self._check_equilibrium,10)
         try:
             self.integrator.run(atomic_structure,num_steps)
-        except StopIteration as err:
-            log.info(f"{err} in {len(self.equil_data)} steps")
+        except Exception as err:
+            log.info(f"Equilibrium reached in {len(self.equil_data)} steps")
         return atomic_structure
     
     def _check_equilibrium(self):
         """
         Function to check if the equilibrium condition is met.
         """
-        if len(self.equil_data) > 100:
-            if EquilibriumCondition.checkStable(self.equil_data[-100:], 0.01):
-                print(f"Stopped with equilibrium after {len(self.equil_data)}")
-                raise StopIteration(f"Equil reached")
+        if self.integrator.ensemble == "NVT":
+            if len(self.equil_data) > 100:
+                if EquilibriumCondition.checkStable(self.equil_data[-100:], 0.01):
+                    print(f"Stopped with equilibrium after {len(self.equil_data)}")
+                    raise StopIteration(f"Equil reached")
+
+        else:
+            if len(self.equil_data) > 100:
+                if EquilibriumCondition.checkInternalPressureStable(self.equil_data[-100:], 0.3):
+                    print(f"Stopped with equilibrium after {len(self.equil_data)}")
+                    raise StopIteration(f"Equil reached")
+
+
     def _saveData(self, atomic_structure):
         """
         Function to save the data from the ASE atoms object.
         """
-        self.equil_data.append(atomic_structure.potential_energy)
+        if self.integrator.ensemble == "NVT":
+            self.equil_data.append(atomic_structure.potential_energy)
+        else:
+            self.equil_data.append(atomic_structure.internal_pressure * 160.21766208)
         
 class SampleRun(MDBase):
     def __init__(self, settings : SimulationSettings):

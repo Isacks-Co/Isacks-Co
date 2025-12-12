@@ -162,7 +162,7 @@ class PreProcessing:
         potential = self.getPotential()
         NEED_STRETCH = ["Moduli", "Debye"]
 
-        self.npt_settings = SimulationSettings(num_steps=2000, potential=potential,
+        self.npt_settings = SimulationSettings(num_steps=10000, potential=potential,
                                                  integrator=self.getIntegrator("NPT"), ensemble = "NPT", sample_nn = False)
 
         nn_sample_necessary = True if "L_crit" in self.settings["Compute_quantities"] else False
