@@ -8,6 +8,6 @@
   "Input_structure" : "../AtomicStructure/Au.poscar",
 
 
-  "Find_equilibrium" : false,
-  "Compute_quantities" : ["E_coh", "Moduli", "Lat_const", "CVT", "Debye", "MSD", "D"]
+  "Find_equilibrium" : true,
+  "Compute_quantities" : ["E_coh", "Moduli", "Lat_const", "CVT", "Debye", "MSD", "D", "L_crit"]
 }

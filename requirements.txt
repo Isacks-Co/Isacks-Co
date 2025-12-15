@@ -1,0 +1,8 @@
+numpy
+scipy
+cython
+matplotlib
+ase
+asap3
+pandas
+mace-torch
