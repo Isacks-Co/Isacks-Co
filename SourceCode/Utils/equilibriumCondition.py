@@ -39,7 +39,6 @@ class EquilibriumCondition:
         """
 
         mean_pressure = np.mean(list_of_internal_pressure)
-        print(mean_pressure)
         return  (np.isclose(mean_pressure, 0, atol=tol))
 
     @staticmethod

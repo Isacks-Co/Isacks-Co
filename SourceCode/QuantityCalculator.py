@@ -83,33 +83,6 @@ class QuantityCalculator:
 
         return specific_heat
 
-    @staticmethod
-    def computeSpecificHeatNVE(E_kin_seq, total_mass_amu, T):
-        """
-        Compute specific heat capacity from kinetic energy fluctuations (NVE).
-
-        Parameters
-        ----------
-        E_kin_seq : array-like
-            Kinetic energy time series (typically in eV).
-        total_mass_amu : float
-            Total mass of the system in atomic mass units (amu).
-        T : float
-            Temperature in Kelvin (used in the fluctuation expression).
-
-        Returns
-        -------
-        float
-            Specific heat capacity in eV/(amu·K), assuming energies are in eV.
-        """
-
-        e_kin_mean = np.mean(E_kin_seq)
-        e_kin_2_mean = np.mean(np.array(E_kin_seq) ** 2)
-
-        specific_heat = (3 * kB / 2) * 1 / (
-                    1 - (2 / (3 * (kB * T) ** 2) * (e_kin_2_mean - e_kin_mean ** 2))) / total_mass_amu
-
-        return specific_heat
 
     @staticmethod
     def computeSelfDiffusionCoefficient(msd_list, sample_spacing):
