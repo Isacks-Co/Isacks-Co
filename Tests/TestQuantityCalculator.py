@@ -32,10 +32,6 @@ from QuantityConstants import E_TOT_SEQ_NVT, E_TOT_SEQ_NVE, MSD_SEQ, C_MATRIX
 from TestBase import TestBase
 from Utils.unitConversions import GPascalToAu, auToGPascal
 from Utils.unitConversions import auToGPascal
-from ase.io.trajectory import Trajectory
-from ase.lattice.cubic import BodyCenteredCubic
-from ase.lattice.cubic import SimpleCubic
-from ase.visualize import view
 from QuantityCalculator import QuantityCalculator
 
 logger = logging.getLogger(__name__)
@@ -75,14 +71,6 @@ class TestQuantityCalculator(TestBase):
         self.assertTrue(abs(heat_capacity - 3.9902E-6) < 4E-6)
         self.assertGreater(heat_capacity, 1E-7)
 
-    @pytest.mark.skip("Not working as intended, on hold")
-    def testSpecificHeatNVE(self):
-        """Test to check that we get reasonable numbers from computeSpecificHeatNVE
-        Expected 0.385 J/g*K or 3.9902E-6 eV/au*K"""
-        heat_capacity = QuantityCalculator.computeSpecificHeatNVE(self.E_tot_seq_NVE, self.total_mass_amu, self.T)
-        logger.debug(f"This is specific heat capacity from NVE data : {heat_capacity}")
-        self.assertTrue(abs(heat_capacity - 3.9902E-6) < 4E-6)
-        self.assertGreater(heat_capacity, 1E-7)
 
     def testSelfDiffusionCoefficient(self):
         """Compute self diffusion coefficient. Can be expanded by data from a melted example as well"""

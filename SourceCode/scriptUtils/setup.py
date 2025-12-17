@@ -42,7 +42,9 @@ if __name__ == "__main__":
     output_files = current_sim / "OutputFiles"
     output_files.mkdir(exist_ok=True)
     # Move structure file
-    shutil.copy(str(structure_file), str(setup_files / "POSCAR"))
+    shutil.copy(f"{str(structure_file)}", f"{str(setup_files)}/atomic_structure.{str(structure_file).rsplit('.', 1)[1]}")
+
+
 
     # Move settings file
     shutil.copy(str(settings_file), str(setup_files / "settings.json"))

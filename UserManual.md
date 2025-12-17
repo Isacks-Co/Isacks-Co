@@ -45,39 +45,69 @@ The settings file consists of the following inputs:
 {
   "Physical_environment" : {"Temperature": 300, "Pressure": 0 },
   "Simulations_config" : {"Timestep": 1,  "Number_of_steps": 10000,  "PBC" : [false, true, false],
-  "Potential": { "Kind": "LJ", "Parameters": {"Material": "Ar","epsilon_eV": 0.0103, "sigma": 3.405, "RC": 2.5, "RO": 0.9}},
-  "Supercells": [9,9,9], "Tdamp": 100, "Pdamp": 1000, "Friction": 0.05
+  "Potential": { "Kind": "LJ", "Parameters": {"Material": "Cu"}},
+  "Supercells": [6,6,6], "Compressibility": 0.0073, "Friction": 0.05
   },
 
-  "Input_structure" : "../AtomicStructure/test.cif",
-  
+  "Input_structure" : "../AtomicStructure/Cu.cif",
+
+
   "Find_equilibrium" : true,
-  "Compute_quantities" : ["E_coh", "B", "Lat_const", "CVT", "Debye", "MSD", "L_crit"]
+  "Compute_quantities" : ["E_coh", "Moduli", "Lat_const", "CVT", "Debye", "MSD", "D"]
 }
+
 
 ```
 ### Parameters:
 - Physical environment
-  - Temperature -  As a positive float (K) * 
+  - Temperature -  As a positive float (K) 
   - Pressure -  As a float (Pa) 
 
-  - Timestep - Time step as a float (fs) *
-  - Number_of_steps -  As an integer; Total number of steps as an integer *
+  - Timestep - Time step as a float (fs) 
+  - Number_of_steps -  As an integer; Total number of steps as an integer 
   - PBC - As a 1x3 list of booleans; Periodic boundary conditions in x,y,z direction
 - Potential
-  - Kind - As a string;  Which interatomic potential; LJ (Lennard Jones), EMT, MACE *
+  - Kind - As a string;  Which interatomic potential; LJ (Lennard Jones), EMT, MACE 
   - Parameters - Input parameters for Lennard Jones potential incl. Material, epsilon, sigma
 - Supercells 
-    - Supercell size - As a 1x3 list of integers; If you want a supercell the value 3 gives a 3 x 3 x 3 supercell. For a single unit cell use 0. *  
+    - Supercell size - As a 1x3 list of integers; If you want a supercell the value 3 gives a 3 x 3 x 3 supercell. For a single unit cell use 0. 
     - Friction -As a float;  Factor to describe the interaction with the thermostat/heat bath
 - Input structure - As a path; The cif/POSCAR file containing the atomic configuration
 
 - Find equilibrium - As a boolean; 
 - Compute quantities; As a list of strings; Containing all quantities that should be calculated
 
-For all calculations the settings with (*) are required. For NPT, pressure and compressibility are also required. For NVT, friction is required. If a setting is missing.
+For NPT, pressure and compressibility are also required. For NVT, friction is required. If a setting is missing.
 
+## Terminal inputs
+These are the different flags used for changing parameters through the terminal.
+```text
+positional arguments:
+  input_settings                           Path to settings file
 
+options:
+  -h, --help                               show this help message and exit
+  -PE, --Physical_environment              Dict of temperature and pressure
+  -SC, --Simulations_config                Simulation-specific settings
+  -IS, --Input_structure                   Initial structure of material to be simulated
+  -CQ, --Compute_quantities                List of abbreviations for quantities to compute
+  -E, --Ensemble <ENSEMBLE>                Ensemble (NVE, NPT, NVT)
+  -T, --Temperature <TEMPERATURE>          Temperature in K
+  -P, --Pressure <PRESSURE>                Pressure in Pa
+  -PBC <PBC>                               PBC in each direction as a list of booleans
+  -POT, --Potential <POTENTIAL>            Potential as a string (EMT, LJ, MACE)
+  -TS, --Timestep <TIMESTEP>               Timestep as a float (fs)
+  -C, --Compressibility <TIMESTEP>         Compressibility as a float (GPA)
+  -µ, --Friction <FRICTION>                Friction coefficent as a float (For NVT)
+  -TD, --Tdamp <TDAMP>                     Tdamp as a float (For NPT)
+  -PD, --Pdamp <PDAMP>                     Pdamp as a float (For NPT)
+  -S, --Supercells <SUPERCELL>             Repetition of input cell e.g [3,3,3], use [1,1,1] for
+                                           only unit cell
+  -O, --Output_file <PATH>                 Path to where the output file will be written
+  -N, --Number_of_steps <NUMBER_OF_STEPS>  Total number of timesteps as an integer
+  --debug                                  Debug
+  -FE, --Find_equilibrium BOOL             Bool of whether to find equilibrium or not
+```
 ## POSCAR
 This file includes the atomic configuration. It follows the VASP standard. 
 Below follows a minimal example.

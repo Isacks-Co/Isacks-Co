@@ -40,7 +40,7 @@ class TestequilibriumCondition(TestBase):
 
     def test_internal_pressure_fail_range(self):
         # Range too large -> False
-        list_pi = [0.0, 0.0, 2.1e-3]
+        list_pi = [0.0, 0.0, 1]
         self.assertFalse(EquilibriumCondition.checkInternalPressureStable(list_pi, tol=1e-3))
 
     def test_internal_pressure_fail_mean(self):

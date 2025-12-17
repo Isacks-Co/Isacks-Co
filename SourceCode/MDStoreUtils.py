@@ -25,14 +25,24 @@ from DBClasses import MDDefectCell, MDScreenResult, MDAbadParameters
 
 def saveMDDefectCell(store, host_name, defect_name, defect_key, structure):
     """
-    Wrapper to save MDDefectCell object to backend database.
-    Args:
-        store (SqlStore): the store object is connected to the backend database and allows for data to be extracted
-            and stored.
-        host_name (str): The name of the host material.
-        defect_name (str): The name of the defect material.
-        defect_key (str): The key of the defect material.
-        structure (MDDefectCell): the structure of the defect material.
+    Save an :class:`DBClasses.MDDefectCell` entry to the database.
+
+    Parameters
+    ----------
+    store : SqlStore
+        Store object connected to the backend database.
+    host_name : str
+        Name/identifier of the host material.
+    defect_name : str
+        Name/identifier of the defect configuration.
+    defect_key : str or int
+        Defect key identifier. Converted to ``int`` before storing.
+    structure
+        Defect structure object stored in the ``defect_structure`` field.
+
+    Returns
+    -------
+    None
     """
     cell = MDDefectCell(
         host_name=host_name,
@@ -45,12 +55,20 @@ def saveMDDefectCell(store, host_name, defect_name, defect_key, structure):
 
 def saveMDScreenResult(store, defect_key, total_energy):
     """
-    Wrapper to save MDScreenResult object to backend database.
-    Args:
-        store (SqlStore): the store object is connected to the backend database and allows for data to be extracted
-            and stored.
-        defect_key (str): The key of the defect material.
-        total_energy (float): The total energy of the defect material.
+    Save an :class:`DBClasses.MDScreenResult` entry to the database.
+
+    Parameters
+    ----------
+    store : SqlStore
+        Store object connected to the backend database.
+    defect_key : str or int
+        Defect key identifier. Converted to ``int`` before storing.
+    total_energy : float
+        Total energy value stored as ``total_energy_coarse``.
+
+    Returns
+    -------
+    None
     """
     result = MDScreenResult(
         defect_key=int(defect_key),
@@ -61,15 +79,26 @@ def saveMDScreenResult(store, defect_key, total_energy):
 
 def saveMDAbadParameters(store, defect_key, depth, expansion_factor, defect_index, lattice_constant):
     """
-    Wrapper to save MDAbadParameters object to backend database.
-    Args:
-        store (SqlStore): the store object is connected to the backend database and allows for data to be extracted
-            and stored.
-        defect_key (str): The key of the defect material.
-        depth (int): The depth of the defect position in the material.
-        expansion_factor (float): The expansion factor of the post MD material compared to the pre MD material.
-        defect_index (int): The index of the defect.
-        lattice_constant (float): The lattice constant.
+    Save an :class:`DBClasses.MDAbadParameters` entry to the database.
+
+    Parameters
+    ----------
+    store : SqlStore
+        Store object connected to the backend database.
+    defect_key : str or int
+        Defect key identifier stored as ``key``.
+    depth : float
+        Defect depth metric (typically along the z-direction).
+    expansion_factor : float
+        Relative expansion measure used to detect unstable/"exploded" runs.
+    defect_index : int
+        Index of the defect atom.
+    lattice_constant : float
+        Lattice constant metric used in later analysis.
+
+    Returns
+    -------
+    None
     """
     params = MDAbadParameters(
         key=defect_key,
@@ -83,9 +112,16 @@ def saveMDAbadParameters(store, defect_key, depth, expansion_factor, defect_inde
 
 def CommitAndClose(backend):
     """
-    Function to commit changes and close the backend database.
-    Args:
-        backend : Connection to the database.
+    Commit pending changes and close the database backend.
+
+    Parameters
+    ----------
+    backend
+        Database backend connection object providing ``commit()`` and ``close()``.
+
+    Returns
+    -------
+    None
     """
     backend.commit()
     backend.close()

@@ -69,15 +69,12 @@ class DataTrajectory:
         with open(f"sampledata.txt", "w") as f:
             # HEADER
             f.write(f"{self.initial_atoms.label}\n")
-            # f.write(f"Ensemble: {self.settings.ensemble}\n")
-
-            # f.write(f"\n")
 
             # DATA
 
             f.write(f'{"time":<{col_width}}')
             f.write(f"".join(f"{label:<{col_width}}" for label in self._frames[0].keys) + "\n")
-            for frame in self._frames[500:]:
+            for frame in self._frames[100:]:
                 f.write(f"{frame.time:<{col_width}}")
                 f.write(f"".join(f"{data:<{col_width}}" for data in frame.vals) + "\n")
 

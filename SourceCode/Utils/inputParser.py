@@ -65,7 +65,7 @@ class InputParser():
         self.argparser.add_argument("-PE", "--Physical_environment", help="Dict of temperature and pressure")
         self.argparser.add_argument("-SC", "--Simulations_config", help="Simulation-specific settings")
         self.argparser.add_argument("-IS", "--Input_structure", help="Initial structure of material to be simulated")
-        self.argparser.add_argument("-FE", "--Find_equilibrium", help="Bool of whether to find equilibrium or not")
+        
         self.argparser.add_argument("-CQ", "--Compute_quantities", help="List of abbreviations for quantities to compute")
         #self.argparser.add_argument("input_structure", help="Path for atomic configuration")
         self.argparser.add_argument("input_settings", help="Path to settings file")
@@ -73,16 +73,18 @@ class InputParser():
         self.argparser.add_argument("-E", "--Ensemble", metavar="<ENSEMBLE>", type=str, help="Ensemble (NVE, NPT, NVT)")
         self.argparser.add_argument("-T", "--Temperature", metavar="<TEMPERATURE>", type=float, help="Temperature in K")
         self.argparser.add_argument("-P", "--Pressure", metavar="<PRESSURE>", type=float, help="Pressure in Pa")
+        self.argparser.add_argument("-PBC", metavar="<PBC>", type=self.parseList, help="PBC in each direction as a list of booleans")
+
         self.argparser.add_argument("-POT", "--Potential", metavar="<POTENTIAL>", type=str,
                                     help="Potential as a string (EMT, LJ, MACE)")
         self.argparser.add_argument("-TS", "--Timestep", metavar="<TIMESTEP>", type=float,
                                     help="Timestep as a float (fs)")
+        self.argparser.add_argument("-C", "--Compressibility", metavar="<TIMESTEP>", type=float,
+                                    help="Compressibility as a float (GPA)")
         self.argparser.add_argument("-µ", "--Friction", metavar="<FRICTION>", type=float,
                                     help="Friction coefficent as a float (For NVT)")
         self.argparser.add_argument("-TD", "--Tdamp", metavar="<TDAMP>", type=float, help="Tdamp as a float (For NPT)")
         self.argparser.add_argument("-PD", "--Pdamp", metavar="<PDAMP>", type=float, help="Pdamp as a float (For NPT)")
-        self.argparser.add_argument("-SI", "--Sample_interval", metavar="<INTERVAL>", type=int,
-                                    help="Sample frequency as an integer")
         self.argparser.add_argument("-S", "--Supercells", metavar="<SUPERCELL>", type=self.parseList,
                                     help="Repetition of input cell e.g [3,3,3], use [1,1,1] for only unit cell")
         self.argparser.add_argument("-O", "--Output_file", metavar="<PATH>", type=str,
@@ -90,6 +92,7 @@ class InputParser():
         self.argparser.add_argument("-N", "--Number_of_steps", metavar="<NUMBER_OF_STEPS>", type=str,
                                     help="Total number of timesteps as an integer")
         self.argparser.add_argument("--debug", action="store_true", help="Debug")
+        self.argparser.add_argument("-FE", "--Find_equilibrium", type=bool, help="Bool of whether to find equilibrium or not")
 
     def parseList(self, arg):
         """Help function to make sure list arguments are working."""
@@ -100,7 +103,7 @@ class InputParser():
             else:
                 raise argparse.ArgumentTypeError("Input must be a list")
         except Exception:
-            raise argparse.ArgumentTypeError(f"Invalid list: {arg}")
+            raise argparse.ArgumentTypeError(f"Invalid list: {arg} (Can't be blank spaces in the list)")
 
 
 if __name__ == "__main__":

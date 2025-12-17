@@ -30,7 +30,7 @@ from ASEWrappers import LangevinIntegrator, MACEPotential, AtomicStructure
 from MDClasses import EquilibriumRun
 from httk.external import ase_glue
 
-if __name__ == "__main__":
+def main():
 
     """
     Runs the high-throughput program.
@@ -40,7 +40,6 @@ if __name__ == "__main__":
     # Adjustable parameters
     num_steps = 3000
     temp_k = 0
-    friction = 0.1
     time_steps = 1
 
     log = logging.getLogger(__name__)
@@ -71,7 +70,7 @@ if __name__ == "__main__":
     try:
         atomic_structure = AtomicStructure.fromFile(path=poscar_path, potential=mace_potential)
         # Get lattice parameter
-        cell = atomic_structure.cell
+        cell = atomic_structure.cellpar
         a_len, b_len = np.linalg.norm(cell[0]), np.linalg.norm(cell[1])
         lattice_constant =  (a_len + b_len) / 2
 
@@ -124,6 +123,8 @@ if __name__ == "__main__":
             "lattice_constant": lattice_constant,
         }
     }
-
-with open("result.json", "w", encoding="utf-8") as f:
-    f.write(json.dumps(result, indent=4))
+    return result
+if __name__=="__main__":
+    result = main()
+    with open("result.json", "w", encoding="utf-8") as f:
+        f.write(json.dumps(result, indent=4))

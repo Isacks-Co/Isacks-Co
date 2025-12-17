@@ -38,9 +38,20 @@ by wrapping up some of the complexities ASEs
 interface results in. 
 """
 
-
 class Integrator:
+    """Base class for all molecular dynamics integrators.
+
+    This class defines the common interface for ASE-based integrators,
+    including timestep handling, attachment of callback functions, and
+    running integration loops.
+    """
+
     def __init__(self, timestep):
+        """Initialize the integrator.
+
+        Args:
+            timestep (float): Integration timestep (in femtoseconds).
+        """
         self.timestep = timestep
         self.atoms = None
         self.integrator_partial = None
@@ -48,80 +59,161 @@ class Integrator:
 
     @property
     def ensemble(self):
+        """str: Thermodynamic ensemble associated with the integrator."""
         return None
 
     def attach(self, attachment, interval):
+        """Attach a callback function to the integrator.
+
+        Args:
+            attachment (callable): Function executed every `interval` steps.
+            interval (int): Number of steps between calls.
+        """
         self.attachments.append((attachment, interval))
 
     def _addAttachments(self, integrator):
+        """Register all stored attachments with the ASE integrator.
+
+        Args:
+            integrator: ASE integrator instance that supports attach().
+        """
         for func, interval in self.attachments:
             integrator.attach(func, interval=interval)
 
     def run(self, atomic_structure, steps):
+        """Run the integrator on the provided atomic structure.
+
+        Args:
+            atomic_structure (AtomicStructure): Structure to integrate.
+            steps (int): Number of MD steps to perform.
+        """
         with suppress_cpp_output():
-            integrator_func = deepcopy(self.integrator_partial)(atomic_structure.getAtoms())
+            integrator_func = deepcopy(self.integrator_partial)(
+                atomic_structure.getAtoms()
+            )
 
             self._addAttachments(integrator_func)
-
             integrator_func.run(steps)
+
         self.clearData()
 
     def clearData(self):
+        """Reset stored atoms and clear attachment list."""
         self.atoms = None
         self.attachments = []
 
-    def __str__(self):  # TODO Expand on this
+    def __str__(self):
+        """Return the ensemble name.
+
+        Returns:
+            str: Ensemble string (e.g., "NVE", "NVT", "NPT").
+        """
         return self.ensemble
 
 
 class VelocityVerletIntegrator(Integrator):
+    """Velocity-Verlet molecular dynamics integrator (NVE ensemble)."""
+
     def __init__(self, timestep):
+        """Initialize Velocity Verlet integrator.
+
+        Args:
+            timestep (float): Integration timestep (fs).
+        """
         super().__init__(timestep=timestep)
         self.integrator_partial = partial(VelocityVerlet, timestep=self.timestep * fs)
 
     @property
     def ensemble(self):
+        """str: Thermodynamic ensemble (NVE)."""
         return "NVE"
 
 
 class LangevinIntegrator(Integrator):
+    """Langevin molecular dynamics integrator (NVT ensemble)."""
+
     def __init__(self, timestep, temperature_K, friction):
+        """Initialize Langevin integrator.
+
+        Args:
+            timestep (float): Integration timestep (fs).
+            temperature_K (float): Target temperature (K).
+            friction (float): Friction coefficient (1/fs).
+        """
         super().__init__(timestep=timestep)
         self.temperature_K = temperature_K
         self.friction = friction
-        self.integrator_partial = partial(Langevin, timestep=self.timestep * fs, temperature_K=self.temperature_K,
-                                          friction=self.friction / fs)
+        self.integrator_partial = partial(
+            Langevin,
+            timestep=self.timestep * fs,
+            temperature_K=self.temperature_K,
+            friction=self.friction / fs
+        )
 
     @property
     def ensemble(self):
+        """str: Thermodynamic ensemble (NVT)."""
         return "NVT"
 
 
 class IsotropicMTKNPTIntegrator(Integrator):
+    """MTK NPT integrator with isotropic cell fluctuations (NPT ensemble)."""
+
     def __init__(self, timestep, temperature_K, pressure, tdamp, pdamp):
+        """Initialize MTK NPT integrator.
+
+        Args:
+            timestep (float): Integration timestep (fs).
+            temperature_K (float): Target temperature (K).
+            pressure (float): Target pressure (GPa).
+            tdamp (float): Temperature damping time (fs).
+            pdamp (float): Pressure damping time (fs).
+        """
         super().__init__(timestep=timestep)
         self.temperature_K = temperature_K
         self.pressure = pressure
         self.tdamp = tdamp
         self.pdamp = pdamp
-        self.integrator_partial = partial(IsotropicMTKNPT, timestep=self.timestep * fs,
-                                          temperature_K=self.temperature_K,
-                                          pressure_au=self.pressure * GPa, tdamp=self.tdamp, pdamp=self.pdamp)
+        self.integrator_partial = partial(
+            IsotropicMTKNPT,
+            timestep=self.timestep * fs,
+            temperature_K=self.temperature_K,
+            pressure_au=self.pressure * GPa,
+            tdamp=self.tdamp,
+            pdamp=self.pdamp
+        )
 
     @property
     def ensemble(self):
+        """str: Thermodynamic ensemble (NPT)."""
         return "NPT"
 
 
 class BerendsenNPTIntegrator(Integrator):
+    """Berendsen NPT integrator (NPT ensemble)."""
+
     def __init__(self, timestep, temperature_K, pressure, compressibility):
+        """Initialize Berendsen NPT integrator.
+
+        Args:
+            timestep (float): Integration timestep (fs).
+            temperature_K (float): Target temperature (K).
+            pressure (float): Target pressure (GPa).
+            compressibility (float): Compressibility (1/GPa).
+        """
         super().__init__(timestep=timestep)
         self.temperature_K = temperature_K
         self.pressure = pressure
         self.compressibility = compressibility
-        self.integrator_partial = partial(NPTBerendsen, timestep=self.timestep * fs, temperature_K=self.temperature_K,
-                                          pressure_au=self.pressure * GPa, compressibility=self.compressibility / GPa)
+        self.integrator_partial = partial(
+            NPTBerendsen,
+            timestep=self.timestep * fs,
+            temperature_K=self.temperature_K,
+            pressure_au=self.pressure * GPa,
+            compressibility_au=self.compressibility / GPa
+        )
 
     @property
     def ensemble(self):
+        """str: Thermodynamic ensemble (NPT)."""
         return "NPT"

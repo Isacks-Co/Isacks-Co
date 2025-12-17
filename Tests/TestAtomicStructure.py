@@ -61,7 +61,7 @@ class TestAtomicStructure(TestBase):
         assert self.CU_struct.label[0:2] == "Cu"
 
     def testCohesive_energy(self):
-        assert np.isclose(self.CU_struct.cohesive_energy, 3.5, atol=0.1)
+        assert np.isclose(self.CU_struct.cohesive_energy(), 3.5, atol=0.1)
 
 
 if __name__ == "__main__":

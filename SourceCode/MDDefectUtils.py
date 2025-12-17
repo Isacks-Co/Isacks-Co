@@ -28,10 +28,17 @@ from DBClasses import MDDelta, MDScreenResult
 
 def getAllDefectKeys(store):
     """
-    Function to get all defect keys from DefectCell.
-    Args:
-        store (SqlStore): the store object is connected to the backend database and allows for data to be extracted
-            and stored.
+    Get all defect keys from :class:`classes.DefectCell`.
+
+    Parameters
+    ----------
+    store : SqlStore
+        Store connected to the backend database.
+
+    Returns
+    -------
+    set[tuple[str, str, int]]
+        Set of ``(host_name, defect_name, key)`` tuples.
     """
     search = store.searcher()
     search_defectcell = search.variable(DefectCell)
@@ -52,6 +59,14 @@ def getAllDefectKeys(store):
 
 
 def getMDKeys(store):
+    """
+    Function to get all keys from MDScreenResult table.
+    Args:
+        store (SqlStore): the store object is connected to the backend database and allows for data to be extracted
+            and stored.
+    Returns:
+        all_md_keys (list) : A list of all the defect keys from the MDScreenResult table.
+    """
     search = store.searcher()
     search_MD_cell = search.variable(MDScreenResult)
 
@@ -67,6 +82,14 @@ def getMDKeys(store):
 
 
 def getDelta(store):
+    """
+    Function to get all delta values from the Delta table.
+    Args:
+        store (SqlStore): the store object is connected to the backend database and allows for data to be extracted
+            and stored.
+    Returns:
+        delta (list) : A list containing all the host and defect names from the Delta table.
+    """
     search = store.searcher()
     search_delta = search.variable(Delta)
     search.output(search_delta.host, "host")
@@ -83,6 +106,14 @@ def getDelta(store):
 
 
 def getMDDelta(store):
+    """
+    Function to get all delta values from the MDDelta table.
+    Args:
+        store (SqlStore): the store object is connected to the backend database and allows for data to be extracted
+            and stored.
+    Returns:
+        MDDelta (list) : A list of tuples containing all the finished delta calculations delta_host and delta_defect.
+    """
     search = store.searcher()
     search_MD_delta = search.variable(MDDelta)
     search.output(search_MD_delta.host, "host")
@@ -99,6 +130,15 @@ def getMDDelta(store):
 
 
 def notDoneMDRuns(store):
+    """
+    Function to compare all keys from DefectCell and MDScreenResult to find out which simulations that have not been
+    completed.
+    Args:
+        store (SqlStore): the store object is connected to the backend database and allows for data to be extracted
+            and stored.
+    Returns:
+        missing_keys (set) : A set of keys belonging to simulations not completed.
+    """
     defect_keys = getAllDefectKeys(store)
     md_keys = getMDKeys(store)
 
@@ -108,6 +148,15 @@ def notDoneMDRuns(store):
 
 
 def notDoneDelta(store):
+    """
+    Function to compare all delta values between DefectCell and MDScreenResult to find out which simulations that
+    have not been completed.
+    Args:
+        store (SqlStore): the store object is connected to the backend database and allows for data to be extracted
+            and stored.
+    Returns:
+        missing_keys (set) : A set of keys that have not been completed.
+    """
     delta = getDelta(store)
     MD_delta = getMDDelta(store)
 

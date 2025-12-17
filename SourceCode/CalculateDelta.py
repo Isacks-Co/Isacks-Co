@@ -31,21 +31,35 @@ from MDDefectUtils import notDoneMDRuns, notDoneDelta
 from MDStoreUtils import CommitAndClose
 
 
-def getDopant(defect_name):  # might be easier to use (or less chaotic)
+def getDopant(defect_name):
+    """
+    Extract dopant identifier from a defect name string.
+
+    The dopant is assumed to be the prefix of the defect name before the first
+    underscore.
+
+    Parameters
+    ----------
+    defect_name : str
+        Defect name string, e.g. ``"C_ads0"`` or ``"C_int2"``.
+
+    Returns
+    -------
+    str
+        Dopant identifier (prefix before the first underscore).
+    """
     return re.match(r"^([^_]+)", defect_name).group(1)
 
 
 INF = 10000000
-
-delta_to_push = []
-
-backend = httk.db.backend.Sqlite('../../defect/defects.sqlite')
+# Open SQLite database and create store/searcher interface
+backend = httk.db.backend.Sqlite('../../defects_result.sqlite')
 store = httk.db.store.SqlStore(backend)
 search = store.searcher()
 
 search_hosts = search.variable(DefectInfo)
 search.output(search_hosts, "hosts")
-
+# Collect all unique host materials and dopant identifiers present in DefectInfo
 host_list = []
 dopant_list = []
 
@@ -60,7 +74,7 @@ for match in search:
 
     if dopant not in dopant_list:
         dopant_list.append(dopant)
-
+# Determine which MD runs and deltas are missing so we can skip incomplete pairs
 missing_runs = notDoneMDRuns(store)
 missing_delta = notDoneDelta(store)
 
@@ -135,15 +149,12 @@ for host in host_list:
         print(
             f"Delta for {host} - {dopant} : {delta} eV, with material {interstital_defect if delta < 0 else adatom_defect}.")
 
-        delta_to_push.append(MDDelta(
+        store.save(MDDelta(
             host=host,
             dopant=dopant,
             defect=interstital_defect if delta < 0 else adatom_defect,
             key=interstital_key if delta < 0 else adatom_key,
             delta=delta,
         ))
-
-for delta in delta_to_push:
-    store.save(delta)
 
 CommitAndClose(backend)
