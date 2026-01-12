@@ -8,7 +8,6 @@ import httk.db
 from ase.io import read
 from optimade.adapters.structures.ase import from_ase_atoms
 from optimade.models.structures import StructureResource
-from DataBase_scripts.export_MongoDB_to_json import export_MongoDB_to_json
 from datetime import datetime, timezone
 
 client = pymongo.MongoClient("mongodb://localhost:27017/")
@@ -84,5 +83,3 @@ for d in leaf_dirs:
 
 CommitAndClose(backend)
 result = collection.insert_many(optimade_list, ordered=False)
-
-#export_MongoDB_to_json()    # If we want to export the entire database to a JSON file right away. Not sure abt this tho.

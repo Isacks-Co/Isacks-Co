@@ -32,14 +32,17 @@ from ase.db import connect
 
 from httk.db.backend import Sqlite
 from httk.db.store import SqlStore
-from abad_classes import Delta  # your Delta class
+import sys
+sys.path.append("../SourceCode")
+
+from DBClasses import MDDelta, MDAbadParameters
+
 
 
 # ============================================================
 # CONFIG: paths to current databases
 # ============================================================
-DEFECTS_DB_PATH = "defects.sqlite"
-IMP2D_DB_PATH   = "imp2d.db"
+DEFECTS_DB_PATH = "../../2D_defects.sqlite"
 
 # ============================================================
 # 1. Periodic table groups and period panels (Fig. 3 layout)
@@ -107,93 +110,52 @@ def load_deltas_from_defects(defects_db=DEFECTS_DB_PATH):
     store = SqlStore(backend)
 
     search = store.searcher()
-    search_delta = search.variable(Delta)
-    search.output(search_delta, "delta")
+    search_delta = search.variable(MDDelta)
+    search_abad = search.variable(MDAbadParameters)
+    search.add(search_delta.key == search_abad.key)
+    search.output(search_delta, "MDDelta")
+    search.output(search_abad, "MDAbadParameters")
 
     dopants = []
     hosts = []
     delta_vals = []
+    lattice_const = []
 
-    for match in search:
-        delta_obj = match[0][0]
+    for match, header in search:
+        delta_obj = match[0]
+        abad_obj = match[1]
+
         dopants.append(delta_obj.dopant)
         hosts.append(delta_obj.host)
         delta_vals.append(float(delta_obj.delta))
+        lattice_const.append(float(abad_obj.lattice_constant))
 
-    return np.array(dopants), np.array(hosts), np.array(delta_vals, dtype=float)
-
-
-def compute_a_mean_from_row(row):
-    atoms = row.toatoms()
-    a_super, b_super, _ = atoms.get_cell().lengths()
-
-    L = row.get("repeat_x") or row.get("nx") or 3
-    M = row.get("repeat_y") or row.get("ny") or 3
-
-    a_prim = a_super / L
-    b_prim = b_super / M
-    return 0.5 * (a_prim + b_prim)
-
-
-def build_host_a_mean_map(imp2d_db=IMP2D_DB_PATH):
-    """
-    CURRENT IMPLEMENTATION:
-      a_mean(host) from supercell in imp2d.db.
-
-    LATER:
-      If you want to use your own a_mean, replace THIS to
-      return a dict: host_name -> a_mean.
-    """
-    db = connect(imp2d_db)
-    host_to_a_mean = {}
-
-    for row in db.select():
-        host = row.get("host")
-        if not host:
-            continue
-        if host in host_to_a_mean:
-            continue  # already set
-
-        try:
-            a_mean = compute_a_mean_from_row(row)
-        except Exception:
-            continue
-
-        host_to_a_mean[host] = float(a_mean)
-
-    return host_to_a_mean
+    return np.array(dopants), np.array(hosts), np.array(delta_vals, dtype=float), np.array(lattice_const, dtype=float)
 
 
 def prepare_delta_plot_data(
-    defects_db=DEFECTS_DB_PATH,
-    imp2d_db=IMP2D_DB_PATH
+    defects_db=DEFECTS_DB_PATH
 ):
     """
     Combine Δ(H,X) and a_mean(host) into arrays for plotting.
 
     CURRENT:
       - Δ from defects.sqlite
-      - a_mean from imp2d.db
     """
-    dopants_raw, hosts_raw, deltas_raw = load_deltas_from_defects(defects_db)
-    host_to_a_mean = build_host_a_mean_map(imp2d_db)
+    dopants_raw, hosts_raw, deltas_raw, lattice_raw = load_deltas_from_defects(defects_db)
 
     dopants = []
     deltas = []
     a_means = []
 
-    for d, h, val in zip(dopants_raw, hosts_raw, deltas_raw):
+    for d, h, val, a in zip(dopants_raw, hosts_raw, deltas_raw, lattice_raw):
         # element must be in GROUP_TABLE (we only plot those)
         if d not in GROUP_TABLE:
             continue
 
-        # host filtering (to match paper, if you want)
-        if HOST_WHITELIST is not None and h not in HOST_WHITELIST:
-            continue
-
-        a = host_to_a_mean.get(h)
         if a is None:
             continue
+        a /= 3
 
         dopants.append(d)
         deltas.append(val)
@@ -212,10 +174,9 @@ def prepare_delta_plot_data(
 
 def plot_by_period_panels_from_delta(
     filename="DeltaPlot.png",
-    defects_db=DEFECTS_DB_PATH,
-    imp2d_db=IMP2D_DB_PATH
+    defects_db=DEFECTS_DB_PATH
 ):
-    dopants, deltas, a_means = prepare_delta_plot_data(defects_db, imp2d_db)
+    dopants, deltas, a_means = prepare_delta_plot_data(defects_db)
 
     if deltas.size == 0:
         print("No Δ data found – check filters or DB paths.")
@@ -249,6 +210,7 @@ def plot_by_period_panels_from_delta(
     if n_panels == 1:
         axes = [axes]
 
+    top_axis = True
     for ax, panel in zip(axes, PERIOD_PANELS):
         panel_dopants_for_ticks = [d for d in panel if d in GROUP_TABLE]
         panel_dopants_with_data = [
@@ -348,8 +310,10 @@ def plot_by_period_panels_from_delta(
         ax.set_xticklabels(panel_dopants_for_ticks)
 
         # top: group numbers
-        top = ax.secondary_xaxis("top")
-        top.set_xticks(range(1, 19))
+        if top_axis:
+            top = ax.secondary_xaxis("top")
+            top.set_xticks(range(1, 19))
+            top_axis = False
 
         # Colorbar if there is data
         if sc is not None:
@@ -364,7 +328,6 @@ def plot_by_period_panels_from_delta(
         cbar.set_ticks([4, 6])
         cbar.set_ticklabels(["4", "6"])
 
-    fig.suptitle(r"$\Delta(H, X)$", y=0.995)
     plt.tight_layout(rect=[0.06, 0.04, 0.94, 0.96])
     plt.savefig(filename, dpi=300)
     # plt.show()
@@ -376,5 +339,4 @@ if __name__ == "__main__":
     plot_by_period_panels_from_delta(
         filename="Deltaplot.png",
         defects_db=DEFECTS_DB_PATH,
-        imp2d_db=IMP2D_DB_PATH,
     )

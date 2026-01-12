@@ -53,7 +53,7 @@ def getDopant(defect_name):
 
 INF = 10000000
 # Open SQLite database and create store/searcher interface
-backend = httk.db.backend.Sqlite('../../defects_result.sqlite')
+backend = httk.db.backend.Sqlite('../../2D_defects.sqlite')
 store = httk.db.store.SqlStore(backend)
 search = store.searcher()
 
@@ -146,8 +146,8 @@ for host in host_list:
 
         delta = interstital_lowest - adatom_lowest
 
-        print(
-            f"Delta for {host} - {dopant} : {delta} eV, with material {interstital_defect if delta < 0 else adatom_defect}.")
+        # print(
+        #     f"Delta for {host} - {dopant} : {delta} eV, with material {interstital_defect if delta < 0 else adatom_defect}.")
 
         store.save(MDDelta(
             host=host,

@@ -1,13 +1,17 @@
 #!/usr/bin/env python
 import os
 import sys
+sys.path.append("../SourceCode")
 
 import httk
 import httk.db
 import httk.task
+import random
+import string
+
 from classes import DefectCell
 from abad_classes import AbadParameters
-from httk.atomistic import Structure
+from DBClasses import MDScreenResult
 
 
 def get_defect_cif(
@@ -31,7 +35,17 @@ def get_defect_cif(
     backend = httk.db.backend.Sqlite(db_path)
     store = httk.db.store.SqlStore(backend)
     search = store.searcher()
+    search_defect = search.variable(DefectCell)
+    search_screenresult = search.variable(MDScreenResult)
+    search.add(search_defect.key == search_screenresult.defect_key)
+    search.output(search_defect, "defect")
 
+    key_list = []
+    for match, header in search:
+        defect_cell = match[0]
+        key_list.append(defect_cell.key)
+
+    search = store.searcher()
     search_defect = search.variable(DefectCell)
     search_abad = search.variable(AbadParameters)
     host_name_pbe = host_name + "_PBE"
@@ -41,9 +55,13 @@ def get_defect_cif(
     search.output(search_defect, "defect")
     search.output(search_abad, "abad")
 
+
     for match, header in search:
         defect_cell = match[0]
         abad_parameters = match[1]
+
+        if defect_cell.key in key_list:
+            continue
 
         if defect_name is not None:
             if not defect_cell.defect_name.startswith(defect_name):
@@ -51,7 +69,8 @@ def get_defect_cif(
 
         struct = defect_cell.defect_structure
 
-        run_name = f"{host_name_pbe}_{defect_cell.defect_name}"
+        # Add a few random chars because some name duplicates exist in the ADAQ database
+        run_name = f"{defect_cell.host_name}_{defect_cell.defect_name}_{"".join(random.choices(string.ascii_lowercase + string.digits, k=3))}"
 
         dir_path = httk.task.create_batch_task(
             out_root,
@@ -74,7 +93,6 @@ def get_defect_cif(
         with open(key_file_path, "w", encoding="utf-8") as f:
             f.write(str(defect_cell.key))
 
-        
         httk.save(struct, full_path)
 
     backend.close()
@@ -82,11 +100,12 @@ def get_defect_cif(
 
 if __name__ == "__main__":
 
-    hosts = ["HfS2", "Hf2Te6", "H2Ge2", "Ge2", "Cr2I6", "CO2V2", "CO2Ti2", "CNb2O2",
-             "CMo2O2", "C3Nb4","C2H2", "BiITe", "Bi2I6", "As2"] #Check github for your assigned hosts
-    get_defect_cif(
-            host_name=defect_name,
-            db_path="../../defect/defects.sqlite",
-            out_root="../../MD_runs/Runs",
-            template_name="template",
-        )
+    hosts = ["Te4W2"] #Check github for your assigned hosts
+
+    for defect_name in hosts:
+        get_defect_cif(
+                host_name=defect_name,
+                db_path="../../2D_defects.sqlite",
+                out_root="../../MD_runs/Runs",
+                template_name="template",
+            )

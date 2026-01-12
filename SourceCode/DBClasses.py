@@ -201,7 +201,7 @@ class MDAbadParameters(httk.HttkObject):
     The ``httk_typed_init`` schema in the decorator should include
     ``lattice_constant`` if it is intended to be stored in the database.
     """
-    @httk.httk_typed_init({'key': int, 'depth': float, 'expansion_factor': float, 'defect_index': int},
+    @httk.httk_typed_init({'key': int, 'depth': float, 'expansion_factor': float, 'defect_index': int, 'lattice_constant': float},
                           index = ["key"])
     def __init__(self, key, depth, expansion_factor, defect_index, lattice_constant):
         self.key = key
