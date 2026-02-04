@@ -20,7 +20,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-
+import time
 import logging
 import SimulationInput
 import sys
@@ -37,6 +37,7 @@ def main():
     Constant parameters: number of steps, temp_k = 0, friction, time_steps.
     Saves the initial and final configurations in a cif file.
     """
+    pre_time = time.time()
     # Adjustable parameters
     num_steps = 10000
     temp_k = 0
@@ -89,7 +90,7 @@ def main():
     # Run the simulation
 
     equil_MD = EquilibriumRun(settings=settings)
-    equil_structure = equil_MD.run(atomic_structure, settings.num_steps, store_traj = False, check_conv=True, check_expansion=True)
+    equil_structure = equil_MD.run(atomic_structure, settings.num_steps, store_traj = True, check_conv=True, check_expansion=True)
 
     E_post = equil_structure.potential_energy
 
@@ -123,6 +124,8 @@ def main():
             "lattice_constant": lattice_constant,
         }
     }
+    with open("Output.txt", 'a') as o:
+        o.write(f"{time.time()-pre_time}")
     return result
 if __name__=="__main__":
     result = main()
