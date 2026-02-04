@@ -57,7 +57,7 @@ class MDBase:
         self.sample_data = None
         self.run_type = None
 
-    def _storeFrame(self, atomic_strucuture: AtomicStructure, data_traj: DataTrajectory):
+    def _storeFrame(self, atomic_strucuture: AtomicStructure, data_traj: DataTrajectory, interval = 1):
         """
         Sample requested quantities and append a frame to a data trajectory.
 
@@ -74,7 +74,7 @@ class MDBase:
         if len(data_traj) == 0:
             time = 0
         else:
-            time = data_traj[-1].time + self.integrator.timestep
+            time = data_traj[-1].time + self.integrator.timestep * interval
 
         data = {label: self._getAtomsData(atomic_strucuture, label, data_traj.initial_atoms) for label in
                 self.sample_data}
@@ -174,10 +174,10 @@ class EquilibriumRun(MDBase):
     def __init__(self, settings):
         super().__init__(settings)
         self.run_type = "Equil"
-        self.sample_data = ["E_pot"]
+        self.sample_data = ["T", "E_tot", "E_kin", "E_pot", "V", "MSD", "P_internal"]
         self.equil_data = []
 
-    def run(self,atomic_structure: AtomicStructure ,num_steps,init_vel = True,store_traj = True, check_conv = False):
+    def run(self,atomic_structure: AtomicStructure ,num_steps,init_vel = True,store_traj = True, check_conv = False, check_expansion = False):
         """
         Run an equilibration simulation.
 
@@ -205,16 +205,40 @@ class EquilibriumRun(MDBase):
         if store_traj:
             self._SaveASETrajectory(atomic_structure)
 
+        if check_expansion:
+            atoms_pre = atomic_structure.getAtoms()
+            sorted_z_list = sorted([row[2] for row in atoms_pre.get_positions()])
+            pre_height = sorted_z_list[-1] - sorted_z_list[0]
+            self.integrator.attach(lambda: self._check_expansion_factor(atomic_structure, pre_height), 100)
 
         if check_conv:
             self.integrator.attach(lambda: self._saveData(atomic_structure),1)
             self.integrator.attach(self._check_equilibrium,10)
+
+        data_traj = DataTrajectory(atomic_structure)
+        # Save first frame and sample every 100 interval
+        self._storeFrame(atomic_structure, data_traj)
+        self.integrator.attach(lambda: self._storeFrame(atomic_structure, data_traj, interval=100), 100)
+
         try:
+            print("Starting equilibrium simulation")
             self.integrator.run(atomic_structure,num_steps)
-        except Exception as err:
-            log.info(f"Equilibrium reached in {len(self.equil_data)} steps")
+        except Exception:
+            print(f"Equilibrium reached in {len(self.equil_data)} steps")
+
+        data_traj.storeTxtFile(start_sample=0)
         return atomic_structure
-    
+
+    def _check_expansion_factor(self, atomic_structure : AtomicStructure, pre_height : float):
+        """Stops simulation if the cell has doubled in height"""
+        atoms_current = atomic_structure.getAtoms()
+        sorted_z_list = sorted([row[2] for row in atoms_current.get_positions()])
+        current_factor = sorted_z_list[-1] - sorted_z_list[0]
+        expansion_factor = current_factor / pre_height
+        if expansion_factor > 2:
+            print("Expansion factor exceeded 2, simulation stopped")
+            raise StopIteration("Expansion factor exceeded 2, simulation stopped")
+
     def _check_equilibrium(self):
         """
         Check whether equilibrium has been reached.

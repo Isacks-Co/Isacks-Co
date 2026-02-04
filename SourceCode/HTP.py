@@ -38,22 +38,22 @@ def main():
     Saves the initial and final configurations in a cif file.
     """
     # Adjustable parameters
-    num_steps = 3000
+    num_steps = 10000
     temp_k = 0
-    time_steps = 1
+    time_steps = 0.5
 
     log = logging.getLogger(__name__)
 
     poscar_path = sys.argv[1]
     mace_path = sys.argv[2]
     try:
-        lang_int = LangevinIntegrator(time_steps, temp_k, time_steps)
+        lang_int = LangevinIntegrator(time_steps, temp_k, 0.05)
     except Exception as err:
         log.error(f"Integrator cannot be loaded: {err}")
         exit(1)
 
     mace_potential = MACEPotential(mace_path)
-    settings = SimulationInput.SimulationSettings(num_steps, mace_potential, lang_int)
+    settings = SimulationInput.SimulationSettings(num_steps, mace_potential, lang_int, "NVT", False)
     key, defect_index = 0, 0
 
     try:
@@ -69,14 +69,14 @@ def main():
     # Load in the initial structure
     try:
         atomic_structure = AtomicStructure.fromFile(path=poscar_path, potential=mace_potential)
-        # Get lattice parameter
-        cell = atomic_structure.cellpar
-        a_len, b_len = np.linalg.norm(cell[0]), np.linalg.norm(cell[1])
-        lattice_constant =  (a_len + b_len) / 2
 
     except Exception as err:
         log.error(f"Cannot read the atomic structure, check if you have atomic a structure file: {err}")
         exit(1)
+
+    # Get lattice parameter
+    lattice_constant = atomic_structure.lattice_constant
+
     # For the atomic structure from wrapper for the initial structure
     E_pre = atomic_structure.potential_energy
     atomic_structure_atoms = atomic_structure.getAtoms()
@@ -89,7 +89,7 @@ def main():
     # Run the simulation
 
     equil_MD = EquilibriumRun(settings=settings)
-    equil_structure = equil_MD.run(atomic_structure, settings.num_steps, store_traj = False, check_conv=True)
+    equil_structure = equil_MD.run(atomic_structure, settings.num_steps, store_traj = False, check_conv=True, check_expansion=True)
 
     E_post = equil_structure.potential_energy
 
