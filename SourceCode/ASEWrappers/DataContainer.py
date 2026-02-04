@@ -64,7 +64,7 @@ class DataTrajectory:
     def append(self, frame: Frame):
         self._frames.append(frame)
 
-    def storeTxtFile(self):
+    def storeTxtFile(self, start_sample=100):
         col_width = 30  # Should work fine with current number of decimals
         with open(f"sampledata.txt", "w") as f:
             # HEADER
@@ -74,7 +74,7 @@ class DataTrajectory:
 
             f.write(f'{"time":<{col_width}}')
             f.write(f"".join(f"{label:<{col_width}}" for label in self._frames[0].keys) + "\n")
-            for frame in self._frames[100:]:
+            for frame in self._frames[start_sample:]:
                 f.write(f"{frame.time:<{col_width}}")
                 f.write(f"".join(f"{data:<{col_width}}" for data in frame.vals) + "\n")
 
