@@ -219,7 +219,7 @@ class EquilibriumRun(MDBase):
         data_traj = DataTrajectory(atomic_structure)
         # Save first frame and sample every 100 interval
         self._storeFrame(atomic_structure, data_traj)
-        self.integrator.attach(lambda: self._storeFrame(atomic_structure, data_traj, interval=100), 100)
+        self.integrator.attach(lambda: self._storeFrame(atomic_structure, data_traj, interval=500), 500)
 
         try:
             print("Starting equilibrium simulation")
@@ -253,7 +253,7 @@ class EquilibriumRun(MDBase):
         """
         if self.integrator.ensemble == "NVT":
             if len(self.equil_data) > 100:
-                if EquilibriumCondition.checkStable(self.equil_data[-100:], 0.001):
+                if EquilibriumCondition.checkStable(self.equil_data[-100:], 0.01):
                     self.flag = 0
                     print(f"Stopped with equilibrium after {len(self.equil_data)}")
                     raise StopIteration(f"Equil reached")

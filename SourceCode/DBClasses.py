@@ -209,3 +209,20 @@ class MDAbadParameters(httk.HttkObject):
         self.expansion_factor = expansion_factor
         self.defect_index = defect_index
         self.lattice_constant = lattice_constant
+
+
+
+
+class MDQuantities(httk.HttkObject):
+
+    @httk.httk_typed_init({'key': int, 'temperature': float, 'energy_pot': float,
+                           'energy_kinetic': float, 'msd': float,  'internal_pressure': float},
+                          index = ["key"])
+    def __init__(self, key, temperature, energy_pot, energy_kinetic, msd, internal_pressure):
+        self.key = key
+        self.temperature = temperature
+        self.energy_pot = energy_pot
+        self.energy_kinetic = energy_kinetic
+        self.msd = msd
+        self.internal_pressure = internal_pressure
+
