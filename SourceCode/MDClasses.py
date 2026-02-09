@@ -173,9 +173,9 @@ class EquilibriumRun(MDBase):
     """
     def __init__(self, settings):
         super().__init__(settings)
-        self.flag = "timeout"
+        self.flag = 2
         self.run_type = "Equil"
-        self.sample_data = ["T", "E_tot", "E_kin", "E_pot", "V"]
+        self.sample_data = ["T", "E_tot", "E_kin", "E_pot", "V", "MSD", "P_internal"]
         self.equil_data = []
 
     def run(self,atomic_structure: AtomicStructure ,num_steps,init_vel = True,store_traj = True, check_conv = False, check_expansion = False):
@@ -239,7 +239,7 @@ class EquilibriumRun(MDBase):
         current_factor = sorted_z_list[-1] - sorted_z_list[0]
         expansion_factor = current_factor / pre_height
         if expansion_factor > 2:
-            self.flag = "expansionfactor"
+            self.flag = 1
             print("Expansion factor exceeded 2, simulation stopped")
             raise StopIteration("Expansion factor exceeded 2, simulation stopped")
 
@@ -253,15 +253,15 @@ class EquilibriumRun(MDBase):
         """
         if self.integrator.ensemble == "NVT":
             if len(self.equil_data) > 100:
-                if EquilibriumCondition.checkStable(self.equil_data[-100:], 0.01):
-                    self.flag = "equil"
+                if EquilibriumCondition.checkStable(self.equil_data[-100:], 0.001):
+                    self.flag = 0
                     print(f"Stopped with equilibrium after {len(self.equil_data)}")
                     raise StopIteration(f"Equil reached")
 
         else:
             if len(self.equil_data) > 100:
                 if EquilibriumCondition.checkInternalPressureStable(self.equil_data[-100:], 0.3):
-                    self.flag = "equil"
+                    self.flag = 0
                     print(f"Stopped with equilibrium after {len(self.equil_data)}")
                     raise StopIteration(f"Equil reached")
 
