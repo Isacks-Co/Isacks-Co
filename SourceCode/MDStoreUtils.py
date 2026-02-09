@@ -20,7 +20,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-from DBClasses import MDDefectCell, MDScreenResult, MDAbadParameters
+from DBClasses import MDDefectCell, MDScreenResult, MDAbadParameters, MDQuantities
 
 
 def saveMDDefectCell(store, host_name, defect_name, defect_key, structure):
@@ -77,7 +77,8 @@ def saveMDScreenResult(store, defect_key, total_energy):
     store.save(result)
 
 
-def saveMDAbadParameters(store, defect_key, depth, expansion_factor, defect_index, lattice_constant):
+def saveMDAbadParameters(store, defect_key, depth, expansion_factor, defect_index, lattice_constant,
+                         convergence_criterium, number_of_steps, time):
     """
     Save an :class:`DBClasses.MDAbadParameters` entry to the database.
 
@@ -105,10 +106,27 @@ def saveMDAbadParameters(store, defect_key, depth, expansion_factor, defect_inde
         depth=depth,
         expansion_factor=expansion_factor,
         defect_index=int(defect_index),
-        lattice_constant=float(lattice_constant)
+        lattice_constant=float(lattice_constant),
+        convergence_criterium = convergence_criterium,
+        number_of_steps = int(number_of_steps),
+        time = float(time)
 
     )
     store.save(params)
+
+
+def saveMDQuantities(store, key, temperature, energy_pot, energy_kinetic, msd, internal_pressure):
+
+    result =  MDQuantities(
+    key = key,
+    temperature = temperature,
+    energy_pot = energy_pot,
+    energy_kinetic = energy_kinetic,
+    msd = msd,
+    internal_pressure = internal_pressure
+    )
+    store.save(result)
+
 
 def CommitAndClose(backend):
     """

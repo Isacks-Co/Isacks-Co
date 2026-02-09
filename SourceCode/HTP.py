@@ -41,7 +41,7 @@ def main():
     # Adjustable parameters
     num_steps = 10000
     temp_k = 0
-    time_steps = 0.5
+    time_steps = 1
 
     log = logging.getLogger(__name__)
 
@@ -105,7 +105,7 @@ def main():
     defect_z = host_array[defect_index][2]
     host_array = np.delete(host_array, defect_index, 0)
     sorted_z_list = sorted([row[2] for row in host_array])
-    depth = sorted_z_list[-1] - defect_z
+    depth = (2*defect_z - (sorted_z_list[-1] + sorted_z_list[0])) / (sorted_z_list[-1] - sorted_z_list[0])
 
     # Save the equilibrium structure and save it in a cif file
     httk_post = ase_glue.ase_atoms_to_structure(equil_structure_atoms, hall_symbol="P 1")
@@ -130,10 +130,10 @@ def main():
                 "time": float(time.time()-pre_time),
             },
             "MDQuantities": {
+                "key" : key,
                 "temperature": equil_structure.temperature,
                 "energy_pot": equil_structure.potential_energy,
                 "energy_kinetic": equil_structure.kinetic_energy,
-                "volume": equil_structure.volume,
                 "msd": equil_structure.computeMSD(atomic_structure),
                 "internal_pressure": equil_structure.internal_pressure,
             }
