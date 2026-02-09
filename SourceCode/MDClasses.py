@@ -173,6 +173,7 @@ class EquilibriumRun(MDBase):
     """
     def __init__(self, settings):
         super().__init__(settings)
+        self.flag = 2
         self.run_type = "Equil"
         self.sample_data = ["T", "E_tot", "E_kin", "E_pot", "V", "MSD", "P_internal"]
         self.equil_data = []
@@ -203,7 +204,7 @@ class EquilibriumRun(MDBase):
             atomic_structure.setVelocitiesMB(self.integrator.temperature_K)
 
         if store_traj:
-            self._SaveASETrajectory(atomic_structure)
+            self._SaveASETrajectory(atomic_structure, interval=500)
 
         if check_expansion:
             atoms_pre = atomic_structure.getAtoms()
@@ -227,6 +228,8 @@ class EquilibriumRun(MDBase):
             print(f"Equilibrium reached in {len(self.equil_data)} steps")
 
         data_traj.storeTxtFile(start_sample=0)
+        with open("Output.txt", 'w') as o:
+            o.write(f"{self.flag}\n{len(self.equil_data)}\n")
         return atomic_structure
 
     def _check_expansion_factor(self, atomic_structure : AtomicStructure, pre_height : float):
@@ -236,6 +239,7 @@ class EquilibriumRun(MDBase):
         current_factor = sorted_z_list[-1] - sorted_z_list[0]
         expansion_factor = current_factor / pre_height
         if expansion_factor > 2:
+            self.flag = 1
             print("Expansion factor exceeded 2, simulation stopped")
             raise StopIteration("Expansion factor exceeded 2, simulation stopped")
 
@@ -249,13 +253,15 @@ class EquilibriumRun(MDBase):
         """
         if self.integrator.ensemble == "NVT":
             if len(self.equil_data) > 100:
-                if EquilibriumCondition.checkStable(self.equil_data[-100:], 0.01):
+                if EquilibriumCondition.checkStable(self.equil_data[-100:], 0.001):
+                    self.flag = 0
                     print(f"Stopped with equilibrium after {len(self.equil_data)}")
                     raise StopIteration(f"Equil reached")
 
         else:
             if len(self.equil_data) > 100:
                 if EquilibriumCondition.checkInternalPressureStable(self.equil_data[-100:], 0.3):
+                    self.flag = 0
                     print(f"Stopped with equilibrium after {len(self.equil_data)}")
                     raise StopIteration(f"Equil reached")
 

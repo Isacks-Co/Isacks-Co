@@ -20,7 +20,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-
+import time
 import logging
 import SimulationInput
 import sys
@@ -37,6 +37,7 @@ def main():
     Constant parameters: number of steps, temp_k = 0, friction, time_steps.
     Saves the initial and final configurations in a cif file.
     """
+    pre_time = time.time()
     # Adjustable parameters
     num_steps = 10000
     temp_k = 0
@@ -89,7 +90,7 @@ def main():
     # Run the simulation
 
     equil_MD = EquilibriumRun(settings=settings)
-    equil_structure = equil_MD.run(atomic_structure, settings.num_steps, store_traj = False, check_conv=True, check_expansion=True)
+    equil_structure = equil_MD.run(atomic_structure, settings.num_steps, store_traj = True, check_conv=True, check_expansion=True)
 
     E_post = equil_structure.potential_energy
 
@@ -109,20 +110,34 @@ def main():
     # Save the equilibrium structure and save it in a cif file
     httk_post = ase_glue.ase_atoms_to_structure(equil_structure_atoms, hall_symbol="P 1")
     httk_post.io.save("post_structure.cif")
-
-    result = {
-        "MDScreenResult": {
-            "key": key,
-            "energy": E_post,
-        },
-        "MDAbadParameters": {
-            "key": key,
-            "depth": depth,
-            "expansion_factor": expansion_factor,
-            "defect_index": defect_index,
-            "lattice_constant": lattice_constant,
+    with open("Output.txt",'r') as o:
+        # data[0] contains the convergence criterium. 0 is energy convergence, 1 is expansion factor and 2 is time_out
+        # data[1] contains the amount of steps
+        data = o.read().split()
+        result = {
+            "MDScreenResult": {
+                "key": key,
+                "energy": E_post,
+            },
+            "MDAbadParameters": {
+                "key": key,
+                "depth": depth,
+                "expansion_factor": expansion_factor,
+                "defect_index": defect_index,
+                "lattice_constant": lattice_constant,
+                "convergence_criterium": int(data[0]),
+                "number_of_steps": int(data[1]),
+                "time": float(time.time()-pre_time),
+            },
+            "MDQuantities": {
+                "temperature": equil_structure.temperature,
+                "energy_pot": equil_structure.potential_energy,
+                "energy_kinetic": equil_structure.kinetic_energy,
+                "volume": equil_structure.volume,
+                "msd": equil_structure.computeMSD(atomic_structure),
+                "internal_pressure": equil_structure.internal_pressure,
+            }
         }
-    }
     return result
 if __name__=="__main__":
     result = main()
