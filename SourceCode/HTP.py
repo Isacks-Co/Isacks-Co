@@ -41,7 +41,7 @@ def main():
     # Adjustable parameters
     num_steps = 10000
     temp_k = 0
-    time_steps = 1
+    time_steps = 0.5
 
     log = logging.getLogger(__name__)
 
