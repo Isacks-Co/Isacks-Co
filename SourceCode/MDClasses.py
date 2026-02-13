@@ -204,7 +204,7 @@ class EquilibriumRun(MDBase):
             atomic_structure.setVelocitiesMB(self.integrator.temperature_K)
 
         if store_traj:
-            self._SaveASETrajectory(atomic_structure, interval=500)
+            self._SaveASETrajectory(atomic_structure, interval=1)
 
         if check_expansion:
             atoms_pre = atomic_structure.getAtoms()
@@ -253,7 +253,7 @@ class EquilibriumRun(MDBase):
         """
         if self.integrator.ensemble == "NVT":
             if len(self.equil_data) > 100:
-                if EquilibriumCondition.checkStable(self.equil_data[-100:], 0.01):
+                if EquilibriumCondition.checkStable(self.equil_data[-100:], 0.001):
                     self.flag = 0
                     print(f"Stopped with equilibrium after {len(self.equil_data)}")
                     raise StopIteration(f"Equil reached")
