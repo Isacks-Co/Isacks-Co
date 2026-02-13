@@ -253,7 +253,7 @@ class EquilibriumRun(MDBase):
         """
         if self.integrator.ensemble == "NVT":
             if len(self.equil_data) > 100:
-                if EquilibriumCondition.checkStable(self.equil_data[-100:], 0.001):
+                if EquilibriumCondition.checkStable(self.equil_data[-100:], 0.01):
                     self.flag = 0
                     print(f"Stopped with equilibrium after {len(self.equil_data)}")
                     raise StopIteration(f"Equil reached")

@@ -39,9 +39,9 @@ def main():
     """
     pre_time = time.time()
     # Adjustable parameters
-    num_steps = 10000
+    num_steps = 50000
     temp_k = 300
-    time_steps = 0.5
+    time_steps = 0.1
 
     log = logging.getLogger(__name__)
 
