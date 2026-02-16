@@ -56,7 +56,22 @@ for d in leaf_dirs:
                         depth=info["depth"],
                         expansion_factor=info["expansion_factor"],
                         defect_index=info["defect_index"],
-                        lattice_constant=info["lattice_constant"])
+                        lattice_constant=info["lattice_constant"],
+                        convergence_criterium=info["convergence_criterium"],
+                        number_of_steps=info["number_of_steps"],
+                        time=info["time"],
+                    )
+
+                if "MDQuantities" in date:
+                    info = data["MDQuantities"]
+                    saveMDQuantities(
+                            key=key["key"],
+                            temperature=temperature["temperature"],
+                            energy_pot=energy_pot["energy_pot"],
+                            energy_kinetic=energy_kinetic["energy_kinetic"],
+                            msd=msd["msd"],
+                            internal_pressure=internal_pressure["internal_pressure"],
+                        )
 
         if file.startswith("post_structure"):
             atoms = read(fullpath)
