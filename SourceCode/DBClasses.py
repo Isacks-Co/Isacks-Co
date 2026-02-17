@@ -210,9 +210,9 @@ class MDAbadParameters(httk.HttkObject):
         self.depth = depth
         self.expansion_factor = expansion_factor
         self.defect_index = defect_index
-        self.lattice_constant = lattice_constant,
-        self.convergence_criterium = convergence_criterium,
-        self.number_of_steps = int(number_of_steps),
+        self.lattice_constant = lattice_constant
+        self.convergence_criterium = convergence_criterium
+        self.number_of_steps = int(number_of_steps)
         self.time = float(time)
 
 
