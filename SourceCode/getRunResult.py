@@ -1,7 +1,7 @@
 import json
 import bz2
 import pymongo
-from MDStoreUtils import saveMDScreenResult, saveMDAbadParameters, CommitAndClose
+from MDStoreUtils import saveMDScreenResult, saveMDAbadParameters, CommitAndClose, saveMDQuantities
 import sys
 import os
 import httk.db
@@ -62,9 +62,10 @@ for d in leaf_dirs:
                         time=info["time"],
                     )
 
-                if "MDQuantities" in date:
+                if "MDQuantities" in data:
                     info = data["MDQuantities"]
                     saveMDQuantities(
+                            store = store,
                             key=info["key"],
                             temperature=info["temperature"],
                             energy_pot=info["energy_pot"],
