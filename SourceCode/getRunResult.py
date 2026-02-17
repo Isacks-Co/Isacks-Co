@@ -65,12 +65,12 @@ for d in leaf_dirs:
                 if "MDQuantities" in date:
                     info = data["MDQuantities"]
                     saveMDQuantities(
-                            key=key["key"],
-                            temperature=temperature["temperature"],
-                            energy_pot=energy_pot["energy_pot"],
-                            energy_kinetic=energy_kinetic["energy_kinetic"],
-                            msd=msd["msd"],
-                            internal_pressure=internal_pressure["internal_pressure"],
+                            key=info["key"],
+                            temperature=info["temperature"],
+                            energy_pot=info["energy_pot"],
+                            energy_kinetic=info["energy_kinetic"],
+                            msd=info["msd"],
+                            internal_pressure=info["internal_pressure"],
                         )
 
         if file.startswith("post_structure"):
