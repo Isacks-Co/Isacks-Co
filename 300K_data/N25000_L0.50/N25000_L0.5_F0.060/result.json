@@ -1,0 +1,24 @@
+{
+    "MDScreenResult": {
+        "key": 0,
+        "energy": -350.8201428030307
+    },
+    "MDAbadParameters": {
+        "key": 0,
+        "depth": -0.2782769189087805,
+        "expansion_factor": 1.4636476609102251,
+        "defect_index": 0,
+        "lattice_constant": 12.73626586,
+        "convergence_criterium": 2,
+        "number_of_steps": 25000,
+        "time": 692.3223984241486
+    },
+    "MDQuantities": {
+        "key": 0,
+        "temperature": 290.1832955036452,
+        "energy_pot": -350.8201428030307,
+        "energy_kinetic": 1.8379449070374632,
+        "msd": 0.0,
+        "internal_pressure": 0.005304406109743042
+    }
+}

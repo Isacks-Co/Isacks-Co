@@ -1,0 +1,21 @@
+Info files not found
+cuequivariance or cuequivariance_torch is not available. Cuequivariance acceleration will be disabled.
+Using head default out of ['default']
+Starting equilibrium simulation
+
+==================================================================
+This program used the high-throughput toolkit
+  httk v1.2.0.dev256+ga9ee462 (2026-02-06), (c) 2012 - 2026
+
+Credits for httk modules used in this run:
+  (httk) Rickard Armiento
+  (imported spacegroup data) Computational Crystallography Toolbox, http://cctbx.sourceforge.net/
+  (imported code from cif2cell) Torbjörn Björkman
+From within httk the following software was also used:
+  * Atomic Simulation Environment (ASE) by S. R. Bahn, K. W. Jacobsen
+==================================================================
+
+real	27m43.063s
+user	27m6.038s
+sys	0m6.361s
+job completed
