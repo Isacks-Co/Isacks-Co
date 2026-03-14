@@ -57,6 +57,7 @@ class AtomicStructure:
         """
         self._atoms = atoms.copy()
         self.supercells = supercells
+        self.final_energy_mean = 0
 
         if atoms.calc != None:
             self._atoms.calc = atoms.calc

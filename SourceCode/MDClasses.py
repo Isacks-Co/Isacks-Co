@@ -176,7 +176,7 @@ class EquilibriumRun(MDBase):
         self.flag = 2
         self.run_type = "Equil"
         self.sample_data = ["T", "E_tot", "E_kin", "E_pot", "V", "MSD", "P_internal"]
-        self.equil_data = []
+        self.equil_data = np.array([])
 
     def run(self,atomic_structure: AtomicStructure ,num_steps,init_vel = True,store_traj = True, check_conv = False, check_expansion = False):
         """
@@ -214,7 +214,7 @@ class EquilibriumRun(MDBase):
 
         if check_conv:
             self.integrator.attach(lambda: self._saveData(atomic_structure),1)
-            self.integrator.attach(self._check_equilibrium,10)
+            self.integrator.attach(lambda: self._check_equilibrium(atomic_structure),10)
 
         data_traj = DataTrajectory(atomic_structure)
         # Save first frame and sample every 100 interval
@@ -224,8 +224,10 @@ class EquilibriumRun(MDBase):
         try:
             print("Starting equilibrium simulation")
             self.integrator.run(atomic_structure,num_steps)
-        except Exception:
+        except StopIteration:
             print(f"Equilibrium reached in {len(self.equil_data)} steps")
+        except Exception as err:
+            print(err)
 
         data_traj.storeTxtFile(start_sample=0)
         with open("Output.txt", 'w') as o:
@@ -243,7 +245,7 @@ class EquilibriumRun(MDBase):
             print("Expansion factor exceeded 2, simulation stopped")
             raise StopIteration("Expansion factor exceeded 2, simulation stopped")
 
-    def _check_equilibrium(self):
+    def _check_equilibrium(self, atomic_structure):
         """
         Check whether equilibrium has been reached.
 
@@ -252,9 +254,10 @@ class EquilibriumRun(MDBase):
         is detected.
         """
         if self.integrator.ensemble == "NVT":
-            if len(self.equil_data) > 100:
-                if EquilibriumCondition.checkStable(self.equil_data[-100:], 0.01):
+            if len(self.equil_data) > 400:
+                if EquilibriumCondition.checkStable(self.equil_data[-400:], 1e-6):
                     self.flag = 0
+                    atomic_structure.final_energy_mean = np.mean(self.equil_data[-200:])
                     print(f"Stopped with equilibrium after {len(self.equil_data)}")
                     raise StopIteration(f"Equil reached")
 
@@ -274,9 +277,9 @@ class EquilibriumRun(MDBase):
         pressure is appended to the equilibration history.
         """
         if self.integrator.ensemble == "NVT":
-            self.equil_data.append(atomic_structure.potential_energy)
+            self.equil_data = np.append(self.equil_data, atomic_structure.total_energy)
         else:
-            self.equil_data.append(atomic_structure.internal_pressure * 160.21766208)
+            self.equil_data = np.append(self.equil_data, atomic_structure.internal_pressure * 160.21766208)
         
 class SampleRun(MDBase):
     """

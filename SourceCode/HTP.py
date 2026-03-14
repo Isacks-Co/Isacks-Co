@@ -40,7 +40,7 @@ def main():
     pre_time = time.time()
     # Adjustable parameters
     num_steps = 10000
-    temp_k = 0
+    temp_k = 300
     time_steps = 0.5
 
     log = logging.getLogger(__name__)
@@ -92,7 +92,7 @@ def main():
     equil_MD = EquilibriumRun(settings=settings)
     equil_structure = equil_MD.run(atomic_structure, settings.num_steps, store_traj = True, check_conv=True, check_expansion=True)
 
-    E_post = equil_structure.potential_energy
+    E_post = equil_structure.final_energy_mean
 
     # Calculate the expansion factor
     equil_structure_atoms = equil_structure.getAtoms()
