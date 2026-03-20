@@ -53,5 +53,5 @@ class EquilibriumCondition:
             false if the difference is above threshold
         """
         span = np.size(list_of_values)
-        delta = abs((np.mean(list_of_values[-span:-span/2]) - np.mean(list_of_values[-span:])) / np.mean(list_of_values[-span:]))
+        delta = abs((np.mean(list_of_values[-span:-int(span/2)]) - np.mean(list_of_values[-int(span/2):])) / np.mean(list_of_values[-int(span/2):]))
         return delta <= tol
