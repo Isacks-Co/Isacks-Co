@@ -255,9 +255,9 @@ class EquilibriumRun(MDBase):
         """
         if self.integrator.ensemble == "NVT":
             if len(self.equil_data) > 1000:
-                if EquilibriumCondition.checkStable(self.equil_data[-1000:], 1e-6):
+                atomic_structure.final_energy_mean = np.mean(self.equil_data[-500:])
+                if EquilibriumCondition.checkStable(self.equil_data[-1000:],len(atomic_structure) , 1e-3):
                     self.flag = 0
-                    atomic_structure.final_energy_mean = np.mean(self.equil_data[-500:])
                     print(f"Stopped with equilibrium after {len(self.equil_data)}")
                     raise StopIteration(f"Equil reached")
 

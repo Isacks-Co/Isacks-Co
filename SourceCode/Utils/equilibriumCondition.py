@@ -42,7 +42,7 @@ class EquilibriumCondition:
         return  (np.isclose(mean_pressure, 0, atol=tol))
 
     @staticmethod
-    def checkStable(list_of_values : np.array, tol=1e-4):
+    def checkStable(list_of_values : np.array, number_of_atoms,  tol=1e-3):
         """
         Used to check if energy oscillates around certain value, then we probably found the equilibrium,
         meant to input either a list of MSD values or energy, which unlike internal pressure don't have to oscillate
@@ -54,4 +54,4 @@ class EquilibriumCondition:
         """
         span = np.size(list_of_values)
         delta = abs((np.mean(list_of_values[-span:-int(span/2)]) - np.mean(list_of_values[-int(span/2):])) / np.mean(list_of_values[-int(span/2):]))
-        return delta <= tol
+        return delta <= tol /  np.sqrt(number_of_atoms)
